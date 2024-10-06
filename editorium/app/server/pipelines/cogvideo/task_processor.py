@@ -40,6 +40,10 @@ torch._inductor.config.coordinate_descent_tuning = True
 torch._inductor.config.epilogue_fusion = False
 torch._inductor.config.coordinate_descent_check_all_directions = True
 
+
+class StopException(Exception):
+    pass
+
 # recommended_inductor_config_setter()
 
 if not os.path.exists("/home/editorium/models/upscalers"):
@@ -374,9 +378,158 @@ def generate_video(
         for i in range(len(video_generate)):
             save_video(video_generate[i], f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", should_upscale)
 
-           
-            
-def process_cogvideo_task(task: dict) -> dict:
+
+
+def load_prompts(prompt_path, args):    
+    prompts = []
+    prompt_cap = False
+    image_cap = False
+    ignore_cap = False
+    with open(prompts_path, "r") as fp:
+        current_prompt = ""
+        current_image = []
+        for line in fp:
+            line = line.strip()
+            if line.startswith("#terminate"):
+                raise StopException("Terminated due command on the file prompt.txt")
+            if line.startswith("#start"):
+                current_prompt = ""
+                current_image = []
+                prompt_cap = True
+                ignore_cap = False
+                image_cap = False
+                configs = {}
+                continue
+            if line.startswith("#config"):
+                if not prompt_cap:
+                    raise ValueError("#config without #start.")
+                key, value = line.split("#config.")[1].split("=")
+
+                try:
+                    configs[key] = int(value)
+                except ValueError:
+                    configs[key] = value
+
+                continue
+            if line.startswith("#end"):
+                if not prompt_cap:
+                    raise ValueError("#end without #start.")
+                if current_prompt == "":
+                    raise ValueError("Prompt should not be empty.")
+                if current_image == []:
+                    raise ValueError("Image should not be empty.")
+                if not ignore_cap:
+                    len_images = len(current_image)
+                    for index in range(len_images):
+                        img = current_image[index]
+                        the_prompt = {
+                            "prompt": current_prompt, 
+                            "image": img,
+                            "steps": 50,
+                            "seed": -1,
+                            "cfg": 6,
+                            "num_videos_per_prompt": 1,
+                            'generate_type': "i2v",
+                            "loop": "false",
+                            "should_upscale": "false",
+                            "stoponthis": 'false',
+                            'use_pyramid': 'false',
+                            'strength': 80,
+                        }
+                        the_prompt = {
+                            **the_prompt,
+                            **configs,
+                        }
+                        if index < len_images - 1:
+                            the_prompt["stoponthis"] = "false"
+                        if the_prompt["seed"] == -1 or index > 0:
+                            the_prompt["seed"] = random.randint(0, 1000000)
+                        the_prompt["strength"] = the_prompt["strength"] / 100.0
+                        prompts.append(the_prompt)
+
+                current_prompt = ""
+                current_image = []
+                prompt_cap = False
+                image_cap = False
+                configs = {}
+                continue
+            if line.startswith("#ignore"):
+                ignore_cap = True
+                continue
+            if line.strip().startswith("#image"):
+                image_cap = True
+                continue
+            if image_cap:
+                current_image.append(line)
+            elif prompt_cap:
+                current_prompt += line + " "
+    return prompts
+
+
+def search_prompt(store, prompt):
+    found = False
+    for p in store:
+        if p["prompt"] != prompt["prompt"]:
+            continue
+        if p["image"] != prompt["image"]:
+            continue
+        if p["steps"] != prompt["steps"]:
+            continue
+        if p["should_upscale"] != prompt["should_upscale"]:
+            continue
+        if p["use_pyramid"] != prompt["use_pyramid"]:
+            continue
+        if p["strength"] != prompt["strength"]:
+            continue
+        found = True
+        break
+    return found
+
+
+def iterate_prompts(prompt_path, args):
+    prompts_store = []
+    prompt_index = 0
+    insert_pos = 0
+    second_loop = False
+    while True:
+        prompts = load_prompts(prompt_path, args)
+        insert_pos = prompt_index
+
+        for prompt in prompts:
+            if not search_prompt(prompts_store, prompt):
+                prompt['seed_use'] = prompt['seed']
+                prompts_store.insert(insert_pos, prompt)
+                insert_pos += 1
+                if not second_loop:
+                    second_loop = True
+                    print("A new prompt was added to the list.")
+        
+        for index, prompt in enumerate(list(prompts_store)):
+            if not search_prompt(prompts, prompt):
+                prompts_store.remove(prompt)
+                print("A prompt was removed from the list.")
+                if index < prompt_index:
+                    prompt_index -= 1
+
+        second_loop = True
+
+        if len(prompts_store) == 0:
+            raise StopException("No prompts found.")
+
+        if prompt_index >= len(prompts_store):
+            prompt_index = 0
+
+        print(f"Prompt index: {prompt_index + 1} of {len(prompts_store)}")
+        
+        yield prompts_store[prompt_index]
+
+        prompts_store[prompt_index]["seed_use"] = random.randint(0, 1000000)
+        prompt_index += 1
+        if prompt_index >= len(prompts_store):
+            prompt_index = 0
+
+
+def process_cogvideo_task_generate(task: dict) -> dict:
     try:
         prompt = task.get("prompt", None)
         if prompt is None:
@@ -431,4 +584,57 @@ def process_cogvideo_task(task: dict) -> dict:
             "success": False,
             "error": str(ex)
         }
+        
+        
+def process_prompts_from_file(prompts_path: str):
+    dtype = torch.bfloat16
+    file_index = 0
+    output_path = 'output.mp4'
+    saved_outpath = output_path
+    args_lora_path = ''
+    args_lora_rank = 128
+    args_quant = 'no'
+    for prompt in iterate_prompts(prompts_path, args):
+        args_output_path = saved_outpath
+        seed = prompt["seed_use"]
+        args_output_path = f'{args_output_path.split(".")[0]}_{file_index}.mp4'
+        while os.path.exists(args_output_path):
+            file_index += 1
+            args_output_path = f'{args_output_path.split(".")[0]}.mp4'
+        if len(args_prompt.strip()) < 1:
+            raise ValueError("The prompt should not be empty.")
+        if len(args_image_or_video_path.strip()) < 1:
+            raise ValueError("The image or video path should not be empty.")
+
+        generate_video(
+            prompt=prompt["prompt"],
+            lora_path=args_lora_path,
+            lora_rank=args_lora_rank,
+            output_path=args_output_path,
+            image_or_video_path=prompt["image"],
+            num_inference_steps=prompt["steps"],
+            guidance_scale=float(prompt["cfg"]),
+            num_videos_per_prompt=prompt["num_videos_per_prompt"],
+            dtype=dtype,
+            generate_type=prompt["generate_type"],
+            seed=seed,
+            quant=args_quant in ['yes', 'true', '1'],
+            loop=(prompt["loop"].lower()  in ['yes', 'true', '1']) if isinstance prompt["loop"], (str,)) else prompt["loop"],
+            should_upscale=prompt["should_upscale"].lower() in ['yes', 'true', '1'],
+            should_use_pyramid=prompt["use_pyramid"].lower() in ['yes', 'true', '1'],
+            strength=prompt["strength"],
+        )
+        if prompt.get("stoponthis", "") in ['yes', 'true', '1']:
+            print("Only this prompt was generated due config.stoponthis in prompt.txt")
+            break
     
+
+def process_cogvideo_task(task: dict) -> dict:
+    if 'prompt' in task:
+        return process_cogvideo_task_generate(task)
+    if 'prompts_path' in task:
+        return process_cogvideo_task_generate(task)
+    return {
+        "success": False,
+        "error": "Cogvideo: Invalid task",
+    }

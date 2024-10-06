@@ -8,19 +8,18 @@ import urllib.error
 def wait_task_completion(task_id):
     should_continue = True
     while should_continue:
-        print(f"Checking task {task_id} ...")
         should_continue = False
         for i in range(3):
             try:
                 response = urllib.request.urlopen(f"http://localhost:5000/tasks/{task_id}")
                 json_data = response.read().decode()
                 data = json.loads(json_data)
+                formated_json = json.dumps(data, indent=2)
+                print(f'task: ', formated_json)
                 if data.get('in_progress', None) == True or data.get('in_queue', None) == True:
                     should_continue = True
                     time.sleep(1)
                     break
-                else:
-                    print(f"Task {data}")  
             except urllib.error.HTTPError as e:
                 print(e)
                 print(e.read())

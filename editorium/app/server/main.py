@@ -9,6 +9,28 @@ from queue import Queue, Empty
 from threading import Thread, Lock
 import time
 
+from tqdm.auto import tqdm
+
+
+progress = 0
+progress_max = 0 
+progress_lock = Lock()
+
+class TqdmUpTo(tqdm):
+    """Provides `update_to(n)` which uses `tqdm.update(delta_n)`."""
+    def update_to(self, b=1, bsize=1, tsize=None):
+        global progress
+        global progress_max
+        with progress_lock:
+            self.update(b * bsize - progress)
+            progress = b * bsize
+            progress_max = tsize
+
+
+def get_progress_percentage():
+    with progress_lock:
+        return progress / progress_max if progress_max > 0 else 0
+
 
 class TaskType:
     COGVIDEO = 'cogvideo'
@@ -208,7 +230,7 @@ def register_server(queue: Queue, completion_queue: Queue):
         is_task_in_progress = False
         with current_task_lock:
             is_task_in_progress = current_task is not None and current_task.id == task_id
-        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress})
+        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress, 'progress_bar': get_progress_percentage()})
     
     @app.route('/current-task', methods=['GET'])
     def get_current_task():

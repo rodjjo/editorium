@@ -157,6 +157,29 @@ def video2video(prompt, video_path, lora_path, lora_rank, output_name, num_infer
         print(e.read())
     except urllib.error.URLError as e:
         print(e)
+        
+
+@cog_group.command(help='Processes a prompts file line by line and generate videos following the instructions')
+@click.option('--prompts-path', type=str, required=True, help="The path to the prompts file")
+def generate_from_file(prompts_path):
+    parameters = {
+        "prompts_path": prompts_path
+    }
+    payload = {
+        "task_type": "cogvideo",
+        "parameters": parameters
+    }
+    # makes a post request to http://localhost:5000/tasks using python urllib library with the payload
+    try:
+        data = post_json_request("http://localhost:5000/tasks", payload)  
+        if data.get('task_id', None):
+            print(f'Task {data["task_id"]} created')
+            wait_task_completion(data['task_id'])
+    except urllib.error.HTTPError as e:
+        print(e)
+        print(e.read())
+    except urllib.error.URLError as e:
+        print(e)
 
 
 def register(main):
