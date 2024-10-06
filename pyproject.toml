@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "editorium"
+version = "0.1.2"
+description = "A toolbelt for image, video and audio manipulation using IA"
+authors = ["Rodrigo Antonio de Araujo <rodjjo@gmail.com>"]
+readme = "docs/README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+click = "^8.1.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.package]
+include = [
+    { path = "editorium/app", format = "dir" }
+]
+
+[tool.poetry.scripts]
+editorium = "editorium:main"

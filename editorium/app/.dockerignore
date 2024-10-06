@@ -1,0 +1,6 @@
+*
+**/*
+!run-server.sh
+!requirements.txt
+!server/*
+!server/**/*

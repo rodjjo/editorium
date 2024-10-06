@@ -1,0 +1,4 @@
+#!/bin/bash
+DIRNAME=$(dirname "$BASH_SOURCE")
+cd ${DIRNAME}
+python3 -m editorium "$@"
