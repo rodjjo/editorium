@@ -69,6 +69,20 @@ def change_fps(video_path, output_path, fps):
     video_path = full_path(video_path)
     output_path = full_path(output_path)
     subprocess.run(['ffmpeg', '-i', video_path, '-r', str(fps), output_path])
+    
+
+@ffmpeg_group.command(help='Merge all videos in a folder')
+@click.option('--folder-path', type=str, required=True, help="Path to the folder with the videos")
+@click.option('--output-path', type=str, required=True, help="Path to the output file")
+def merge(folder_path, output_path):
+    folder_path = full_path(folder_path)
+    output_path = full_path(output_path)
+    list_files = os.listdir(folder_path)
+    with open(f'{folder_path}/mergede-videos.txt', 'w') as f:
+        for file in list_files:
+            if file.endswith('.mp4'):
+                f.write(f"file '{folder_path}/{file}'\n")   
+    subprocess.run(['ffmpeg', '-f', 'concat', '-safe', '0', '-i', f'{folder_path}/mergede-videos.txt', '-c', 'copy', output_path])
 
 
 

@@ -15,7 +15,7 @@ def server_group():
 
 
 @server_group.command()
-@click.option('--path', type=str, default='.', help="[optional] The working directory to be mounted inside the container. The default is the working directory")
+@click.option('--path', type=str, required=True, help="The working directory to be mounted inside the container. The default is the working directory")
 @click.option('--docker-image', is_flag=True, help="[optional] Rebuild the docker image before running the container")
 @click.option('--env', '-e', type=str, multiple=True, help = "[optional] Allow to set multiple environment variables --env x=val --env y=val ...")
 @click.option('--cache-dir', type=str, default='~/.cache', help="[optional] The directory to store the cache files")

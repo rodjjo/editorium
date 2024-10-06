@@ -3,11 +3,13 @@ import os
 
 from uuid import uuid4
 from datetime import datetime
+from datetime import timedelta
 from flask import Flask, jsonify, redirect, request
 from flask_cors import CORS
 from queue import Queue, Empty
 from threading import Thread, Lock
 import time
+import logging
 
 from tqdm.auto import tqdm
 
@@ -151,9 +153,12 @@ def keep_worinking(queue: Queue, completion_queue: Queue):
             current_task = task
         queue.task_done()
         print(f'Processing task {task.id}')
-        result = work_on_task(task)
+        try:
+            result = work_on_task(task)
+            completion_queue.put(result)
+        except Exception as e:
+            print(f'Error processing task {task.id}: {e}')
         
-        completion_queue.put(result)
         with current_task_lock:
             current_task = None
 
@@ -161,6 +166,9 @@ def keep_worinking(queue: Queue, completion_queue: Queue):
 def create_app():
     app = Flask(__name__)
     CORS(app)
+    # disable logging
+    log = logging.getLogger('werkzeug')
+    log.disabled  = True
     return app
 
 

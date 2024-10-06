@@ -213,7 +213,7 @@ class DockerManager:
             net_params = ['--network', 'host']
 
         command = [
-            'docker', 'run', '-it', '--rm'
+            'docker', 'run', '-it', '--rm', '--runtime=nvidia', '--gpus', 'all',
         ] + volume_args + env_ags + net_params + [ 
             self.docker_tag, 'bash', '-c',
         ] + args

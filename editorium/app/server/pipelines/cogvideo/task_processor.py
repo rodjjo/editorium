@@ -144,6 +144,9 @@ def get_non_existing_path(output_path: str) -> str:
 
 
 def save_video(frames, output_path, should_upscale=False):
+    if not os.path.exists("/app/output_dir/output/videos"):
+        os.makedirs("/app/output_dir/output/videos", exist_ok=True)
+    output_path = os.path.join("/app/output_dir/output/videos", output_path)
     output_path = get_non_existing_path(output_path.replace(".mp4", ".fps.mp4"))
     
     frames = [resize_pil_image(frames[i]) for i in range(len(frames))]
@@ -380,7 +383,7 @@ def generate_video(
 
 
 
-def load_prompts(prompt_path, args):    
+def load_prompts(prompts_path):    
     prompts = []
     prompt_cap = False
     image_cap = False
@@ -486,13 +489,13 @@ def search_prompt(store, prompt):
     return found
 
 
-def iterate_prompts(prompt_path, args):
+def iterate_prompts(prompt_path):
     prompts_store = []
     prompt_index = 0
     insert_pos = 0
     second_loop = False
     while True:
-        prompts = load_prompts(prompt_path, args)
+        prompts = load_prompts(prompt_path)
         insert_pos = prompt_index
 
         for prompt in prompts:
@@ -594,17 +597,13 @@ def process_prompts_from_file(prompts_path: str):
     args_lora_path = ''
     args_lora_rank = 128
     args_quant = 'no'
-    for prompt in iterate_prompts(prompts_path, args):
+    for prompt in iterate_prompts(prompts_path):
         args_output_path = saved_outpath
         seed = prompt["seed_use"]
         args_output_path = f'{args_output_path.split(".")[0]}_{file_index}.mp4'
         while os.path.exists(args_output_path):
             file_index += 1
             args_output_path = f'{args_output_path.split(".")[0]}.mp4'
-        if len(args_prompt.strip()) < 1:
-            raise ValueError("The prompt should not be empty.")
-        if len(args_image_or_video_path.strip()) < 1:
-            raise ValueError("The image or video path should not be empty.")
 
         generate_video(
             prompt=prompt["prompt"],
@@ -619,7 +618,7 @@ def process_prompts_from_file(prompts_path: str):
             generate_type=prompt["generate_type"],
             seed=seed,
             quant=args_quant in ['yes', 'true', '1'],
-            loop=(prompt["loop"].lower()  in ['yes', 'true', '1']) if isinstance prompt["loop"], (str,)) else prompt["loop"],
+            loop=(prompt["loop"].lower()  in ['yes', 'true', '1'] if isinstance(prompt["loop"], (str,)) else prompt["loop"]),
             should_upscale=prompt["should_upscale"].lower() in ['yes', 'true', '1'],
             should_use_pyramid=prompt["use_pyramid"].lower() in ['yes', 'true', '1'],
             strength=prompt["strength"],
@@ -630,11 +629,18 @@ def process_prompts_from_file(prompts_path: str):
     
 
 def process_cogvideo_task(task: dict) -> dict:
-    if 'prompt' in task:
-        return process_cogvideo_task_generate(task)
-    if 'prompts_path' in task:
-        return process_cogvideo_task_generate(task)
-    return {
-        "success": False,
-        "error": "Cogvideo: Invalid task",
-    }
+    try:
+        if 'prompt' in task:
+            return process_cogvideo_task_generate(task)
+        if 'prompts_path' in task:
+            return process_prompts_from_file(task['prompts_path'])
+        return {
+            "success": False,
+            "error": "Cogvideo: Invalid task",
+        }
+    except Exception as ex:
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(ex)
+        }
