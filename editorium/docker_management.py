@@ -190,17 +190,13 @@ class DockerManager:
 
         return True, content_hash
 
-    def shell(self, host_network: bool = True, path: str = '', env: dict = {}, args: List = [], volumes: dict = {}):
+    def shell(self, host_network: bool = True, workdir: str = '', env: dict = {}, args: List = [], volumes: dict = {}):
         if not len(args):
             args = ['bash']
+
         volume_args = [
+            '-w', workdir
         ]
-        if path:
-            path = full_path(path)
-            volume_args = [
-                '-v', f'{path}:{path}',
-                '-w', path
-            ]
 
         for k, v in volumes.items():
             volume_args += [

@@ -3,9 +3,18 @@ import os
 
 from uuid import uuid4
 from datetime import datetime
-from flask import Flask, jsonify, redirect
+from flask import Flask, jsonify, redirect, request
 from flask_cors import CORS
-from queue import Queue
+from queue import Queue, Empty
+from threading import Thread, Lock
+import time
+
+
+class TaskType:
+    COGVIDEO = 'cogvideo'
+    STABLE_DIFFUSION_15 = 'stable_diffusion_1.5'
+    FLUX = 'flux'
+    PREPROCESSOR = 'image_preprocessor'
 
 
 class Task:
@@ -18,7 +27,7 @@ class Task:
     def to_dict(self):
         return {
             'id': self.id,
-            'name': self.name,
+            'task_type': self.task_type,
             'parameters': self.parameters,
             'created_at': self.created_at.isoformat()
         }
@@ -30,7 +39,7 @@ class Task:
             data['task_type'],
             data['parameters']
         )
-        item.created_at = datetime.fromisoformat(data['created_at'])
+        item.created_at = datetime.fromisoformat(data['created_at']) if 'created_at' in data else datetime.now()
         return item
 
 class CompletedTask(Task):
@@ -59,30 +68,71 @@ class CompletedTask(Task):
         item.completed_at = datetime.fromisoformat(data['completed_at'])
         return item
 
+
 def remove_old_completed_task(completion_queue):
-    task = completion_queue.get()
+    try:
+        task = completion_queue.get_nowait()
+    except Empty:
+        task = None
+    if task is None:
+        return
     if task.completed_at < datetime.now() - timedelta(seconds=15):
         return
     completion_queue.put(task)
 
+current_task = None
+current_task_lock = Lock()
 
-def work_on_task(task: Task):
+
+def pop_one_task(queue: Queue):
+    with current_task_lock:
+        try:
+            task = queue.get_nowait()
+        except Empty:  
+            return None
+        return task
+    
+def list_queue(queue: Queue):
+    with current_task_lock:
+        return list(queue)
+
+def work_on_task(task: Task) -> CompletedTask:
     print(f'Working on task {task.id}')
     print(f'Task type: {task.task_type}')
-    print(f'Parameters: {task.parameters}')
+    
+    result = {}
+    if task.task_type == TaskType.COGVIDEO:
+        from pipelines.cogvideo.task_processor import process_cogvideo_task
+        result = process_cogvideo_task(task.parameters)
+    
+    completed = CompletedTask(
+        task.id,
+        task.task_type,
+        task.parameters,
+        result
+    )
+
+    return completed
     
 
 def keep_worinking(queue: Queue, completion_queue: Queue):
+    print("Starting worker")
     while True:
         remove_old_completed_task(completion_queue)
-        task = queue.get()
+        task = pop_one_task(queue)
         if task is None:
             # sleep for a while
             time.sleep(1)
             continue
-        work_on_task(task)
+        with current_task_lock:
+            current_task = task
         queue.task_done()
-        completion_queue.put(task)
+        print(f'Processing task {task.id}')
+        result = work_on_task(task)
+        
+        completion_queue.put(result)
+        with current_task_lock:
+            current_task = None
 
 
 def create_app():
@@ -106,7 +156,12 @@ def register_server(queue: Queue, completion_queue: Queue):
     
     def update_completed_tasks():
         while not app.completion_queue.empty():
-            task = app.completion_queue.get()
+            try:
+                task = app.completion_queue.get_nowait()
+            except app.Empty:
+                task = None
+            if task is None:
+                return
             app.completed_tasks[task.id] = task
             app.completion_queue.task_done()
         remove_old_completed_task()
@@ -136,20 +191,30 @@ def register_server(queue: Queue, completion_queue: Queue):
     @app.route('/tasks', methods=['POST'])
     def create_task():
         data = request.json
-        data['id'] = str(uuid.uuid4())
+        data['id'] = str(uuid4())
         task = Task.from_dict(data)
         app.service_queue.put(task)
         return jsonify({'status': 'ok', 'task_id': task.id})
     
     @app.route('/tasks', methods=['GET'])
     def list_tasks():
-        tasks = list(app.service_queue.queue)
+        tasks = list_queue(app.service_queue)
         return jsonify([t.to_dict() for t in tasks])
     
     @app.route('/tasks/<task_id>', methods=['GET'])
     def is_task_queued(task_id):
-        task_in_queue = any(task.id == task_id for task in app.service_queue.queue)
-        return jsonify({'in_queue': task_in_queue})
+        task_in_queue = any(task.id == task_id for task in list_queue(app.service_queue.queue))
+        is_task_in_progress = False
+        with current_task_lock:
+            is_task_in_progress = current_task is not None and current_task.id == task_id
+        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress})
+    
+    @app.route('/current-task', methods=['GET'])
+    def get_current_task():
+        with current_task_lock:
+            if current_task is None:
+                return jsonify({'status': 'no task in progress'})
+            return jsonify(current_task.to_dict())
     
     @app.route('/completed-tasks/<task_id>', methods=['GET'])
     def get_completed_task(task_id):
@@ -170,14 +235,14 @@ def register_server(queue: Queue, completion_queue: Queue):
     return app
 
 
-def run_server(queue: Queue):
-    app = register_server(queue)
+def run_server(queue: Queue, completion_queue: Queue):
+    app = register_server(queue, completion_queue)
     app.run(host='0.0.0.0', port=os.environ.get('PORT', 5000))
 
 
 def create_server_thread(queue: Queue, completion_queue: Queue):
-    import threading
-    return threading.Thread(target=run_server, args=(queue, completion_queue))
+    return Thread(target=run_server, args=(queue, completion_queue))
+
 
 
 if __name__ == '__main__':
@@ -185,6 +250,7 @@ if __name__ == '__main__':
     completion_queue = Queue()
     thread = create_server_thread(queue, completion_queue)
     thread.start()
-    keep_worinking(queue)
+    time.sleep(2)
+    keep_worinking(queue, completion_queue)
     thread.join()
     
