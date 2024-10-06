@@ -116,6 +116,7 @@ def work_on_task(task: Task) -> CompletedTask:
     
 
 def keep_worinking(queue: Queue, completion_queue: Queue):
+    global current_task
     print("Starting worker")
     while True:
         remove_old_completed_task(completion_queue)

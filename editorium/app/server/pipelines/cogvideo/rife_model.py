@@ -7,7 +7,7 @@ from pipelines.cogvideo.rife.pytorch_msssim import ssim_matlab
 import numpy as np
 import logging
 import skvideo.io
-from rife.RIFE_HDv3 import Model
+from pipelines.cogvideo.rife.RIFE_HDv3 import Model
 
 logger = logging.getLogger(__name__)
 device = "cuda" if torch.cuda.is_available() else "cpu"

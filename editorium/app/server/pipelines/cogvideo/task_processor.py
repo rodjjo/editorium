@@ -22,7 +22,7 @@ from diffusers.utils import export_to_video, load_video
 from transformers import T5EncoderModel
 from torchvision import transforms
 from PIL import Image
-import pipelines.cogvideo.utils
+import pipelines.cogvideo.utils as utils
 from pipelines.cogvideo.rife_model import load_rife_model, rife_inference_with_latents
 from torchao.quantization import quantize_, int8_weight_only
 from torchao.quantization.utils import recommended_inductor_config_setter
@@ -42,8 +42,14 @@ torch._inductor.config.coordinate_descent_check_all_directions = True
 
 # recommended_inductor_config_setter()
 
-upscale_model = utils.load_sd_upscale("model_real_esran/RealESRGAN_x4.pth", 'cpu')
-frame_interpolation_model = load_rife_model("model_rife")
+if not os.path.exists("/home/editorium/models/upscalers"):
+    os.makedirs("/home/editorium/models/upscalers", exist_ok=True)
+    
+if not os.path.exists("/home/editorium/models/interpolations"):
+    os.makedirs("/home/editorium/models/interpolations", exist_ok=True)
+
+upscale_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
+frame_interpolation_model = load_rife_model("/home/editorium/models/interpolations/model_rife")
 
 
 def quantize_model(part, quantization_scheme="fp8"):
