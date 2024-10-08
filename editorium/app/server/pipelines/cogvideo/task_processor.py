@@ -24,12 +24,21 @@ from torchvision import transforms
 from PIL import Image
 import pipelines.cogvideo.utils as utils
 from pipelines.cogvideo.rife_model import load_rife_model, rife_inference_with_latents
-from torchao.quantization import quantize_, int8_weight_only
+from torchao.quantization import quantize_, int8_weight_only, int4_weight_only
 from torchao.quantization.utils import recommended_inductor_config_setter
+
+from PIL import Image
+import subprocess
 
 import numpy as np
 
 # from torchao.float8.inference import ActivationCasting, QuantConfig, quantize_to_float8
+
+from pipelines.cogvideo.cogvideox_transformer_att import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelAtt
+from pipelines.cogvideo.cogvideox_transformer_pab import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelPAB
+from pipelines.cogvideo.core.pab_mgr import set_pab_manager, CogVideoXPABConfig
+from pipelines.cogvideo.load_gguf import load_gguf_transformer
+from pipelines.cogvideo.cogvideox_lora_trainer import train_lora_model
 
 # os.environ["TORCH_LOGS"] = "+dynamo,output_code,graph_breaks,recompiles"
 
@@ -52,24 +61,36 @@ if not os.path.exists("/home/editorium/models/upscalers"):
 if not os.path.exists("/home/editorium/models/interpolations"):
     os.makedirs("/home/editorium/models/interpolations", exist_ok=True)
 
-upscale_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
-frame_interpolation_model = load_rife_model("/home/editorium/models/interpolations/model_rife")
+upscale_model = None
+frame_interpolation_model = None
 
 
 def quantize_model(part, quantization_scheme="fp8"):
     # if quantization_scheme == "int8":
     quantize_(part, int8_weight_only())
     #elif quantization_scheme == "fp8":
-    #        quantize_to_float8(part, QuantConfig(ActivationCasting.DYNAMIC))
+    # quantize_to_float8(part, QuantConfig(ActivationCasting.DYNAMIC))
     return part
 
 
-def quantize_pipe(model_path, model_class, dtype, pipe, quantization_scheme="fp8"):
+def quantize_pipe(model_path, model_class, dtype, quantization_scheme="fp8", use_attn=False, use_gguf=False):
     text_encoder = T5EncoderModel.from_pretrained(model_path, subfolder="text_encoder", torch_dtype=dtype)
     if quantization_scheme:
         text_encoder = quantize_model(part=text_encoder, quantization_scheme=quantization_scheme)
+    if use_attn:
+        transform_class = CogVideoXTransformer3DModelAtt
+    else:
+        transform_class = CogVideoXTransformer3DModel
         
-    transformer = CogVideoXTransformer3DModel.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
+    if use_gguf:
+        #  CogVideoX_5b_I2V_GGUF_Q4_0.safetensors    
+        transformer = transform_class.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
+        gguf_path = "/home/editorium/models/videos/CogVideoX_5b_I2V_GGUF_Q4_0.safetensors"
+        if os.path.exists(gguf_path):
+            load_gguf_transformer(transformer, gguf_path)
+    else: 
+        transformer = transform_class.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
+        
     if quantization_scheme:
         transformer = quantize_model(part=transformer, quantization_scheme=quantization_scheme)
         
@@ -94,6 +115,8 @@ def quantize_pipe(model_path, model_class, dtype, pipe, quantization_scheme="fp8
     )
     gc.collect()
     torch.cuda.empty_cache()
+    if not quantization_scheme:
+        pipe.to(dtype=torch.float16)
     return pipe
 
 
@@ -125,12 +148,10 @@ pipe = None
 current_type = None
 current_model = None
 current_looping = False
+current_pyramid = False
 
 to_tensors_transform = transforms.ToTensor()
 to_pil_transform = transforms.ToPILImage()
-
-from PIL import Image
-import subprocess
 
 blank_image = Image.new("RGB", (736, 496), (0, 0, 0))
 
@@ -191,23 +212,17 @@ def generate_video(
     global current_type
     global current_looping
     global current_model
+    global current_pyramid
+    global upscale_model
+    global frame_interpolation_model
     output_path = output_path.replace(".mp4", "")
-    """
-    Generates a video based on the given prompt and saves it to the specified path.
+    
+    if upscale_model is None:
+        upscale_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
+        
+    if frame_interpolation_model is None:
+        frame_interpolation_model = load_rife_model("/home/editorium/models/interpolations/model_rife")
 
-    Parameters:
-    - prompt (str): The description of the video to be generated.
-    - model_path (str): The path of the pre-trained model to be used.
-    - lora_path (str): The path of the LoRA weights to be used.
-    - lora_rank (int): The rank of the LoRA weights.
-    - output_path (str): The path where the generated video will be saved.
-    - num_inference_steps (int): Number of steps for the inference process. More steps can result in better quality.
-    - guidance_scale (float): The scale for classifier-free guidance. Higher values can lead to better alignment with the prompt.
-    - num_videos_per_prompt (int): Number of videos to generate per prompt.
-    - dtype (torch.dtype): The data type for computation (default is torch.bfloat16).
-    - generate_type (str): The type of video generation (e.g., 't2v', 'i2v', 'v2v').·
-    - seed (int): The seed for reproducibility.
-    """
 
     # 1.  Load the pre-trained CogVideoX pipeline with the specified precision (bfloat16).
     # add device_map="balanced" in the from_pretrained function and remove the enable_model_cpu_offload()
@@ -232,8 +247,14 @@ def generate_video(
         torch.cuda.empty_cache()
         current_looping = loop_enabled
     
+    if current_pyramid != should_use_pyramid:
+        print(f"Loading model to generate video. pyramid = {should_use_pyramid}")
+        pipe = None
+        gc.collect()
+        torch.cuda.empty_cache()
+        current_pyramid = should_use_pyramid
+    
     if generate_type == "i2v":
-        should_use_pyramid = False
         model_path = "THUDM/CogVideoX-5b-I2V" 
     elif should_use_pyramid: 
         model_path =  "THUDM/CogVideoX-2b"
@@ -270,10 +291,15 @@ def generate_video(
             model_class = CogVideoXPipeline
         else:
             model_class = CogVideoXVideoToVideoPipeline
-
+            
+        if should_use_pyramid:
+            config = CogVideoXPABConfig()
+            set_pab_manager(config)
+        
+        use_gguf = False # generate_type == "i2v"
         if quant:
             print("Quantizing model")
-            pipe = quantize_pipe(model_path, model_class, dtype, pipe, "int8")
+            pipe = quantize_pipe(model_path, model_class, dtype, "int8", use_attn=False, use_gguf=use_gguf)
             print("Model quantized")
             generator = torch.Generator().manual_seed(seed)
             #pipe.vae.enable_slicing()
@@ -281,31 +307,28 @@ def generate_video(
             # print("Compiling model")
             # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune", fullgraph=True)  
             # print("Model compiled")
-            pipe.enable_model_cpu_offload()
-           # pipe.enable_pyramid_attention_broadcast(
-           #     spatial_attn_skip_range=2,
-           #     spatial_attn_timestep_range=[100, 850],
-           # )
+            # pipe.enable_model_cpu_offload()
+            pipe.enable_sequential_cpu_offload()
         else:
-            pipe = quantize_pipe(model_path, model_class, dtype, pipe, "")
-            # pipe.enable_pyramid_attention_broadcast(
-            #     spatial_attn_skip_range=2,
-            #     spatial_attn_timestep_range=[100, 850],
-            # )
+            pipe = quantize_pipe(model_path, model_class, dtype, "", use_attn=True, use_gguf=use_gguf)
             pipe.scheduler = CogVideoXDPMScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
             # pipe.enable_model_cpu_offload()
             pipe.enable_sequential_cpu_offload()
-        if should_use_pyramid:
-            pipe.enable_pyramid_attention_broadcast(
-                spatial_attn_skip_range=2,
-                spatial_attn_timestep_range=[100, 850],
-            )
+        #if should_use_pyramid:
+            #print("Enabling pyramid attention")
+            #pipe.enable_pyramid_attention_broadcast(
+            #    spatial_attn_skip_range=2,
+            #    spatial_attn_timestep_range=[100, 850],
+            #)
+
         pipe.vae.enable_slicing()
         pipe.vae.enable_tiling()
+
         if vae_encode_decode:
             pipe = pipe.vae
-            gc.collect()    
-            torch.cuda.empty_cache()       
+            
+        gc.collect()    
+        torch.cuda.empty_cache()       
     
 
     # 4. Generate the video frames based on the prompt.
@@ -382,7 +405,6 @@ def generate_video(
             save_video(video_generate[i], f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", should_upscale)
 
 
-
 def load_prompts(prompts_path):    
     prompts = []
     prompt_cap = False
@@ -438,17 +460,34 @@ def load_prompts(prompts_path):
                             "stoponthis": 'false',
                             'use_pyramid': 'false',
                             'strength': 80,
+                            'count': 1,
+                            'quant': 'false',
                         }
                         the_prompt = {
                             **the_prompt,
                             **configs,
                         }
-                        if index < len_images - 1:
-                            the_prompt["stoponthis"] = "false"
-                        if the_prompt["seed"] == -1 or index > 0:
+                        original_stoponthis = the_prompt["stoponthis"]
+                        the_prompt["stoponthis"] = 'false'
+                        if the_prompt['seed'] == -1:
                             the_prompt["seed"] = random.randint(0, 1000000)
                         the_prompt["strength"] = the_prompt["strength"] / 100.0
-                        prompts.append(the_prompt)
+                        if the_prompt["count"] > 100:
+                            the_prompt["count"] = 100
+                        count_max = the_prompt["count"]
+                        for count in range(count_max):
+                            the_prompt = {
+                                **the_prompt,
+                            }
+
+                            if count == count_max - 1 and index == len_images - 1:
+                                the_prompt['stoponthis'] = original_stoponthis
+                            prompts.append(the_prompt)
+                            tthe_prompt = {
+                                **the_prompt,
+                            }
+                            the_prompt["seed"] = random.randint(0, 1000000)
+              
 
                 current_prompt = ""
                 current_image = []
@@ -484,51 +523,36 @@ def search_prompt(store, prompt):
             continue
         if p["strength"] != prompt["strength"]:
             continue
+        if p["seed"] != prompt["seed"]:
+            continue
+        if p["quant"] != prompt["quant"]:
+            continue
         found = True
         break
     return found
 
 
 def iterate_prompts(prompt_path):
-    prompts_store = []
+    prompt_store = []
     prompt_index = 0
-    insert_pos = 0
-    second_loop = False
     while True:
         prompts = load_prompts(prompt_path)
-        insert_pos = prompt_index
-
-        for prompt in prompts:
-            if not search_prompt(prompts_store, prompt):
-                prompt['seed_use'] = prompt['seed']
-                prompts_store.insert(insert_pos, prompt)
-                insert_pos += 1
-                if not second_loop:
-                    second_loop = True
-                    print("A new prompt was added to the list.")
-        
-        for index, prompt in enumerate(list(prompts_store)):
-            if not search_prompt(prompts, prompt):
-                prompts_store.remove(prompt)
-                print("A prompt was removed from the list.")
-                if index < prompt_index:
-                    prompt_index -= 1
-
-        second_loop = True
-
-        if len(prompts_store) == 0:
+        prompts = [{"seed_use": p["seed"], **p} for p in prompts]
+        if prompt_index >= len(prompt_store):
+            prompt_index = 0
+        prompt_store = prompts[:]
+        if len(prompt_store) == 0:
             raise StopException("No prompts found.")
 
-        if prompt_index >= len(prompts_store):
+        if prompt_index >= len(prompt_store):
             prompt_index = 0
+            for i in range(len(prompt_store)):
+                prompt_store[i]["seed_use"] = random.randint(0, 1000000)
 
-        print(f"Prompt index: {prompt_index + 1} of {len(prompts_store)}")
-        
-        yield prompts_store[prompt_index]
-
-        prompts_store[prompt_index]["seed_use"] = random.randint(0, 1000000)
+        print(f"Prompt index: {prompt_index + 1} of {len(prompt_store)}")
+        yield prompt_store[prompt_index]
         prompt_index += 1
-        if prompt_index >= len(prompts_store):
+        if prompt_index >= len(prompt_store):
             prompt_index = 0
 
 
@@ -551,7 +575,6 @@ def process_cogvideo_task_generate(task: dict) -> dict:
         num_inference_steps = task.get("num_inference_steps", 50)
         guidance_scale = task.get("guidance_scale", 6.0)
         num_videos_per_prompt = task.get("num_videos_per_prompt", 1)
-        dtype =  torch.bfloat16
         seed = task.get("seed", 42)
         quant = task.get("quant", False)
         loop = task.get("loop", False)
@@ -568,7 +591,6 @@ def process_cogvideo_task_generate(task: dict) -> dict:
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             num_videos_per_prompt=num_videos_per_prompt,
-            dtype=dtype,
             generate_type=generate_type,
             seed=seed,
             quant=quant,
@@ -596,7 +618,6 @@ def process_prompts_from_file(prompts_path: str):
     saved_outpath = output_path
     args_lora_path = ''
     args_lora_rank = 128
-    args_quant = 'no'
     for prompt in iterate_prompts(prompts_path):
         args_output_path = saved_outpath
         seed = prompt["seed_use"]
@@ -617,7 +638,7 @@ def process_prompts_from_file(prompts_path: str):
             dtype=dtype,
             generate_type=prompt["generate_type"],
             seed=seed,
-            quant=args_quant in ['yes', 'true', '1'],
+            quant=prompt["quant"] in ['yes', 'true', '1'],
             loop=(prompt["loop"].lower()  in ['yes', 'true', '1'] if isinstance(prompt["loop"], (str,)) else prompt["loop"]),
             should_upscale=prompt["should_upscale"].lower() in ['yes', 'true', '1'],
             should_use_pyramid=prompt["use_pyramid"].lower() in ['yes', 'true', '1'],
@@ -626,7 +647,25 @@ def process_prompts_from_file(prompts_path: str):
         if prompt.get("stoponthis", "") in ['yes', 'true', '1']:
             print("Only this prompt was generated due config.stoponthis in prompt.txt")
             break
+    return {
+        "success": True,
+    }
     
+
+def train_cogvideo_lora(train_filepath: str):
+    global pipe
+    global upscale_model
+    global frame_interpolation_model
+    upscale_model = None
+    frame_interpolation_model = None
+    pipe = None
+    gc.collect()
+    torch.cuda.empty_cache()
+    print("Training LoRA model")
+    train_lora_model(train_filepath)
+    return {
+        "success": False,
+    }
 
 def process_cogvideo_task(task: dict) -> dict:
     try:
@@ -634,11 +673,14 @@ def process_cogvideo_task(task: dict) -> dict:
             return process_cogvideo_task_generate(task)
         if 'prompts_path' in task:
             return process_prompts_from_file(task['prompts_path'])
+        if 'train_file' in task:
+            return train_cogvideo_lora(task['train_file'])
         return {
             "success": False,
             "error": "Cogvideo: Invalid task",
         }
     except Exception as ex:
+        print(str(ex))
         traceback.print_exc()
         return {
             "success": False,

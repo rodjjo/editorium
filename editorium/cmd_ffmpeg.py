@@ -23,7 +23,8 @@ def ffmpeg_group():
 def last_frame(video_path, output_path):
     video_path = full_path(video_path)
     output_path = full_path(output_path)
-    subprocess.run(['ffmpeg', '-i', video_path, '-vf', 'select=eq(n\\,0)', '-vsync', 'vfr', output_path])
+    #  -sseof -3 -i input -update 1 -q:v 1
+    subprocess.run(['ffmpeg', "-sseof", "-1", '-i', video_path, "-update", '1', '-q:v', '1', output_path])
 
 
 @ffmpeg_group.command(help='Cut a video from a start time to an end time')
@@ -78,6 +79,7 @@ def merge(folder_path, output_path):
     folder_path = full_path(folder_path)
     output_path = full_path(output_path)
     list_files = os.listdir(folder_path)
+    list_files.sort()
     with open(f'{folder_path}/mergede-videos.txt', 'w') as f:
         for file in list_files:
             if file.endswith('.mp4'):

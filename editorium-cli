@@ -1,4 +1,5 @@
 #!/bin/bash
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 DIRNAME=$(dirname "$BASH_SOURCE")
 cd ${DIRNAME}
 python3 -m editorium "$@"

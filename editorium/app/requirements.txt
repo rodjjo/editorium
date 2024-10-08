@@ -11,10 +11,13 @@ imageio>=2.35.1
 imageio-ffmpeg>=0.5.1
 openai>=1.45.0
 moviepy>=1.0.3
-pillow==9.5.0
+pillow==10.4.0
 flask>=2.1.1
 flask-cors>=5.0.0
 spandrel==0.4.0
 opencv-contrib-python==4.10.0.84
 sk-video==1.1.10
 torchao==0.5.0
+safetensors==0.4.5
+peft==0.13.0
+decord==0.6.0

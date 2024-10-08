@@ -194,7 +194,31 @@ def generate_from_file(prompts_path):
         print(e.read())
     except urllib.error.URLError as e:
         print(e)
+        
 
+@cog_group.command(help='Fine tune CogvideoX-5B lora model')
+#   --train-file /app/data/train.json
+@click.option('--train-file', type=str, required=True, help="The path to the train file")
+def fine_tune(train_file):
+    parameters = {
+        "train_file": train_file
+    }
+    payload = {
+        "task_type": "cogvideo_lora",
+        "parameters": parameters
+    }
+    # makes a post request to http://localhost:5000/tasks using python urllib library with the payload
+    try:
+        data = post_json_request("http://localhost:5000/tasks", payload)  
+        if data.get('task_id', None):
+            print(f'Task {data["task_id"]} created')
+            wait_task_completion(data['task_id'])
+    except urllib.error.HTTPError as e:
+        print(e)
+        print(e.read())
+    except urllib.error.URLError as e:
+        print(e)
+            
 
 def register(main):
     @main.command(name='cogvideo', context_settings=dict(

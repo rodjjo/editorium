@@ -10,23 +10,11 @@ from queue import Queue, Empty
 from threading import Thread, Lock
 import time
 import logging
-
-from tqdm.auto import tqdm
-
+import sys
 
 progress = 0
 progress_max = 0 
 progress_lock = Lock()
-
-class TqdmUpTo(tqdm):
-    """Provides `update_to(n)` which uses `tqdm.update(delta_n)`."""
-    def update_to(self, b=1, bsize=1, tsize=None):
-        global progress
-        global progress_max
-        with progress_lock:
-            self.update(b * bsize - progress)
-            progress = b * bsize
-            progress_max = tsize
 
 
 def get_progress_percentage():
@@ -36,6 +24,7 @@ def get_progress_percentage():
 
 class TaskType:
     COGVIDEO = 'cogvideo'
+    COGVIDEO_LORA = 'cogvideo_lora' 
     STABLE_DIFFUSION_15 = 'stable_diffusion_1.5'
     FLUX = 'flux'
     PREPROCESSOR = 'image_preprocessor'
@@ -125,10 +114,10 @@ def work_on_task(task: Task) -> CompletedTask:
     print(f'Task type: {task.task_type}')
     
     result = {}
-    if task.task_type == TaskType.COGVIDEO:
+    if task.task_type in (TaskType.COGVIDEO, TaskType.COGVIDEO_LORA):
         from pipelines.cogvideo.task_processor import process_cogvideo_task
         result = process_cogvideo_task(task.parameters)
-    
+        
     completed = CompletedTask(
         task.id,
         task.task_type,

@@ -18,6 +18,10 @@ ADD ./requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 RUN rm /tmp/requirements.txt
 
+ADD ./requirements-experimental.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt --force-reinstall
+RUN rm /tmp/requirements.txt
+
 ADD ./server /app/editorium/server
 ADD ./run-server.sh /app/editorium/run-server.sh
 
