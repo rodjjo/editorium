@@ -12,14 +12,27 @@ import time
 import logging
 import sys
 
-progress = 0
-progress_max = 0 
+
+progress_title = ''
+progress = 0.0
 progress_lock = Lock()
 
 
 def get_progress_percentage():
     with progress_lock:
-        return progress / progress_max if progress_max > 0 else 0
+        return progress
+
+
+def get_progress_title():
+    with progress_lock:
+        return progress_title
+
+
+def progress_callback(title, percentage):
+    with progress_lock:
+        global progress_title, progress
+        progress_title = title
+        progress = percentage
 
 
 class TaskType:
@@ -54,6 +67,7 @@ class Task:
         )
         item.created_at = datetime.fromisoformat(data['created_at']) if 'created_at' in data else datetime.now()
         return item
+
 
 class CompletedTask(Task):
     def __init__(self, id: str, task_type: str, parameters: dict, result: dict):
@@ -116,7 +130,7 @@ def work_on_task(task: Task) -> CompletedTask:
     result = {}
     if task.task_type in (TaskType.COGVIDEO, TaskType.COGVIDEO_LORA):
         from pipelines.cogvideo.task_processor import process_cogvideo_task
-        result = process_cogvideo_task(task.parameters)
+        result = process_cogvideo_task(task.parameters, progress_callback)
         
     completed = CompletedTask(
         task.id,
@@ -201,7 +215,6 @@ def register_server(queue: Queue, completion_queue: Queue):
                 '/completed-tasks/<task_id>': 'Get a completed task',
             }
         })
-        
     
     @app.route('/', methods=['GET'])
     def root():
@@ -213,6 +226,11 @@ def register_server(queue: Queue, completion_queue: Queue):
         data = request.json
         data['id'] = str(uuid4())
         task = Task.from_dict(data)
+
+        if task.task_type == TaskType.COGVIDEO and task.parameters.get('prompts_path', False):
+            from pipelines.cogvideo.task_processor import cancel_cogvideo_task
+            cancel_cogvideo_task()
+
         app.service_queue.put(task)
         return jsonify({'status': 'ok', 'task_id': task.id})
     
@@ -227,7 +245,7 @@ def register_server(queue: Queue, completion_queue: Queue):
         is_task_in_progress = False
         with current_task_lock:
             is_task_in_progress = current_task is not None and current_task.id == task_id
-        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress, 'progress_bar': get_progress_percentage()})
+        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress, 'progress_bar': get_progress_percentage(), 'progress_title': get_progress_title()})
     
     @app.route('/current-task', methods=['GET'])
     def get_current_task():
@@ -270,7 +288,6 @@ if __name__ == '__main__':
     completion_queue = Queue()
     thread = create_server_thread(queue, completion_queue)
     thread.start()
-    time.sleep(2)
     keep_worinking(queue, completion_queue)
     thread.join()
     

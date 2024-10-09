@@ -5,7 +5,7 @@ import os
 import sys
 import random
 import argparse
-from typing import Literal
+from typing import Literal, List
 
 import torch
 from diffusers import (
@@ -27,9 +27,11 @@ from pipelines.cogvideo.rife_model import load_rife_model, rife_inference_with_l
 from torchao.quantization import quantize_, int8_weight_only, int4_weight_only
 from torchao.quantization.utils import recommended_inductor_config_setter
 
-from PIL import Image
-import subprocess
 
+from PIL import Image
+
+import subprocess
+from tqdm import tqdm
 import numpy as np
 
 # from torchao.float8.inference import ActivationCasting, QuantConfig, quantize_to_float8
@@ -49,6 +51,94 @@ torch._inductor.config.coordinate_descent_tuning = True
 torch._inductor.config.epilogue_fusion = False
 torch._inductor.config.coordinate_descent_check_all_directions = True
 
+SHOULD_STOP = False
+PROGRESS_CALLBACK = None  # function(title: str, progress: float)
+CURRENT_TITLE = ""
+
+def set_title(title):
+    global CURRENT_TITLE
+    CURRENT_TITLE = f'CogVideoX: {title}'
+    print(CURRENT_TITLE)    
+
+def call_callback(title):
+    set_title(title)
+    if PROGRESS_CALLBACK is not None:
+        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
+
+
+class TqdmUpTo(tqdm):
+    def update(self, n=1):
+        result = super().update(n)
+        if SHOULD_STOP:
+            raise StopException("Stopped by user.")
+        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
+            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
+        return result
+
+
+class PromptConfig:
+    steps: int = 50
+    seed: int = -1
+    cfg: int = 6
+    num_videos_per_prompt: int = 1
+    generate_type: str = "i2v"
+    loop: bool = False
+    should_upscale: bool = False
+    stoponthis: bool = False
+    use_pyramid: bool = False
+    strength: int = 80
+    count: int = 1
+    quant: bool = False
+    
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+                
+    # parses all the lines if it starts with #config. and sets the value to the attribute
+    # if the attribute is not found, it will be ignored
+    def parse_lines(self, lines: List[str]):
+        for line in lines:
+            if line.startswith("#config."):
+                key, value = line.split("#config.")[1].split("=")
+                if hasattr(self, key):
+                    converted = False
+                    try:
+                        value = int(value)
+                        converted = True
+                    except ValueError:
+                        pass
+                    if not converted:
+                        try:
+                            value = float(value)
+                            converted = True
+                        except ValueError:
+                            pass
+                    if not converted:
+                        if value.lower() in ["yes", "true", "1"]:
+                            value = True
+                            converted = True
+                        elif value.lower() in ["no", "false", "0"]:
+                            value = False
+                            converted = True
+                    setattr(self, key, value)
+                    
+    def to_dict(self):
+        return {
+            "steps": self.steps,
+            "seed": self.seed,
+            "cfg": self.cfg,
+            "num_videos_per_prompt": self.num_videos_per_prompt,
+            "generate_type": self.generate_type,
+            "loop": self.loop,
+            "should_upscale": self.should_upscale,
+            "stoponthis": self.stoponthis,
+            "use_pyramid": self.use_pyramid,
+            "strength": self.strength,
+            "count": self.count,
+            "quant": self.quant,
+        }
+   
 
 class StopException(Exception):
     pass
@@ -177,16 +267,16 @@ def save_video(frames, output_path, should_upscale=False):
             frames[findex] = frames[findex].unsqueeze(0)
         
     if should_upscale:
-        print("Upscaling video")
+        call_callback("Upscaling video")
         frames = utils.upscale(upscale_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
         frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
 
-    print("Increasing video FPS")
+    call_callback("Increasing video FPS")
     frames = rife_inference_with_latents(frame_interpolation_model, torch.stack(frames))
     frames = rife_inference_with_latents(frame_interpolation_model, torch.stack(frames))
     frames = [to_pil_transform(f[0]) for f in frames]
 
-    print("Saving video")
+    call_callback("Saving video")
     export_to_video(frames, output_path, fps=8)
 
 
@@ -233,7 +323,7 @@ def generate_video(
     vae_encode_decode = False
     
     if current_type != generate_type:
-        print(f"Loading model to generate video. type = {generate_type}")
+        call_callback(f"Loading model to generate video. type = {generate_type}")
         pipe = None
         gc.collect()
         torch.cuda.empty_cache()
@@ -241,14 +331,14 @@ def generate_video(
 
     loop_enabled = loop is True or isinstance(loop, int)
     if current_looping != loop_enabled:
-        print(f"Loading model to generate video. loop = {loop}")
+        call_callback(f"Loading model to generate video. loop = {loop}")
         pipe = None
         gc.collect()
         torch.cuda.empty_cache()
         current_looping = loop_enabled
     
     if current_pyramid != should_use_pyramid:
-        print(f"Loading model to generate video. pyramid = {should_use_pyramid}")
+        call_callback(f"Loading model to generate video. pyramid = {should_use_pyramid}")
         pipe = None
         gc.collect()
         torch.cuda.empty_cache()
@@ -267,7 +357,7 @@ def generate_video(
     
         
     if current_model != model_path:
-        print(f"Loading model to generate video. model = {model_path}")
+        call_callback(f"Loading model to generate video. model = {model_path}")
         pipe = None
         gc.collect()
         torch.cuda.empty_cache()
@@ -298,9 +388,9 @@ def generate_video(
         
         use_gguf = False # generate_type == "i2v"
         if quant:
-            print("Quantizing model")
+            call_callback("Quantizing model")
             pipe = quantize_pipe(model_path, model_class, dtype, "int8", use_attn=False, use_gguf=use_gguf)
-            print("Model quantized")
+            call_callback("Model quantized")
             generator = torch.Generator().manual_seed(seed)
             #pipe.vae.enable_slicing()
             #pipe.vae.enable_tiling()
@@ -326,6 +416,9 @@ def generate_video(
 
         if vae_encode_decode:
             pipe = pipe.vae
+        else:
+            pipe.progress_bar = lambda total: TqdmUpTo(total=total)
+            
             
         gc.collect()    
         torch.cuda.empty_cache()       
@@ -342,7 +435,7 @@ def generate_video(
             generator.append(torch.Generator(device="cuda").manual_seed(seed + index))
     else:
         generator = torch.Generator(device="cuda").manual_seed(seed)
-
+    call_callback("Generating video")
     if generate_type == "i2v":
         add_args = {            
         }
@@ -395,7 +488,7 @@ def generate_video(
             ).frames
 
     if len(video_generate) < 1:
-        print("No video generated.")
+        call_callback("No video generated.")
         return
     
     if num_videos_per_prompt < 2:
@@ -509,52 +602,65 @@ def load_prompts(prompts_path):
 
 
 def search_prompt(store, prompt):
-    found = False
+    keys = prompt.keys()
     for p in store:
-        if p["prompt"] != prompt["prompt"]:
-            continue
-        if p["image"] != prompt["image"]:
-            continue
-        if p["steps"] != prompt["steps"]:
-            continue
-        if p["should_upscale"] != prompt["should_upscale"]:
-            continue
-        if p["use_pyramid"] != prompt["use_pyramid"]:
-            continue
-        if p["strength"] != prompt["strength"]:
-            continue
-        if p["seed"] != prompt["seed"]:
-            continue
-        if p["quant"] != prompt["quant"]:
-            continue
         found = True
-        break
-    return found
+        for key in keys:
+            if p.get(key, "<<a very different value>>") != prompt[key]:
+                found = False
+                break
+        if found:            
+            return p
+    return None
 
 
 def iterate_prompts(prompt_path):
     prompt_store = []
-    prompt_index = 0
     while True:
+        if SHOULD_STOP:
+            raise StopException("Stopped by user.")
         prompts = load_prompts(prompt_path)
-        prompts = [{"seed_use": p["seed"], **p} for p in prompts]
-        if prompt_index >= len(prompt_store):
-            prompt_index = 0
-        prompt_store = prompts[:]
+        
+        for p in prompt_store:
+            p["keep_in_store"] = False
+        
+        included_prompts = 0
+        for index, p in enumerate(prompts):
+            found = search_prompt(prompt_store, p) 
+            if found is None:
+                p["seed_use"] = p["seed"]
+                p["keep_in_store"] = True
+                p["run_count"] = 0
+                p["run_index"] = index
+                prompt_store.append(p)
+                included_prompts += 1
+            else:
+                found["keep_in_store"] = True
+                found["run_index"] = index
+        
+        previous_len = len(prompt_store)
+        prompt_store = [p for p in prompt_store if p["keep_in_store"]]        
+        current_len = len(prompt_store)
+
+        if previous_len > current_len:
+            print(f"Removed {previous_len - current_len} prompts from the store.")
+
+        if included_prompts > 0:
+            print(f"Added {included_prompts} prompts to the store.")
+            
         if len(prompt_store) == 0:
             raise StopException("No prompts found.")
-
-        if prompt_index >= len(prompt_store):
-            prompt_index = 0
-            for i in range(len(prompt_store)):
-                prompt_store[i]["seed_use"] = random.randint(0, 1000000)
-
-        print(f"Prompt index: {prompt_index + 1} of {len(prompt_store)}")
-        yield prompt_store[prompt_index]
-        prompt_index += 1
-        if prompt_index >= len(prompt_store):
-            prompt_index = 0
-
+       
+        prompt_store = sorted(prompt_store, key=lambda x: (x["run_count"], x["run_index"]))
+        
+        p = prompt_store[0]
+        if p["run_count"] > 0:
+            p["seed_use"] = random.randint(0, 1000000)    
+        p["run_count"] += 1
+        
+        call_callback(f"Processing prompt {p['run_index']} of {len(prompt_store)}")
+        yield p 
+        
 
 def process_cogvideo_task_generate(task: dict) -> dict:
     try:
@@ -644,6 +750,7 @@ def process_prompts_from_file(prompts_path: str):
             should_use_pyramid=prompt["use_pyramid"].lower() in ['yes', 'true', '1'],
             strength=prompt["strength"],
         )
+
         if prompt.get("stoponthis", "") in ['yes', 'true', '1']:
             print("Only this prompt was generated due config.stoponthis in prompt.txt")
             break
@@ -653,36 +760,70 @@ def process_prompts_from_file(prompts_path: str):
     
 
 def train_cogvideo_lora(train_filepath: str):
-    global pipe
-    global upscale_model
-    global frame_interpolation_model
-    upscale_model = None
-    frame_interpolation_model = None
-    pipe = None
-    gc.collect()
-    torch.cuda.empty_cache()
+    cogvideo_release_resources()
     print("Training LoRA model")
     train_lora_model(train_filepath)
     return {
         "success": False,
     }
 
-def process_cogvideo_task(task: dict) -> dict:
+def process_cogvideo_task(task: dict, callback = None) -> dict:
+    global SHOULD_STOP
+    global PROGRESS_CALLBACK
+    PROGRESS_CALLBACK = callback
+
+    SHOULD_STOP = False
+
     try:
         if 'prompt' in task:
+            call_callback("Generating video from a prompt passed as parameter")
             return process_cogvideo_task_generate(task)
         if 'prompts_path' in task:
+            call_callback("Iterating over a file and parsing prompts to generate videos")
             return process_prompts_from_file(task['prompts_path'])
         if 'train_file' in task:
+            call_callback("Training lora model")
             return train_cogvideo_lora(task['train_file'])
         return {
             "success": False,
             "error": "Cogvideo: Invalid task",
         }
+        SHOULD_STOP = False
+    except StopException as ex:
+        SHOULD_STOP = False
+        print("Task stopped by the user.")
+        return {
+            "success": False,
+            "error": str(ex)
+        }
     except Exception as ex:
+        SHOULD_STOP = False
         print(str(ex))
         traceback.print_exc()
         return {
             "success": False,
             "error": str(ex)
         }
+
+
+def cancel_cogvideo_task():
+    global SHOULD_STOP
+    print("Cancelling CogVideo tasks if any...") 
+    SHOULD_STOP = True
+    return {
+        "success": True,
+    }
+
+
+def cogvideo_release_resources():
+    global pipe
+    global upscale_model
+    global frame_interpolation_model
+    pipe = None
+    upscale_model = None
+    frame_interpolation_model = None
+    gc.collect()
+    torch.cuda.empty_cache()
+    return {
+        "success": True,
+    }

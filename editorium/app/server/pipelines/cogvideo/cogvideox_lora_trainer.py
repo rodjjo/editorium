@@ -58,8 +58,16 @@ def get_train_base_directory() -> str:
         os.makedirs(dir_path)
     return dir_path
 
-def gat_train_directory(name: str) -> str:
+
+def get_train_directory(name: str) -> str:
     dir_path = os.path.join(get_train_base_directory(), name)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    return dir_path
+
+
+def get_checkpoint_directory() -> str:
+    dir_path = os.path.join(get_train_base_directory(), "checkpoints")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
     return dir_path
@@ -100,15 +108,47 @@ class ModelHolder:
         self.text_encoder = text_encoder
         self.tokenizer = tokenizer
         self.scheduler = scheduler
-    
-    def get_model(self, model_type):
+        self._offload_device = None
+        self._offload_gpu_id = None
+        
+    def enable_sequential_cpu_offload(self, model):
+        from accelerate import cpu_offload
+        gpu_id = None
+        device = "cuda"
+        
+        torch_device = torch.device(device)
+        device_index = torch_device.index
+
+        if gpu_id is not None and device_index is not None:
+            raise ValueError(
+                f"You have passed both `gpu_id`={gpu_id} and an index as part of the passed device `device`={device}"
+                f"Cannot pass both. Please make sure to either not define `gpu_id` or not pass the index as part of the device: `device`={torch_device.type}"
+            )
+
+        # _offload_gpu_id should be set to passed gpu_id (or id in passed `device`) or default to previously set id or default to 0
+        self._offload_gpu_id = gpu_id or torch_device.index or 0
+
+        device_type = torch_device.type
+        device = torch.device(f"{device_type}:{self._offload_gpu_id}")
+        self._offload_device = device
+
+        offload_buffers = len(model._parameters) > 0
+        cpu_offload(model, device, offload_buffers=offload_buffers)
+
+
+    def get_model(self, model_type, path=None):
         if model_type == EnumModelType.transformer:
             self.vae.to('cpu')
             self.text_encoder.to('cpu')
-            self.transformer.to('cuda')
+            if path is not None:
+                state_dict = torch.load(path)
+                self.transformer.to('cpu')
+                self.transformer.load_state_dict(state_dict)
+            self.enable_sequential_cpu_offload(self.transformer)
+            # self.transformer.to('cuda')
             gc.collect()
             torch.cuda.empty_cache()
-            return self.transformer
+            return self.transformer, self.scheduler
         elif model_type == EnumModelType.vae:
             self.transformer.to('cpu')
             self.text_encoder.to('cpu')
@@ -137,15 +177,21 @@ class VideoItem:
         self.prompt_path = prompt_path
         self.video_md5 = get_hash(video_path)
         self.prompt_md5 = get_hash(prompt_path)
-        preprocessed_dir = gat_train_directory('preprocessed')
+        preprocessed_dir = get_train_directory('preprocessed')
         self.prompt_pt_path = os.path.join(preprocessed_dir, f'{os.path.basename(self.prompt_path)}.{self.prompt_md5}.pt')
         self.video_pt_path = os.path.join(preprocessed_dir, f'{os.path.basename(self.video_path)}.{self.video_md5}.pt')
+        
+    def load_video_pt(self):
+        return torch.load(self.video_pt_path)
+    
+    def load_prompt_pt(self):
+        return torch.load(self.prompt_pt_path)
 
 
 class VideoDataset:
     def __init__(self, model_holder: ModelHolder):
-        self.videos_path = gat_train_directory('videos')
-        self.prompts_path = gat_train_directory('prompts')
+        self.videos_path = get_train_directory('videos')
+        self.prompts_path = get_train_directory('videos')
         self.model_holder = model_holder
         self.items = []
         
@@ -165,11 +211,48 @@ class VideoDataset:
             prompt_file = os.path.join(self.prompts_path, f'{name}.txt')
             self.items.append(VideoItem(video_file, prompt_file))
 
+    def _get_t5_prompt_embeds(
+        self,
+        tokenizer: T5Tokenizer,
+        text_encoder: T5EncoderModel,
+        prompt: Union[str, List[str]],
+        num_videos_per_prompt: int = 1,
+        max_sequence_length: int = 226,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+        text_input_ids=None,
+    ):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        batch_size = len(prompt)
+
+        if tokenizer is not None:
+            text_inputs = tokenizer(
+                prompt,
+                padding="max_length",
+                max_length=max_sequence_length,
+                truncation=True,
+                add_special_tokens=True,
+                return_tensors="pt",
+            )
+            text_input_ids = text_inputs.input_ids
+        else:
+            if text_input_ids is None:
+                raise ValueError("`text_input_ids` must be provided when the tokenizer is not specified.")
+
+        prompt_embeds = text_encoder(text_input_ids.to(device))[0]
+        prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
+
+        # duplicate text embeddings for each generation per prompt, using mps friendly method
+        _, seq_len, _ = prompt_embeds.shape
+        prompt_embeds = prompt_embeds.repeat(1, num_videos_per_prompt, 1)
+        prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
+
+        return prompt_embeds
         
     def preprocess(self):
         dtype = torch.bfloat16
         print("Removing old files")
-        preprocessed_dir = gat_train_directory('preprocessed')
+        preprocessed_dir = get_train_directory('preprocessed')
         contents = os.listdir(preprocessed_dir)
         video_dir_content = contents
         prompts_dir_content = contents
@@ -201,18 +284,15 @@ class VideoDataset:
                 continue
             with open(item.prompt_path, 'r') as f:
                 prompt = f.read()
-            text_inputs = tokenizer(
+            prompt_embeds = self._get_t5_prompt_embeds(
+                tokenizer,
+                text_encoder,
                 prompt,
-                padding="max_length",
-                max_length=226,
-                truncation=True,
-                add_special_tokens=True,
-                return_tensors="pt",
+                num_videos_per_prompt=1,
+                max_sequence_length=226,
+                device='cpu',
+                dtype=dtype,
             )
-            text_input_ids = text_inputs.input_ids
-            prompt_embeds = text_encoder(text_input_ids.to('cpu'))[0]
-            prompt_embeds = prompt_embeds.to(dtype=dtype, device='cpu')
-            # save the prompt embeddings
             torch.save(prompt_embeds, item.prompt_pt_path)
             
         print("Preprocessing videos")
@@ -260,9 +340,10 @@ class VideoDataset:
             frames = frames.to('cuda', dtype=vae.dtype).unsqueeze(0)
             frames = frames.permute(0, 2, 1, 3, 4)  # [B, C, F, H, W]
             # Encode the video
-            latent_dist = vae.encode(frames).latent_dist
+            video_pt = vae.encode(frames).latent_dist.sample() * vae.config.scaling_factor
+
             # save latent dist
-            torch.save(latent_dist, item.video_pt_path)
+            torch.save(video_pt, item.video_pt_path)
             
 
         gc.collect()
@@ -330,6 +411,10 @@ class ValidationConfig:
 
 
 class TrainerConfig:
+    learning_rate = 1e-4
+    optimizer = 'adamw'
+    use_8bit_adam = False
+    gradient_checkpointing = False
     compute_environment = 'LOCAL_MACHINE'
     debug = False
     deepspeed_config = DeepSpeedConfig()
@@ -349,6 +434,29 @@ class TrainerConfig:
     tpu_use_cluster = False
     tpu_use_sudo = False
     use_cpu = False
+    adam_beta1: float = 0.9
+    adam_beta2: float = 0.95
+    prodigy_beta3: Optional[float] = None
+    prodigy_decouple = False
+    adam_weight_decay: float = 1e-04
+    adam_epsilon: float = 1e-08
+    prodigy_use_bias_correction = False
+    prodigy_safeguard_warmup = False
+    checkpoints_total_limit = None
+    max_grad_norm = 1.0
+    max_train_steps = None
+    num_train_epochs = 1
+    train_batch_size = 1
+    gradient_accumulation_steps = 1
+    lr_scheduler = 'linear'
+    lr_warmup_steps = 0
+    lr_num_cycles = 0.5
+    lr_power = 1.0
+    checkpointing_steps = 1000
+    rank = 128
+    lora_alpha = 128
+    height = 480
+    width = 720
     
     def __init__(self):
         pass
@@ -396,8 +504,340 @@ class TrainerConfig:
             'tpu_use_cluster': self.tpu_use_cluster,
             'tpu_use_sudo': self.tpu_use_sudo,
             'use_cpu': self.use_cpu,
+            'adam_beta1': self.adam_beta1,
+            'adam_beta2': self.adam_beta2,
+            'prodigy_beta3': self.prodigy_beta3,
+            'prodigy_decouple': self.prodigy_decouple,
+            'adam_weight_decay': self.adam_weight_decay,
+            'adam_epsilon': self.adam_epsilon,
+            'prodigy_use_bias_correction': self.prodigy_use_bias_correction,
+            'prodigy_safeguard_warmup': self.prodigy_safeguard_warmup,
+            'checkpoints_total_limit': self.checkpoints_total_limit,
+            'max_grad_norm': self.max_grad_norm,
+            'max_train_steps': self.max_train_steps,
+            'num_train_epochs': self.num_train_epochs,
+            'train_batch_size': self.train_batch_size,
+            'gradient_accumulation_steps': self.gradient_accumulation_steps,
+            'lr_scheduler': self.lr_scheduler,
+            'lr_warmup_steps': self.lr_warmup_steps,
+            'lr_num_cycles': self.lr_num_cycles,
+            'lr_power': self.lr_power,
+            'checkpointing_steps': self.checkpointing_steps,
+            'rank': self.rank,
+            'lora_alpha': self.lora_alpha,
+            'height': self.height,
+            'width': self.width,
         }        
 
+
+def get_optimizer(trainer_config: TrainerConfig, params_to_optimize):
+    # Optimizer creation
+    supported_optimizers = ["adam", "adamw", "prodigy"]
+    if trainer_config.optimizer not in supported_optimizers:
+        logger.warning(
+            f"Unsupported choice of optimizer: {trainer_config.optimizer}. Supported optimizers include {supported_optimizers}. Defaulting to AdamW"
+        )
+        trainer_config.optimizer = "adamw"
+
+    if trainer_config.use_8bit_adam and not (trainer_config.optimizer.lower() not in ["adam", "adamw"]):
+        logger.warning(
+            f"use_8bit_adam is ignored when optimizer is not set to 'Adam' or 'AdamW'. Optimizer was "
+            f"set to {trainer_config.optimizer.lower()}"
+        )
+
+    if trainer_config.use_8bit_adam:
+        try:
+            import bitsandbytes as bnb
+        except ImportError:
+            raise ImportError(
+                "To use 8-bit Adam, please install the bitsandbytes library: `pip install bitsandbytes`."
+            )
+
+    if trainer_config.optimizer.lower() == "adamw":
+        optimizer_class = bnb.optim.AdamW8bit if trainer_config.use_8bit_adam else torch.optim.AdamW
+
+        optimizer = optimizer_class(
+            params_to_optimize,
+            betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
+            eps=trainer_config.adam_epsilon,
+            weight_decay=trainer_config.adam_weight_decay,
+        )
+    elif trainer_config.optimizer.lower() == "adam":
+        optimizer_class = bnb.optim.Adam8bit if trainer_config.use_8bit_adam else torch.optim.Adam
+
+        optimizer = optimizer_class(
+            params_to_optimize,
+            betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
+            eps=trainer_config.adam_epsilon,
+            weight_decay=trainer_config.adam_weight_decay,
+        )
+    elif trainer_config.optimizer.lower() == "prodigy":
+        try:
+            import prodigyopt
+        except ImportError:
+            raise ImportError("To use Prodigy, please install the prodigyopt library: `pip install prodigyopt`")
+
+        optimizer_class = prodigyopt.Prodigy
+
+        if trainer_config.learning_rate <= 0.1:
+            logger.warning(
+                "Learning rate is too low. When using prodigy, it's generally better to set learning rate around 1.0"
+            )
+
+        optimizer = optimizer_class(
+            params_to_optimize,
+            lr=trainer_config.learning_rate,
+            betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
+            beta3=trainer_config.prodigy_beta3,
+            weight_decay=trainer_config.adam_weight_decay,
+            eps=trainer_config.adam_epsilon,
+            decouple=trainer_config.prodigy_decouple,
+            use_bias_correction=trainer_config.prodigy_use_bias_correction,
+            safeguard_warmup=trainer_config.prodigy_safeguard_warmup,
+        )
+
+    return optimizer
+
+
+def prepare_rotary_positional_embeddings(
+    height: int,
+    width: int,
+    num_frames: int,
+    vae_scale_factor_spatial: int = 8,
+    patch_size: int = 2,
+    attention_head_dim: int = 64,
+    device: Optional[torch.device] = None,
+    base_height: int = 480,
+    base_width: int = 720,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    grid_height = height // (vae_scale_factor_spatial * patch_size)
+    grid_width = width // (vae_scale_factor_spatial * patch_size)
+    base_size_width = base_width // (vae_scale_factor_spatial * patch_size)
+    base_size_height = base_height // (vae_scale_factor_spatial * patch_size)
+
+    grid_crops_coords = get_resize_crop_region_for_grid((grid_height, grid_width), base_size_width, base_size_height)
+    freqs_cos, freqs_sin = get_3d_rotary_pos_embed(
+        embed_dim=attention_head_dim,
+        crops_coords=grid_crops_coords,
+        grid_size=(grid_height, grid_width),
+        temporal_size=num_frames,
+    )
+
+    freqs_cos = freqs_cos.to(device=device)
+    freqs_sin = freqs_sin.to(device=device)
+    return freqs_cos, freqs_sin
+
+
+def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_config: TrainerConfig, transformer_lora_parameters, len_vae_block_out_channels):
+    # Optimization parameters
+    transformer_parameters_with_lr = {"params": transformer_lora_parameters, "lr": trainer_config.learning_rate}
+    params_to_optimize = [transformer_parameters_with_lr]
+    use_deepspeed_optimizer = False
+    use_deepspeed_scheduler = False
+    
+    optimizer = get_optimizer(trainer_config, params_to_optimize)
+    
+    # Scheduler and math around the number of training steps.
+    overrode_max_train_steps = False
+    num_update_steps_per_epoch = math.ceil(len(dataset) / trainer_config.gradient_accumulation_steps)
+    if trainer_config.max_train_steps is None:
+        trainer_config.max_train_steps = trainer_config.num_train_epochs * num_update_steps_per_epoch
+        overrode_max_train_steps = True
+        
+    lr_scheduler = get_scheduler(
+        trainer_config.lr_scheduler,
+        optimizer=optimizer,
+        num_warmup_steps=trainer_config.lr_warmup_steps,
+        num_training_steps=trainer_config.max_train_steps,
+        num_cycles=trainer_config.lr_num_cycles,
+        power=trainer_config.lr_power,
+    )
+    
+     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
+    num_update_steps_per_epoch = math.ceil(len(dataset) / trainer_config.gradient_accumulation_steps)
+    if overrode_max_train_steps:
+        trainer_config.max_train_steps = trainer_config.num_train_epochs * num_update_steps_per_epoch
+    # Afterwards we recalculate our number of training epochs
+    trainer_config.num_train_epochs = math.ceil(trainer_config.max_train_steps / num_update_steps_per_epoch)
+
+    # Train!
+    total_batch_size = trainer_config.train_batch_size * trainer_config.gradient_accumulation_steps
+    num_trainable_parameters = sum(param.numel() for model in params_to_optimize for param in model["params"])
+
+    print("***** Running training *****")
+    print(f"  Num trainable parameters = {num_trainable_parameters}")
+    print(f"  Num examples = {len(dataset)}")
+    print(f"  Num batches each epoch = {1}")
+    print(f"  Num epochs = {trainer_config.num_train_epochs}")
+    print(f"  Instantaneous batch size per device = {trainer_config.train_batch_size}")
+    print(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
+    print(f"  Gradient accumulation steps = {trainer_config.gradient_accumulation_steps}")
+    print(f"  Total optimization steps = {trainer_config.max_train_steps}")
+    
+    global_step = 0
+    first_epoch = 0
+    
+    # Get the mos recent checkpoint
+    dirs = os.listdir(get_checkpoint_directory())
+    dirs = [d for d in dirs if d.startswith("checkpoint")]
+    dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
+    path = dirs[-1] if len(dirs) > 0 else None
+    
+    if path is None:
+        print(
+            f"Checkpoint does not exist. Starting a new training run."
+        )
+        initial_global_step = 0
+    else:
+        print(f"Resuming from checkpoint {path}")
+        
+        global_step = int(path.split("-")[1])
+
+        initial_global_step = global_step
+        first_epoch = global_step // num_update_steps_per_epoch
+
+    progress_bar = tqdm(
+        range(0, trainer_config.max_train_steps),
+        initial=initial_global_step,
+        desc="Steps",
+        # Only show the progress bar once on each machine.
+        disable=False,
+    )
+    vae_scale_factor_spatial = 2 ** (len_vae_block_out_channels - 1)
+
+    # For DeepSpeed training
+    transformer, scheduler = model_holder.get_model(EnumModelType.transformer, path)
+    model_config = transformer.module.config if hasattr(transformer, "module") else transformer.config
+    
+    accelerator_project_config = ProjectConfiguration(project_dir=get_checkpoint_directory())
+    accelerator = Accelerator(
+        gradient_accumulation_steps=trainer_config.gradient_accumulation_steps,
+        mixed_precision=trainer_config.mixed_precision,
+        log_with=None,
+        project_config=accelerator_project_config,
+        kwargs_handlers=[],
+    )
+    
+    # transformer, optimizer, lr_scheduler = accelerator.prepare(
+    #    transformer, optimizer, lr_scheduler
+    #)
+    
+    def unwrap_model(model):
+        model = accelerator.unwrap_model(model)
+        model = model._orig_mod if is_compiled_module(model) else model
+        return model
+    
+    for epoch in range(first_epoch, trainer_config.num_train_epochs):
+        gc.collect()
+        torch.cuda.empty_cache()
+        transformer.train()
+        for step, item in enumerate(dataset):
+            with accelerator.accumulate(transformer):
+                model_input = torch.cat([item.load_video_pt()])
+                model_input = model_input.to(memory_format=torch.contiguous_format).float()
+                model_input = model_input.permute(0, 2, 1, 3, 4).to(dtype=torch.bfloat16)  # [B, F, C, H, W]
+                prompt_embeds = item.load_prompt_pt()
+                model_input.to('cuda')
+                prompt_embeds.to('cuda')
+                
+                noise = torch.randn_like(model_input)
+                batch_size, num_frames, num_channels, height, width = model_input.shape
+
+                # Sample a random timestep for each image
+                timesteps = torch.randint(
+                    0, scheduler.config.num_train_timesteps, (batch_size,), device=model_input.device
+                )
+                timesteps = timesteps.long()
+
+                # Prepare rotary embeds
+                image_rotary_emb = (
+                    prepare_rotary_positional_embeddings(
+                        height=trainer_config.height,
+                        width=trainer_config.width,
+                        num_frames=num_frames,
+                        vae_scale_factor_spatial=vae_scale_factor_spatial,
+                        patch_size=model_config.patch_size,
+                        attention_head_dim=model_config.attention_head_dim,
+                        device=accelerator.device,
+                    )
+                    if model_config.use_rotary_positional_embeddings
+                    else None
+                )
+
+                # Add noise to the model input according to the noise magnitude at each timestep
+                # (this is the forward diffusion process)
+                noisy_model_input = scheduler.add_noise(model_input, noise, timesteps)
+
+                # Predict the noise residual
+                model_output = transformer(
+                    hidden_states=noisy_model_input,
+                    encoder_hidden_states=prompt_embeds,
+                    timestep=timesteps,
+                    image_rotary_emb=image_rotary_emb,
+                    return_dict=False,
+                )[0]
+
+                model_pred = scheduler.get_velocity(model_output, noisy_model_input, timesteps)
+
+                alphas_cumprod = scheduler.alphas_cumprod[timesteps]
+                weights = 1 / (1 - alphas_cumprod)
+                while len(weights.shape) < len(model_pred.shape):
+                    weights = weights.unsqueeze(-1)
+
+                target = model_input
+
+                loss = torch.mean((weights * (model_pred - target) ** 2).reshape(batch_size, -1), dim=1)
+                loss = loss.mean()
+                
+                accelerator.backward(loss)
+
+                if accelerator.sync_gradients:
+                    params_to_clip = transformer.parameters()
+                    accelerator.clip_grad_norm_(params_to_clip, trainer_config.max_grad_norm)
+
+                optimizer.step()
+                optimizer.zero_grad()
+
+                lr_scheduler.step()
+                
+            if accelerator.sync_gradients:
+                progress_bar.update(1)
+                global_step += 1
+
+                if global_step % trainer_config.checkpointing_steps == 0:
+                    # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
+                    if trainer_config.checkpoints_total_limit is not None:
+                        checkpoints = os.listdir(trainer_config.output_dir)
+                        checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
+                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
+
+                        # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
+                        if len(checkpoints) >= trainer_config.checkpoints_total_limit:
+                            num_to_remove = len(checkpoints) - trainer_config.checkpoints_total_limit + 1
+                            removing_checkpoints = checkpoints[0:num_to_remove]
+
+                            print(
+                                f"{len(checkpoints)} checkpoints already exist, removing {len(removing_checkpoints)} checkpoints"
+                            )
+                            print(f"Removing checkpoints: {', '.join(removing_checkpoints)}")
+
+                            for removing_checkpoint in removing_checkpoints:
+                                removing_checkpoint = os.path.join(trainer_config.output_dir, removing_checkpoint)
+                                shutil.rmtree(removing_checkpoint)
+
+                    save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
+                    accelerator.save_state(save_path)
+                    print(f"Saved state to {save_path}")
+                
+            logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}  
+            progress_bar.set_postfix(**logs)  
+            accelerator.log(logs, step=global_step)
+            
+            if global_step >= trainer_config.max_train_steps:
+                break                  
+
+    accelerator.end_training()
+  
 
 def _train_lora_model(train_file: str):
     train_file = os.path.join(get_train_base_directory(), train_file)
@@ -406,6 +846,7 @@ def _train_lora_model(train_file: str):
         train_config.save(train_file)
     else:
         train_config = TrainerConfig.from_file(train_file)
+        
     pretrained_model_name_or_path = "THUDM/CogVideoX-5b"
     text_encoder = T5EncoderModel.from_pretrained(
         pretrained_model_name_or_path, subfolder="text_encoder", revision=None
@@ -449,6 +890,23 @@ def _train_lora_model(train_file: str):
     )
     dataset = VideoDataset(model_holder)
     dataset.preprocess()
+    
+    if train_config.gradient_checkpointing:
+        transformer.enable_gradient_checkpointing()
+        
+    transformer_lora_config = LoraConfig(
+        r=train_config.rank,
+        lora_alpha=train_config.lora_alpha,
+        init_lora_weights=True,
+        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+    )
+    
+    # now we will add new LoRA weights to the attention layers
+    transformer.add_adapter(transformer_lora_config)
+    transformer_lora_parameters = list(filter(lambda p: p.requires_grad, transformer.parameters()))
+    len_vae_block_out_channels = len(vae.config.block_out_channels)
+    train_pipeline(dataset, model_holder, train_config, transformer_lora_parameters, len_vae_block_out_channels)
+    
     
 def train_lora_model(train_file: str) -> bool:
     try:
