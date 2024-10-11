@@ -7,9 +7,9 @@ It provides a server that runs background tasks and a cli called editorium to ma
 ## WIP (Work In Progress)
 
 TODOS
-[x] Open the sources
-[x] Add CogVideoX basic command
-[ ] Create documentation explaining each command
+[x] Open the sources  
+[x] Add CogVideoX basic command  
+[ ] Create documentation explaining each command  
 
 ## Requirements
 
@@ -42,7 +42,7 @@ editorium-cli server run --docker-image --models-dir=~/my-offline-models --path=
 ## Prompt file format
 
 To start you can create a prompt file at `~/my-cogvideo-root-dir` (the root path you defined to start the server).
-The file name could be ``~/my-cogvideo-root-dir/prompts.editorium`:
+The file name could be `~/my-cogvideo-root-dir/prompts.editorium`:
 ```text
 #start
 #config.steps=50
@@ -62,6 +62,8 @@ Your prompt goes here.
 /app/output_dir/<relative_path_to_the_image_or_Video
 #end
 ```
+You can add multiples entries starting with `#start` and finishing with `#end`, each block is going to be a prompt.
+
 
 The you can start the cli on the terminal
 
