@@ -13,8 +13,7 @@ from diffusers import (
 )
 from transformers import T5EncoderModel
 
-from pipelines.cogvideo.cogvideox_transformer_att import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelAtt
-from pipelines.cogvideo.cogvideox_transformer_pab import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelPAB
+from pipelines.cogvideo.cogvideox_transformer import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelPAB
 from pipelines.cogvideo.core.pab_mgr import set_pab_manager, CogVideoXPABConfig
 from pipelines.cogvideo.load_gguf import load_gguf_transformer
 from pipelines.common.model_manager import ManagedModel
@@ -97,11 +96,12 @@ class CogVideoModels(ManagedModel):
         vae = AutoencoderKLCogVideoX.from_pretrained(model_path, subfolder="vae", torch_dtype=dtype)
         
         if self.use_sageatt:
-            transformer_class = CogVideoXTransformer3DModelAtt
+            transformer_class = CogVideoXTransformer3DModelPAB
         elif self.use_pyramid:
             transformer_class = CogVideoXTransformer3DModelPAB
         else:
             transformer_class = CogVideoXTransformer3DModel
+
         transformer = None    
         if self.generate_type == "i2v":
             if use_gguf:
@@ -117,7 +117,7 @@ class CogVideoModels(ManagedModel):
 
         if self.generate_type == "t2v":
             pipe_class = CogVideoXPipeline
-        if self.generate_type == "i2v":
+        elif self.generate_type == "i2v":
             pipe_class = CogVideoXImageToVideoPipeline
         elif self.generate_type in ("v2v", "v2vae"):
             pipe_class= CogVideoXVideoToVideoPipeline

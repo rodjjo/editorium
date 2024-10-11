@@ -21,18 +21,17 @@ from diffusers.utils import is_torch_version
 from diffusers.utils.torch_utils import maybe_allow_in_graph
 from torch import nn
 
-from pipelines.cogvideo.core.pab_mgr import enable_pab, if_broadcast_spatial
-from pipelines.cogvideo.modules.embeddings import apply_rotary_emb
+from .core.pab_mgr import enable_pab, if_broadcast_spatial
+from .modules.embeddings import apply_rotary_emb
 
 #from .modules.embeddings import CogVideoXPatchEmbed
 
-from pipelines.cogvideo.modules.normalization import AdaLayerNorm, CogVideoXLayerNormZero
-
-from pipelines.cogvideo.sageattention import sageattn
-SAGEATTN_IS_AVAVILABLE = True
-    
-
-
+from .modules.normalization import AdaLayerNorm, CogVideoXLayerNormZero
+try:
+    from sageattention import sageattn
+    SAGEATTN_IS_AVAVILABLE = True
+except:
+    SAGEATTN_IS_AVAVILABLE = False
 
 class CogVideoXAttnProcessor2_0:
     r"""
@@ -523,6 +522,8 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin):
         timestep_cond: Optional[torch.Tensor] = None,
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         return_dict: bool = True,
+        controlnet_states: torch.Tensor = None,
+        controlnet_weights: Optional[Union[float, int, list, torch.FloatTensor]] = 1.0,
     ):
         # if self.parallel_manager.cp_size > 1:
         #     (
@@ -598,6 +599,15 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin):
                     image_rotary_emb=image_rotary_emb,
                     timestep=timesteps if enable_pab() else None,
                 )
+            if (controlnet_states is not None) and (i < len(controlnet_states)):
+                controlnet_states_block = controlnet_states[i]
+                controlnet_block_weight = 1.0
+                if isinstance(controlnet_weights, (list)) or torch.is_tensor(controlnet_weights):
+                    controlnet_block_weight = controlnet_weights[i]
+                elif isinstance(controlnet_weights, (float, int)):
+                    controlnet_block_weight = controlnet_weights
+                
+                hidden_states = hidden_states + controlnet_states_block * controlnet_block_weight
 
         #if self.parallel_manager.sp_size > 1:
         #    hidden_states = gather_sequence(hidden_states, self.parallel_manager.sp_group, dim=1, pad=get_pad("pad"))

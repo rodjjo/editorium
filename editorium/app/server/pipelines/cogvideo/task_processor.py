@@ -135,7 +135,7 @@ def generate_video(
         use5b_model=True, 
         generate_type=generate_type, 
         use_pyramid=False,
-        use_sageatt=False, 
+        use_sageatt=generate_type == "i2v", 
         use_gguf=False
     )
 
