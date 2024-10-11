@@ -11,6 +11,7 @@ from threading import Thread, Lock
 import time
 import logging
 import sys
+import signal
 
 
 progress_title = ''
@@ -279,11 +280,21 @@ def run_server(queue: Queue, completion_queue: Queue):
 
 
 def create_server_thread(queue: Queue, completion_queue: Queue):
-    return Thread(target=run_server, args=(queue, completion_queue))
+    return Thread(target=run_server, args=(queue, completion_queue), daemon=True)
 
 
+# install signal handler to stop the server
+def signal_handler(sig, frame):
+    print('Stopping server')
+    sys.exit(0)
+    
+def setup_signal_handler():
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
 
 if __name__ == '__main__':
+    setup_signal_handler()
     queue = Queue()
     completion_queue = Queue()
     thread = create_server_thread(queue, completion_queue)

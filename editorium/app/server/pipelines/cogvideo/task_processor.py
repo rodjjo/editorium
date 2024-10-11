@@ -6,7 +6,6 @@ import sys
 import random
 import argparse
 from typing import Literal, List
-
 import torch
 from diffusers import (
     AutoencoderKLCogVideoX, 
@@ -26,7 +25,6 @@ import pipelines.cogvideo.utils as utils
 from pipelines.cogvideo.rife_model import load_rife_model, rife_inference_with_latents
 from torchao.quantization import quantize_, int8_weight_only, int4_weight_only
 from torchao.quantization.utils import recommended_inductor_config_setter
-
 
 from PIL import Image
 
@@ -76,69 +74,6 @@ class TqdmUpTo(tqdm):
         return result
 
 
-class PromptConfig:
-    steps: int = 50
-    seed: int = -1
-    cfg: int = 6
-    num_videos_per_prompt: int = 1
-    generate_type: str = "i2v"
-    loop: bool = False
-    should_upscale: bool = False
-    stoponthis: bool = False
-    use_pyramid: bool = False
-    strength: int = 80
-    count: int = 1
-    quant: bool = False
-    
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-                
-    # parses all the lines if it starts with #config. and sets the value to the attribute
-    # if the attribute is not found, it will be ignored
-    def parse_lines(self, lines: List[str]):
-        for line in lines:
-            if line.startswith("#config."):
-                key, value = line.split("#config.")[1].split("=")
-                if hasattr(self, key):
-                    converted = False
-                    try:
-                        value = int(value)
-                        converted = True
-                    except ValueError:
-                        pass
-                    if not converted:
-                        try:
-                            value = float(value)
-                            converted = True
-                        except ValueError:
-                            pass
-                    if not converted:
-                        if value.lower() in ["yes", "true", "1"]:
-                            value = True
-                            converted = True
-                        elif value.lower() in ["no", "false", "0"]:
-                            value = False
-                            converted = True
-                    setattr(self, key, value)
-                    
-    def to_dict(self):
-        return {
-            "steps": self.steps,
-            "seed": self.seed,
-            "cfg": self.cfg,
-            "num_videos_per_prompt": self.num_videos_per_prompt,
-            "generate_type": self.generate_type,
-            "loop": self.loop,
-            "should_upscale": self.should_upscale,
-            "stoponthis": self.stoponthis,
-            "use_pyramid": self.use_pyramid,
-            "strength": self.strength,
-            "count": self.count,
-            "quant": self.quant,
-        }
-   
 
 class StopException(Exception):
     pass
@@ -167,6 +102,7 @@ def quantize_pipe(model_path, model_class, dtype, quantization_scheme="fp8", use
     text_encoder = T5EncoderModel.from_pretrained(model_path, subfolder="text_encoder", torch_dtype=dtype)
     if quantization_scheme:
         text_encoder = quantize_model(part=text_encoder, quantization_scheme=quantization_scheme)
+    
     if use_attn:
         transform_class = CogVideoXTransformer3DModelAtt
     else:
@@ -400,7 +336,7 @@ def generate_video(
             # pipe.enable_model_cpu_offload()
             pipe.enable_sequential_cpu_offload()
         else:
-            pipe = quantize_pipe(model_path, model_class, dtype, "", use_attn=True, use_gguf=use_gguf)
+            pipe = quantize_pipe(model_path, model_class, dtype, "", use_attn=generate_type=='i2v', use_gguf=use_gguf)
             pipe.scheduler = CogVideoXDPMScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
             # pipe.enable_model_cpu_offload()
             pipe.enable_sequential_cpu_offload()
@@ -498,168 +434,27 @@ def generate_video(
             save_video(video_generate[i], f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", should_upscale)
 
 
-def load_prompts(prompts_path):    
-    prompts = []
-    prompt_cap = False
-    image_cap = False
-    ignore_cap = False
-    with open(prompts_path, "r") as fp:
-        current_prompt = ""
-        current_image = []
-        for line in fp:
-            line = line.strip()
-            if line.startswith("#terminate"):
-                raise StopException("Terminated due command on the file prompt.txt")
-            if line.startswith("#start"):
-                current_prompt = ""
-                current_image = []
-                prompt_cap = True
-                ignore_cap = False
-                image_cap = False
-                configs = {}
-                continue
-            if line.startswith("#config"):
-                if not prompt_cap:
-                    raise ValueError("#config without #start.")
-                key, value = line.split("#config.")[1].split("=")
-
-                try:
-                    configs[key] = int(value)
-                except ValueError:
-                    configs[key] = value
-
-                continue
-            if line.startswith("#end"):
-                if not prompt_cap:
-                    raise ValueError("#end without #start.")
-                if current_prompt == "":
-                    raise ValueError("Prompt should not be empty.")
-                if current_image == []:
-                    raise ValueError("Image should not be empty.")
-                if not ignore_cap:
-                    len_images = len(current_image)
-                    for index in range(len_images):
-                        img = current_image[index]
-                        the_prompt = {
-                            "prompt": current_prompt, 
-                            "image": img,
-                            "steps": 50,
-                            "seed": -1,
-                            "cfg": 6,
-                            "num_videos_per_prompt": 1,
-                            'generate_type': "i2v",
-                            "loop": "false",
-                            "should_upscale": "false",
-                            "stoponthis": 'false',
-                            'use_pyramid': 'false',
-                            'strength': 80,
-                            'count': 1,
-                            'quant': 'false',
-                        }
-                        the_prompt = {
-                            **the_prompt,
-                            **configs,
-                        }
-                        original_stoponthis = the_prompt["stoponthis"]
-                        the_prompt["stoponthis"] = 'false'
-                        if the_prompt['seed'] == -1:
-                            the_prompt["seed"] = random.randint(0, 1000000)
-                        the_prompt["strength"] = the_prompt["strength"] / 100.0
-                        if the_prompt["count"] > 100:
-                            the_prompt["count"] = 100
-                        count_max = the_prompt["count"]
-                        for count in range(count_max):
-                            the_prompt = {
-                                **the_prompt,
-                            }
-
-                            if count == count_max - 1 and index == len_images - 1:
-                                the_prompt['stoponthis'] = original_stoponthis
-                            prompts.append(the_prompt)
-                            tthe_prompt = {
-                                **the_prompt,
-                            }
-                            the_prompt["seed"] = random.randint(0, 1000000)
-              
-
-                current_prompt = ""
-                current_image = []
-                prompt_cap = False
-                image_cap = False
-                configs = {}
-                continue
-            if line.startswith("#ignore"):
-                ignore_cap = True
-                continue
-            if line.strip().startswith("#image"):
-                image_cap = True
-                continue
-            if image_cap:
-                current_image.append(line)
-            elif prompt_cap:
-                current_prompt += line + " "
-    return prompts
-
-
-def search_prompt(store, prompt):
-    keys = prompt.keys()
-    for p in store:
-        found = True
-        for key in keys:
-            if p.get(key, "<<a very different value>>") != prompt[key]:
-                found = False
-                break
-        if found:            
-            return p
-    return None
-
-
 def iterate_prompts(prompt_path):
-    prompt_store = []
+    from pipelines.cogvideo.prompt_parser import PromptStore
+    store = PromptStore(prompt_path)
     while True:
         if SHOULD_STOP:
             raise StopException("Stopped by user.")
-        prompts = load_prompts(prompt_path)
-        
-        for p in prompt_store:
-            p["keep_in_store"] = False
-        
-        included_prompts = 0
-        for index, p in enumerate(prompts):
-            found = search_prompt(prompt_store, p) 
-            if found is None:
-                p["seed_use"] = p["seed"]
-                p["keep_in_store"] = True
-                p["run_count"] = 0
-                p["run_index"] = index
-                prompt_store.append(p)
-                included_prompts += 1
-            else:
-                found["keep_in_store"] = True
-                found["run_index"] = index
-        
-        previous_len = len(prompt_store)
-        prompt_store = [p for p in prompt_store if p["keep_in_store"]]        
-        current_len = len(prompt_store)
+        added, removed = store.load()
+        print(f"Added {added} prompts and removed {removed} prompts.")
 
-        if previous_len > current_len:
-            print(f"Removed {previous_len - current_len} prompts from the store.")
-
-        if included_prompts > 0:
-            print(f"Added {included_prompts} prompts to the store.")
-            
-        if len(prompt_store) == 0:
+        if len(store.prompts) == 0:
             raise StopException("No prompts found.")
-       
-        prompt_store = sorted(prompt_store, key=lambda x: (x["run_count"], x["run_index"]))
-        
-        p = prompt_store[0]
-        if p["run_count"] > 0:
-            p["seed_use"] = random.randint(0, 1000000)    
-        p["run_count"] += 1
-        
-        call_callback(f"Processing prompt {p['run_index']} of {len(prompt_store)}")
-        yield p 
+
+        prompt = store.prompts[0]
+        prompt.run_count += 1
+        prompt_data = prompt.to_dict()
+        if prompt_data["seed_use"] == -1:
+            prompt_data["seed_use"] = random.randint(0, 100000)
+        first_frame_pos = store.find_display_position_index()
+        call_callback(f"Processing prompt {first_frame_pos + 1} of {len(store.prompts)}")
+
+        yield prompt_data
         
 
 def process_cogvideo_task_generate(task: dict) -> dict:
@@ -746,8 +541,8 @@ def process_prompts_from_file(prompts_path: str):
             seed=seed,
             quant=prompt["quant"] in ['yes', 'true', '1'],
             loop=(prompt["loop"].lower()  in ['yes', 'true', '1'] if isinstance(prompt["loop"], (str,)) else prompt["loop"]),
-            should_upscale=prompt["should_upscale"].lower() in ['yes', 'true', '1'],
-            should_use_pyramid=prompt["use_pyramid"].lower() in ['yes', 'true', '1'],
+            should_upscale=prompt["should_upscale"],
+            should_use_pyramid=prompt["use_pyramid"],
             strength=prompt["strength"],
         )
 

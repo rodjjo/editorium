@@ -144,8 +144,8 @@ class ModelHolder:
                 state_dict = torch.load(path)
                 self.transformer.to('cpu')
                 self.transformer.load_state_dict(state_dict)
-            self.enable_sequential_cpu_offload(self.transformer)
-            # self.transformer.to('cuda')
+            # self.enable_sequential_cpu_offload(self.transformer)
+            self.transformer.to('cuda')
             gc.collect()
             torch.cuda.empty_cache()
             return self.transformer, self.scheduler
@@ -162,6 +162,7 @@ class ModelHolder:
             self.transformer.to('cpu')
             self.vae.to('cpu')
             self.text_encoder.to('cpu')
+            self.enable_sequential_cpu_offload(self.text_encoder)
             gc.collect()
             torch.cuda.empty_cache()
             return self.tokenizer, self.text_encoder
@@ -411,10 +412,11 @@ class ValidationConfig:
 
 
 class TrainerConfig:
+    model_path = "THUDM/CogVideoX-2b"
     learning_rate = 1e-4
     optimizer = 'adamw'
     use_8bit_adam = False
-    gradient_checkpointing = False
+    gradient_checkpointing = True
     compute_environment = 'LOCAL_MACHINE'
     debug = False
     deepspeed_config = DeepSpeedConfig()
@@ -527,6 +529,7 @@ class TrainerConfig:
             'lora_alpha': self.lora_alpha,
             'height': self.height,
             'width': self.width,
+            'model_path': self.model_path,
         }        
 
 
@@ -737,8 +740,8 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
                 model_input = model_input.to(memory_format=torch.contiguous_format).float()
                 model_input = model_input.permute(0, 2, 1, 3, 4).to(dtype=torch.bfloat16)  # [B, F, C, H, W]
                 prompt_embeds = item.load_prompt_pt()
-                model_input.to('cuda')
-                prompt_embeds.to('cuda')
+                model_input.to('cpu')
+                prompt_embeds.to('cpu')
                 
                 noise = torch.randn_like(model_input)
                 batch_size, num_frames, num_channels, height, width = model_input.shape
@@ -847,7 +850,7 @@ def _train_lora_model(train_file: str):
     else:
         train_config = TrainerConfig.from_file(train_file)
         
-    pretrained_model_name_or_path = "THUDM/CogVideoX-5b"
+    pretrained_model_name_or_path = "THUDM/CogVideoX-2b"
     text_encoder = T5EncoderModel.from_pretrained(
         pretrained_model_name_or_path, subfolder="text_encoder", revision=None
     )
