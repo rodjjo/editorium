@@ -6,7 +6,7 @@ It provides a server that runs background tasks and a cli called editorium to ma
 
 ## WIP (Work In Progress)
 
-TODOS
+TODOS  
 [x] Open the sources  
 [x] Add CogVideoX basic command  
 [ ] Create documentation explaining each command  
