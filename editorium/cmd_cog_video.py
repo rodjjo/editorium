@@ -4,7 +4,7 @@ import click
 import os
 
 from .help_formater import call_command
-from .request_wrapper import wait_task_completion, post_json_request
+from .request_wrapper import wait_task_completion, post_json_request, delete_request
 
 
 def full_path(path: str) -> str:
@@ -58,7 +58,7 @@ def text2video(prompt, lora_path, lora_rank, output_name, num_inference_steps, g
         data = post_json_request("http://localhost:5000/tasks", payload)  
         if data.get('task_id', None):
             print(f'Task {data["task_id"]} created')
-            wait_task_completion(data['task_id'])
+            # wait_task_completion(data['task_id'])
         else:
             print(data)
     except urllib.error.HTTPError as e:
@@ -112,7 +112,7 @@ def image2video(prompt, image_path, lora_path, lora_rank, output_name, num_infer
         data = post_json_request("http://localhost:5000/tasks", payload)  
         if data.get('task_id', None):
             print(f'Task {data["id"]} created')
-            wait_task_completion(data['task_id'])
+            # wait_task_completion(data['task_id'])
     except urllib.error.HTTPError as e:
         print(e)
         print(e.read())
@@ -164,7 +164,7 @@ def video2video(prompt, video_path, lora_path, lora_rank, output_name, num_infer
         data = post_json_request("http://localhost:5000/tasks", payload)  
         if data.get('task_id', None):
             print(f'Task {data["task_id"]} created')
-            wait_task_completion(data['task_id'])
+            # wait_task_completion(data['task_id'])
     except urllib.error.HTTPError as e:
         print(e)
         print(e.read())
@@ -188,7 +188,7 @@ def generate_from_file(prompts_path):
         data = post_json_request("http://localhost:5000/tasks", payload)  
         if data.get('task_id', None):
             print(f'Task {data["task_id"]} created')
-            wait_task_completion(data['task_id'])
+            # wait_task_completion(data['task_id'])
     except urllib.error.HTTPError as e:
         print(e)
         print(e.read())
@@ -212,7 +212,20 @@ def fine_tune(train_file):
         data = post_json_request("http://localhost:5000/tasks", payload)  
         if data.get('task_id', None):
             print(f'Task {data["task_id"]} created')
-            wait_task_completion(data['task_id'])
+            # wait_task_completion(data['task_id'])
+    except urllib.error.HTTPError as e:
+        print(e)
+        print(e.read())
+    except urllib.error.URLError as e:
+        print(e)
+
+
+@cog_group.command(help='Cancels a task')
+@click.option('--task-id', type=str, required=True, help="The task id")
+def cancel_task(task_id):
+    try:
+        data = delete_request(f"http://localhost:5000/tasks/{task_id}")
+        print(data)
     except urllib.error.HTTPError as e:
         print(e)
         print(e.read())

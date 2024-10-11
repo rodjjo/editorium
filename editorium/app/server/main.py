@@ -271,6 +271,18 @@ def register_server(queue: Queue, completion_queue: Queue):
         app.completed_tasks = {}
         return jsonify({'status': 'ok'})
     
+    @app.route('/tasks/<task_id>', methods=['DELETE'])
+    def cancel_task(task_id):
+        if task_id == 'current':
+            with current_task_lock:
+                if current_task is not None:
+                    from pipelines.cogvideo.task_processor import cancel_cogvideo_task
+                    if current_task.task_type == TaskType.COGVIDEO:
+                        cancel_cogvideo_task()
+                    return jsonify({'status': 'ok', 'message': 'Task cancelled'})
+                return jsonify({'status': 'ok', 'message': 'No task in progress'})
+        return jsonify({'status': 'error', 'message': 'Not implemented'}), 501
+    
     return app
 
 

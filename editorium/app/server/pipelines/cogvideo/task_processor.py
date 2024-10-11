@@ -1,53 +1,24 @@
 
-import gc
 import traceback
 import os
 import sys
 import random
-import argparse
+import subprocess
 from typing import Literal, List
 import torch
-from diffusers import (
-    AutoencoderKLCogVideoX, 
-    CogVideoXTransformer3DModel, 
-    CogVideoXPipeline,
-    CogVideoXDDIMScheduler,
-    CogVideoXDPMScheduler,
-    CogVideoXImageToVideoPipeline,
-    CogVideoXVideoToVideoPipeline,
-)
-from diffusers.image_processor import VaeImageProcessor
 from diffusers.utils import export_to_video, load_video
-from transformers import T5EncoderModel
 from torchvision import transforms
 from PIL import Image
 import pipelines.cogvideo.utils as utils
-from pipelines.cogvideo.rife_model import load_rife_model, rife_inference_with_latents
-from torchao.quantization import quantize_, int8_weight_only, int4_weight_only
-from torchao.quantization.utils import recommended_inductor_config_setter
+from pipelines.cogvideo.rife_model import rife_inference_with_latents
 
-from PIL import Image
 
-import subprocess
 from tqdm import tqdm
 import numpy as np
 
-# from torchao.float8.inference import ActivationCasting, QuantConfig, quantize_to_float8
 
-from pipelines.cogvideo.cogvideox_transformer_att import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelAtt
-from pipelines.cogvideo.cogvideox_transformer_pab import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelPAB
-from pipelines.cogvideo.core.pab_mgr import set_pab_manager, CogVideoXPABConfig
-from pipelines.cogvideo.load_gguf import load_gguf_transformer
 from pipelines.cogvideo.cogvideox_lora_trainer import train_lora_model
-
-# os.environ["TORCH_LOGS"] = "+dynamo,output_code,graph_breaks,recompiles"
-
-torch._dynamo.config.suppress_errors = True
-torch.set_float32_matmul_precision("high")
-torch._inductor.config.conv_1x1_as_mm = True
-torch._inductor.config.coordinate_descent_tuning = True
-torch._inductor.config.epilogue_fusion = False
-torch._inductor.config.coordinate_descent_check_all_directions = True
+from pipelines.cogvideo.managed_model import cogvideo_model
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
@@ -58,11 +29,14 @@ def set_title(title):
     CURRENT_TITLE = f'CogVideoX: {title}'
     print(CURRENT_TITLE)    
 
+
 def call_callback(title):
     set_title(title)
     if PROGRESS_CALLBACK is not None:
         PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
 
+class StopException(Exception):
+    pass
 
 class TqdmUpTo(tqdm):
     def update(self, n=1):
@@ -74,89 +48,7 @@ class TqdmUpTo(tqdm):
         return result
 
 
-
-class StopException(Exception):
-    pass
-
-# recommended_inductor_config_setter()
-
-if not os.path.exists("/home/editorium/models/upscalers"):
-    os.makedirs("/home/editorium/models/upscalers", exist_ok=True)
-    
-if not os.path.exists("/home/editorium/models/interpolations"):
-    os.makedirs("/home/editorium/models/interpolations", exist_ok=True)
-
-upscale_model = None
-frame_interpolation_model = None
-
-
-def quantize_model(part, quantization_scheme="fp8"):
-    # if quantization_scheme == "int8":
-    quantize_(part, int8_weight_only())
-    #elif quantization_scheme == "fp8":
-    # quantize_to_float8(part, QuantConfig(ActivationCasting.DYNAMIC))
-    return part
-
-
-def quantize_pipe(model_path, model_class, dtype, quantization_scheme="fp8", use_attn=False, use_gguf=False):
-    text_encoder = T5EncoderModel.from_pretrained(model_path, subfolder="text_encoder", torch_dtype=dtype)
-    if quantization_scheme:
-        text_encoder = quantize_model(part=text_encoder, quantization_scheme=quantization_scheme)
-    
-    if use_attn:
-        transform_class = CogVideoXTransformer3DModelAtt
-    else:
-        transform_class = CogVideoXTransformer3DModel
-        
-    if use_gguf:
-        #  CogVideoX_5b_I2V_GGUF_Q4_0.safetensors    
-        transformer = transform_class.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
-        gguf_path = "/home/editorium/models/videos/CogVideoX_5b_I2V_GGUF_Q4_0.safetensors"
-        if os.path.exists(gguf_path):
-            load_gguf_transformer(transformer, gguf_path)
-    else: 
-        transformer = transform_class.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
-        
-    if quantization_scheme:
-        transformer = quantize_model(part=transformer, quantization_scheme=quantization_scheme)
-        
-    vae = AutoencoderKLCogVideoX.from_pretrained(model_path, subfolder="vae", torch_dtype=dtype)
-    if quantization_scheme:
-        vae = quantize_model(part=vae, quantization_scheme=quantization_scheme)
-        
-    #if quantization_scheme:
-    #    transformer = torch.compile(transformer, mode="max-autotune", fullgraph=True)
-    #if not quantization_scheme:
-    #    transformer = transformer.to(memory_format=torch.channels_last)
-    #    transformer = torch.compile(transformer, mode="max-autotune", fullgraph=True)
-
-    gc.collect()
-    torch.cuda.empty_cache()
-    pipe = model_class.from_pretrained(
-        model_path.strip(), 
-        torch_dtype=dtype,
-        vae=vae,
-        transformer=transformer,
-        text_encoder=text_encoder
-    )
-    gc.collect()
-    torch.cuda.empty_cache()
-    if not quantization_scheme:
-        pipe.to(dtype=torch.float16)
-    return pipe
-
-
 def load_image_with_pil(image_path: str):
-    """
-    Load an image from the given path using PIL.
-
-    Parameters:
-    - image_path (str): The path of the image to be loaded.
-
-    Returns:
-    - image (PIL.Image): The loaded image.
-    """
-    
     image = Image.open(image_path)
     if image.mode != "RGB":
         image = image.convert("RGB")
@@ -170,11 +62,6 @@ def resize_pil_image(image: Image, hd=False):
         size = (736, 496)
     return image.resize(size)
 
-pipe = None
-current_type = None
-current_model = None
-current_looping = False
-current_pyramid = False
 
 to_tensors_transform = transforms.ToTensor()
 to_pil_transform = transforms.ToPILImage()
@@ -204,12 +91,12 @@ def save_video(frames, output_path, should_upscale=False):
         
     if should_upscale:
         call_callback("Upscaling video")
-        frames = utils.upscale(upscale_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
+        frames = utils.upscale(cogvideo_model.upscaler_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
         frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
 
     call_callback("Increasing video FPS")
-    frames = rife_inference_with_latents(frame_interpolation_model, torch.stack(frames))
-    frames = rife_inference_with_latents(frame_interpolation_model, torch.stack(frames))
+    frames = rife_inference_with_latents(cogvideo_model.interpolation_model, torch.stack(frames))
+    frames = rife_inference_with_latents(cogvideo_model.interpolation_model, torch.stack(frames))
     frames = [to_pil_transform(f[0]) for f in frames]
 
     call_callback("Saving video")
@@ -229,141 +116,29 @@ def generate_video(
     generate_type: str = Literal["t2v", "i2v", "v2v"],  # i2v: image to video, v2v: video to video
     seed: int = 42,
     quant: bool = False,
-    loop: bool = False,
     should_upscale: bool = False,
     should_use_pyramid: bool = False,
     strength: float = 0.8,
 ):
-    global pipe
-    global current_type
-    global current_looping
-    global current_model
-    global current_pyramid
-    global upscale_model
-    global frame_interpolation_model
     output_path = output_path.replace(".mp4", "")
     
-    if upscale_model is None:
-        upscale_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
-        
-    if frame_interpolation_model is None:
-        frame_interpolation_model = load_rife_model("/home/editorium/models/interpolations/model_rife")
-
-
-    # 1.  Load the pre-trained CogVideoX pipeline with the specified precision (bfloat16).
-    # add device_map="balanced" in the from_pretrained function and remove the enable_model_cpu_offload()
-    # function to use Multi GPUs.
 
     image = None
     video = None
     vae_encode_decode = False
     
-    if current_type != generate_type:
-        call_callback(f"Loading model to generate video. type = {generate_type}")
-        pipe = None
-        gc.collect()
-        torch.cuda.empty_cache()
-        current_type = generate_type
-
-    loop_enabled = loop is True or isinstance(loop, int)
-    if current_looping != loop_enabled:
-        call_callback(f"Loading model to generate video. loop = {loop}")
-        pipe = None
-        gc.collect()
-        torch.cuda.empty_cache()
-        current_looping = loop_enabled
-    
-    if current_pyramid != should_use_pyramid:
-        call_callback(f"Loading model to generate video. pyramid = {should_use_pyramid}")
-        pipe = None
-        gc.collect()
-        torch.cuda.empty_cache()
-        current_pyramid = should_use_pyramid
-    
-    if generate_type == "i2v":
-        model_path = "THUDM/CogVideoX-5b-I2V" 
-    elif should_use_pyramid: 
-        model_path =  "THUDM/CogVideoX-2b"
-    elif generate_type == 'v2vae':
+    if generate_type == 'v2vae':
         generate_type = 'v2v'
         vae_encode_decode = True
-        model_path =  "THUDM/CogVideoX-5b"
-    else:
-        model_path =  "THUDM/CogVideoX-5b"
     
-        
-    if current_model != model_path:
-        call_callback(f"Loading model to generate video. model = {model_path}")
-        pipe = None
-        gc.collect()
-        torch.cuda.empty_cache()
-        current_model = model_path
-    
+    cogvideo_model.load_models(
+        use5b_model=True, 
+        generate_type=generate_type, 
+        use_pyramid=False,
+        use_sageatt=False, 
+        use_gguf=False
+    )
 
-    if generate_type == "i2v":
-        image = load_image_with_pil(image_or_video_path.strip())
-    elif generate_type != "t2v":
-        video = load_video(image_or_video_path.strip())
-        video_frames = len(video)
-        max_frames = 49
-        if video_frames > max_frames:
-            video = video[:max_frames]
-    
-
-    if pipe is None:
-        if generate_type == "i2v":
-            model_class = CogVideoXImageToVideoPipeline
-        elif generate_type == "t2v":
-            model_class = CogVideoXPipeline
-        else:
-            model_class = CogVideoXVideoToVideoPipeline
-            
-        if should_use_pyramid:
-            config = CogVideoXPABConfig()
-            set_pab_manager(config)
-        
-        use_gguf = False # generate_type == "i2v"
-        if quant:
-            call_callback("Quantizing model")
-            pipe = quantize_pipe(model_path, model_class, dtype, "int8", use_attn=False, use_gguf=use_gguf)
-            call_callback("Model quantized")
-            generator = torch.Generator().manual_seed(seed)
-            #pipe.vae.enable_slicing()
-            #pipe.vae.enable_tiling()
-            # print("Compiling model")
-            # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune", fullgraph=True)  
-            # print("Model compiled")
-            # pipe.enable_model_cpu_offload()
-            pipe.enable_sequential_cpu_offload()
-        else:
-            pipe = quantize_pipe(model_path, model_class, dtype, "", use_attn=generate_type=='i2v', use_gguf=use_gguf)
-            pipe.scheduler = CogVideoXDPMScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
-            # pipe.enable_model_cpu_offload()
-            pipe.enable_sequential_cpu_offload()
-        #if should_use_pyramid:
-            #print("Enabling pyramid attention")
-            #pipe.enable_pyramid_attention_broadcast(
-            #    spatial_attn_skip_range=2,
-            #    spatial_attn_timestep_range=[100, 850],
-            #)
-
-        pipe.vae.enable_slicing()
-        pipe.vae.enable_tiling()
-
-        if vae_encode_decode:
-            pipe = pipe.vae
-        else:
-            pipe.progress_bar = lambda total: TqdmUpTo(total=total)
-            
-            
-        gc.collect()    
-        torch.cuda.empty_cache()       
-    
-
-    # 4. Generate the video frames based on the prompt.
-    # `num_frames` is the Number of frames to generate.
-    # This is the default value for 6 seconds video and 8 fps and will plus 1 frame for the first frame and 49 frames.
-    # num_videos_per_prompt = 1
     if num_videos_per_prompt > 1:
         prompt = [prompt] * num_videos_per_prompt
         generator = []
@@ -371,57 +146,48 @@ def generate_video(
             generator.append(torch.Generator(device="cuda").manual_seed(seed + index))
     else:
         generator = torch.Generator(device="cuda").manual_seed(seed)
-    call_callback("Generating video")
+
+    pipe_args = {
+        "prompt": prompt,
+        "num_inference_steps": num_inference_steps,
+        "guidance_scale": guidance_scale,
+        "generator": generator,
+        "num_videos_per_prompt": 1, 
+        "num_frames": 49,
+        "use_dynamic_cfg": True,
+    }
+    
     if generate_type == "i2v":
-        add_args = {            
-        }
-        # if loop_enabled:
-        # add_args['looping'] = loop
-        video_generate = pipe(
-            prompt=prompt,
-            image=image,  # The path of the image to be used as the background of the video
-            num_videos_per_prompt=1,  # Number of videos to generate per prompt
-            num_inference_steps=num_inference_steps,  # Number of inference steps
-            num_frames=49,  # Number of frames to generate，changed to 49 for diffusers version `0.30.3` and after.
-            use_dynamic_cfg=True,  # This id used for DPM Sechduler, for DDIM scheduler, it should be False
-            guidance_scale=guidance_scale,
-            generator=generator,  # Set the seed for reproducibility
-            **add_args,
-        ).frames
-    elif generate_type == "t2v":
-        video_generate = pipe(
-            prompt=prompt,
-            num_videos_per_prompt=1,
-            num_inference_steps=num_inference_steps,
-            num_frames=49,
-            use_dynamic_cfg=True,
-            guidance_scale=guidance_scale,
-            generator=generator,
-        ).frames
+        image = load_image_with_pil(image_or_video_path.strip())
+        pipe_args["image"] = image
+    elif generate_type != "t2v":
+        video = load_video(image_or_video_path.strip())
+        video_frames = len(video)
+        max_frames = 49
+        if video_frames > max_frames:
+            video = video[:max_frames]
+        pipe_args["strength"] = strength
+        pipe_args["video"] = video
+
+    cogvideo_model.pipe.progress_bar = lambda total: TqdmUpTo(total=total)
+
+
+    call_callback("Generating video")
+    
+    if vae_encode_decode:
+        vae = cogvideo_model.pipe.vae
+        video = [to_tensors_transform(frame) for frame in video]
+        video = torch.stack(video).to('cuda').permute(1, 0, 2, 3).unsqueeze(0).to(vae.dtype)
+        with torch.no_grad():
+            latents = vae.encode(video)[0].sample()
+            video_generate = vae.decode(latents).sample
+        tensor = video_generate.to(dtype=torch.float32)
+        video_generate = tensor[0].squeeze(0).permute(1, 2, 3, 0).cpu().numpy()
+        video_generate = np.clip(video_generate, 0, 1) * 255
+        video_generate = video_generate.astype(np.uint8)
+        video_generate = [[Image.fromarray(video_generate[i]) for i in range(video_generate.shape[0])]]
     else:
-        if vae_encode_decode:
-            vae = pipe
-            video = [to_tensors_transform(frame) for frame in video]
-            video = torch.stack(video).to('cuda').permute(1, 0, 2, 3).unsqueeze(0).to(vae.dtype)
-            with torch.no_grad():
-                latents = vae.encode(video)[0].sample()
-                video_generate = vae.decode(latents).sample
-            tensor = video_generate.to(dtype=torch.float32)
-            video_generate = tensor[0].squeeze(0).permute(1, 2, 3, 0).cpu().numpy()
-            video_generate = np.clip(video_generate, 0, 1) * 255
-            video_generate = video_generate.astype(np.uint8)
-            video_generate = [[Image.fromarray(video_generate[i]) for i in range(video_generate.shape[0])]]
-        else:
-            video_generate = pipe(
-                prompt=prompt,
-                video=video,  # The path of the video to be used as the background of the video
-                num_videos_per_prompt=1,
-                num_inference_steps=num_inference_steps,
-                use_dynamic_cfg=True,
-                guidance_scale=guidance_scale,
-                generator=generator,  # Set the seed for reproducibility
-                strength=strength,
-            ).frames
+        video_generate = cogvideo_model.pipe(**pipe_args).frames
 
     if len(video_generate) < 1:
         call_callback("No video generated.")
@@ -495,7 +261,6 @@ def process_cogvideo_task_generate(task: dict) -> dict:
             generate_type=generate_type,
             seed=seed,
             quant=quant,
-            loop=loop,
             should_upscale=should_upscale,
             should_use_pyramid=use_pyramid,
             strength=strength,
@@ -540,7 +305,7 @@ def process_prompts_from_file(prompts_path: str):
             generate_type=prompt["generate_type"],
             seed=seed,
             quant=prompt["quant"] in ['yes', 'true', '1'],
-            loop=(prompt["loop"].lower()  in ['yes', 'true', '1'] if isinstance(prompt["loop"], (str,)) else prompt["loop"]),
+            # loop=(prompt["loop"].lower()  in ['yes', 'true', '1'] if isinstance(prompt["loop"], (str,)) else prompt["loop"]),
             should_upscale=prompt["should_upscale"],
             should_use_pyramid=prompt["use_pyramid"],
             strength=prompt["strength"],
@@ -555,12 +320,12 @@ def process_prompts_from_file(prompts_path: str):
     
 
 def train_cogvideo_lora(train_filepath: str):
-    cogvideo_release_resources()
     print("Training LoRA model")
     train_lora_model(train_filepath)
     return {
         "success": False,
     }
+
 
 def process_cogvideo_task(task: dict, callback = None) -> dict:
     global SHOULD_STOP
@@ -605,20 +370,6 @@ def cancel_cogvideo_task():
     global SHOULD_STOP
     print("Cancelling CogVideo tasks if any...") 
     SHOULD_STOP = True
-    return {
-        "success": True,
-    }
-
-
-def cogvideo_release_resources():
-    global pipe
-    global upscale_model
-    global frame_interpolation_model
-    pipe = None
-    upscale_model = None
-    frame_interpolation_model = None
-    gc.collect()
-    torch.cuda.empty_cache()
     return {
         "success": True,
     }

@@ -1,6 +1,12 @@
 from typing import List, Tuple, Optional
 
 
+# this prompt store was develope to be constantly updated with the prompts in the file
+# when the load function is called, it will add missing prompts and remove prompts that are not in the file
+# it will duplicate the prompts following the count attribute
+# the prompt are sorted by the run count and the position index, so new prompts in the file will be processed first if 
+# in the queue we have a prompt with bigger run count
+
 class PromptConfig:
     steps: int = 50
     seed: int = -1
@@ -22,7 +28,9 @@ class PromptConfig:
                 setattr(self, key, value)
                 
     def __eq__(self, other):
-        return self.to_dict() == other.to_dict()
+        self_dict = self.to_dict()
+        other_dict = other.to_dict()
+        return self_dict == other_dict
                 
     # parses all the lines if it starts with #config. and sets the value to the attribute
     # if the attribute is not found, it will be ignored
@@ -77,16 +85,18 @@ class Prompt:
     def __init__(self, config: PromptConfig, prompt: List[str], seed_use: Optional[int] = None):
         self.config = config
         self.prompt = prompt
+        self.prompt_str = '\n'.join(prompt)
         self.should_remove = False
         self.seed_use = seed_use or -1
         self.position_index = 0
         self.run_count = 0
+        self.count_index = -1
     
     def set_should_remove(self, value: bool):
         self.should_remove = value
 
     def compare(self, other) -> bool:
-        return self.config == other.config
+        return self.to_dict() == other.to_dict()
     
     def duplicate(self, randomize_seed=True):
         config = PromptConfig(**self.config.to_dict())
@@ -95,8 +105,9 @@ class Prompt:
     
     def to_dict(self):
         result = self.config.to_dict()
-        result["prompt"] = '\n'.join(self.prompt)
+        result["prompt"] = self.prompt_str
         result["seed_use"] = self.seed_use
+        result["count_index"] = self.count_index
         return result
 
 '''
@@ -141,28 +152,34 @@ class PromptStore:
         return None
             
     def add_prompt(self, prompt: Prompt) -> int:
-        found = self.search(prompt)
-        if found:
-            found.set_should_remove(False)
-            found.seed_use = -1
-            self.raw_prompts.append(found.to_dict())
-            return 0
         count = prompt.config.count
         if count == 1:
             count = 1
         added = 1
         prompt.position_index = self.current_position_index
-        prompt.config.count = 0
+        prompt.count_index = added
         self.current_position_index += 1
-        self.prompts.append(prompt)
+        
+        found = self.search(prompt)
+        if found:
+            found.set_should_remove(False)
+            found.seed_use = -1
+        else:
+            self.prompts.append(prompt)
         self.raw_prompts.append(prompt.to_dict())
+            
         for i in range(count - 1):
             added += 1
             p = prompt.duplicate()
-            p.config.count = i + 1
+            p.count_index = added 
             p.position_index = self.current_position_index
             self.current_position_index += 1
-            self.prompts.append(p)
+            found = self.search(p)
+            if found:
+                found.set_should_remove(False)
+                found.seed_use = -1
+            else:
+                self.prompts.append(p)
             self.raw_prompts.append(p.to_dict())
             
         return added
@@ -222,6 +239,7 @@ class PromptStore:
         removed_count = self.remove_marked()
         self.prompts.sort(key=lambda x: (x.run_count, x.position_index))
         self.save_position_indexes()
+        
         return added_count, removed_count
 
     def find_display_position_index(self) -> int:

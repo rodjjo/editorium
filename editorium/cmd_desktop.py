@@ -79,9 +79,6 @@ def run(path):
     except Exception as e:
         print(f"Error executing command {str(e)}")
 
-    print("Presse enter to continue")
-    input()
-
 
 @desktop_group.command(
     help="Create a command file with example values"

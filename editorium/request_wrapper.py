@@ -43,3 +43,15 @@ def post_json_request(url, data):
     return {"error": "error"}
 
 
+def delete_request(url):
+    try:
+        req = urllib.request.Request(url, method='DELETE')
+        response = urllib.request.urlopen(req)
+        json_data = response.read().decode()
+        return json.loads(json_data)
+    except urllib.error.HTTPError as e:
+        print(e)
+        print(e.read())
+    except urllib.error.URLError as e:
+        print(e)
+    return {"error": "error"}
