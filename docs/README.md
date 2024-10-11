@@ -72,3 +72,21 @@ editorium cogvideo generate-from-file --prompts-path=prompts.editorium
 # the full path para prompts.editorium:
 editorium cogvideo generate-from-file --prompts-path=/app/output_dir/prompts.editorium
 ```
+
+## Help
+
+The cli provides help for each command
+```bash
+editorium --help
+editorium server --help
+editorium server run --help
+editorium cogvideo --help
+editorium cogvideo generate-from-file --help
+```
+
+
+## References
+
+[THUDM/CogVideo](https://github.com/THUDM/CogVideo)
+[ComfyUI-CogVideoXWrapper](https://github.com/kijai/ComfyUI-CogVideoXWrapper)
+[diffusers](https://github.com/huggingface/diffusers/)
