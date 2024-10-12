@@ -9,10 +9,10 @@ It provides a server that runs background tasks and a cli called editorium to ma
 TODOS  
 [x] Open the sources  
 [x] Add CogVideoX basic command  
-[ ] Add Pyramid Flow
-[ ] Add Flux
-[ ] Add Stable Diffusion 1.5
-[ ] Replace ffmpeg command by builtin scripts that manipulates the video.
+[ ] Add Pyramid Flow  
+[ ] Add Flux  
+[ ] Add Stable Diffusion 1.5  
+[ ] Replace ffmpeg command by builtin scripts that manipulates the video.  
 [ ] Create documentation explaining each command  
 
 ## Requirements
