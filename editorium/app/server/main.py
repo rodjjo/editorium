@@ -39,6 +39,7 @@ def progress_callback(title, percentage):
 class TaskType:
     COGVIDEO = 'cogvideo'
     COGVIDEO_LORA = 'cogvideo_lora' 
+    PYRAMID_FLOW = 'pyramid_flow'
     STABLE_DIFFUSION_15 = 'stable_diffusion_1.5'
     FLUX = 'flux'
     PREPROCESSOR = 'image_preprocessor'
@@ -119,10 +120,12 @@ def pop_one_task(queue: Queue):
         except Empty:  
             return None
         return task
-    
+
+
 def list_queue(queue: Queue):
     with current_task_lock:
         return list(queue)
+
 
 def work_on_task(task: Task) -> CompletedTask:
     print(f'Working on task {task.id}')
@@ -132,7 +135,10 @@ def work_on_task(task: Task) -> CompletedTask:
     if task.task_type in (TaskType.COGVIDEO, TaskType.COGVIDEO_LORA):
         from pipelines.cogvideo.task_processor import process_cogvideo_task
         result = process_cogvideo_task(task.parameters, progress_callback)
-        
+    elif task.task_type == TaskType.PYRAMID_FLOW:
+        from pipelines.pyramid_flow.task_processor import process_pyramid_task
+        result = process_pyramid_task(task.parameters, progress_callback)
+
     completed = CompletedTask(
         task.id,
         task.task_type,
@@ -153,10 +159,13 @@ def keep_worinking(queue: Queue, completion_queue: Queue):
             # sleep for a while
             time.sleep(1)
             continue
+
         with current_task_lock:
             current_task = task
+            
         queue.task_done()
         print(f'Processing task {task.id}')
+
         try:
             result = work_on_task(task)
             completion_queue.put(result)

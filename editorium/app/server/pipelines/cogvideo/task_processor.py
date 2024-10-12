@@ -9,20 +9,21 @@ import torch
 from diffusers.utils import export_to_video, load_video
 from torchvision import transforms
 from PIL import Image
-import pipelines.cogvideo.utils as utils
-from pipelines.cogvideo.rife_model import rife_inference_with_latents
-
-
 from tqdm import tqdm
 import numpy as np
 
-
+from pipelines.common import utils
+from pipelines.common.rife_model import rife_inference_with_latents
+from pipelines.common.save_video import save_video, to_tensors_transform
+from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.cogvideo.cogvideox_lora_trainer import train_lora_model
 from pipelines.cogvideo.managed_model import cogvideo_model
+from pipelines.common.exceptions import StopException
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
 CURRENT_TITLE = ""
+
 
 def set_title(title):
     global CURRENT_TITLE
@@ -35,8 +36,6 @@ def call_callback(title):
     if PROGRESS_CALLBACK is not None:
         PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
 
-class StopException(Exception):
-    pass
 
 class TqdmUpTo(tqdm):
     def update(self, n=1):
@@ -53,54 +52,6 @@ def load_image_with_pil(image_path: str):
     if image.mode != "RGB":
         image = image.convert("RGB")
     return image
-
-
-def resize_pil_image(image: Image, hd=False):
-    if hd:
-        size = (1072, 720)
-    else:
-        size = (736, 496)
-    return image.resize(size)
-
-
-to_tensors_transform = transforms.ToTensor()
-to_pil_transform = transforms.ToPILImage()
-
-blank_image = Image.new("RGB", (736, 496), (0, 0, 0))
-
-def get_non_existing_path(output_path: str) -> str:
-    file_index = 0
-    saved_path = output_path.replace(".mp4", "")
-    while os.path.exists(output_path):
-        output_path = f"{saved_path}_{file_index}.mp4"
-        file_index += 1
-    return output_path
-
-
-def save_video(frames, output_path, should_upscale=False):
-    if not os.path.exists("/app/output_dir/output/videos"):
-        os.makedirs("/app/output_dir/output/videos", exist_ok=True)
-    output_path = os.path.join("/app/output_dir/output/videos", output_path)
-    output_path = get_non_existing_path(output_path.replace(".mp4", ".fps.mp4"))
-    
-    frames = [resize_pil_image(frames[i]) for i in range(len(frames))]
-    for findex in range(len(frames)):
-        frames[findex] = to_tensors_transform(frames[findex])
-        if not should_upscale:
-            frames[findex] = frames[findex].unsqueeze(0)
-        
-    if should_upscale:
-        call_callback("Upscaling video")
-        frames = utils.upscale(cogvideo_model.upscaler_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
-        frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
-
-    call_callback("Increasing video FPS")
-    frames = rife_inference_with_latents(cogvideo_model.interpolation_model, torch.stack(frames))
-    frames = rife_inference_with_latents(cogvideo_model.interpolation_model, torch.stack(frames))
-    frames = [to_pil_transform(f[0]) for f in frames]
-
-    call_callback("Saving video")
-    export_to_video(frames, output_path, fps=8)
 
 
 def generate_video(
@@ -197,35 +148,23 @@ def generate_video(
         return
     
     if num_videos_per_prompt < 2:
-        save_video(video_generate[0], f'{output_path}_seed_{seed}_steps{num_inference_steps}.mp4', should_upscale)
+        save_video(
+            video_generate[0], 
+            f'{output_path}_seed_{seed}_steps{num_inference_steps}.mp4', 
+            cogvideo_model.upscaler_model,
+            cogvideo_model.interpolation_model,
+            should_upscale
+        )
     else:
         for i in range(len(video_generate)):
-            save_video(video_generate[i], f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", should_upscale)
+            save_video(
+                video_generate[i], 
+                f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", 
+                cogvideo_model.upscaler_model,
+                cogvideo_model.interpolation_model,
+                should_upscale
+            )
 
-
-def iterate_prompts(prompt_path):
-    from pipelines.cogvideo.prompt_parser import PromptStore
-    store = PromptStore(prompt_path)
-    while True:
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        added, removed = store.load()
-        print(f"Added {added} prompts and removed {removed} prompts.")
-
-        if len(store.prompts) == 0:
-            raise StopException("No prompts found.")
-
-        prompt = store.prompts[0]
-        prompt.run_count += 1
-        prompt_data = prompt.to_dict()
-        if prompt_data["seed_use"] == -1:
-            prompt_data["seed_use"] = random.randint(0, 100000)
-        prompt_data["strength"] = float(prompt_data["strength"])/100.0
-        first_frame_pos = store.find_display_position_index()
-        call_callback(f"Processing prompt {first_frame_pos + 1} of {len(store.prompts)}")
-
-        yield prompt_data
-        
 
 def process_cogvideo_task_generate(task: dict) -> dict:
     try:
@@ -288,7 +227,13 @@ def process_prompts_from_file(prompts_path: str):
     saved_outpath = output_path
     args_lora_path = ''
     args_lora_rank = 128
-    for prompt in iterate_prompts(prompts_path):
+    for prompt, pos, count in iterate_prompts(prompts_path):
+        if SHOULD_STOP:
+            print("Stopped by user.")
+            break
+
+        print(f"Processing prompt {pos}/{count}")
+
         args_output_path = saved_outpath
         seed = prompt["seed_use"]
         args_output_path = f'{args_output_path.split(".")[0]}_{file_index}.mp4'

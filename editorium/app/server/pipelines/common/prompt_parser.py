@@ -1,3 +1,4 @@
+import random
 from typing import List, Tuple, Optional
 
 
@@ -247,3 +248,24 @@ class PromptStore:
             return -1
         prompt = self.prompts[0]
         return self.raw_prompts.index(prompt.to_dict())
+    
+
+def iterate_prompts(prompt_path: str):
+    from pipelines.common.prompt_parser import PromptStore
+    store = PromptStore(prompt_path)
+    while True:
+        added, removed = store.load()
+        print(f"Added {added} prompts and removed {removed} prompts.")
+
+        if len(store.prompts) == 0:
+            raise StopException("No prompts found.")
+
+        prompt = store.prompts[0]
+        prompt.run_count += 1
+        prompt_data = prompt.to_dict()
+        if prompt_data["seed_use"] == -1:
+            prompt_data["seed_use"] = random.randint(0, 100000)
+        prompt_data["strength"] = float(prompt_data["strength"])/100.0
+        first_frame_pos = store.find_display_position_index()
+
+        yield prompt_data, first_frame_pos, len(store.prompts)

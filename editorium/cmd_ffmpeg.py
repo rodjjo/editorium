@@ -4,12 +4,7 @@ import subprocess
 import click
 
 from .help_formater import call_command
-
-def full_path(path: str) -> str:
-    if '~' in path:
-        path = os.path.expanduser(path)
-    path = os.path.abspath(path)
-    return os.path.normpath(path)
+from .docker_management import full_path
 
 
 @click.group(help="Manages FFMPEG")

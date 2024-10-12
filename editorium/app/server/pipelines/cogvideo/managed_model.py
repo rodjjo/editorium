@@ -15,11 +15,12 @@ from transformers import T5EncoderModel
 
 from pipelines.cogvideo.cogvideox_transformer import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelPAB
 from pipelines.cogvideo.core.pab_mgr import set_pab_manager, CogVideoXPABConfig
-from pipelines.cogvideo.load_gguf import load_gguf_transformer
+from pipelines.common.load_gguf import load_gguf_transformer
 from pipelines.common.model_manager import ManagedModel
-from pipelines.cogvideo.rife_model import load_rife_model
+from pipelines.common.rife_model import load_rife_model
+from pipelines.common import utils
 
-import pipelines.cogvideo.utils as utils
+from huggingface_hub import hf_hub_download, snapshot_download
 
 MODELS_PATH = "/home/editorium/models/videos/"
 
@@ -140,9 +141,13 @@ class CogVideoModels(ManagedModel):
             self.pipe.to(dtype=torch.float16)
 
         if self.upscaler_model is None:
-           self.upscaler_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
+            if not os.path.exists("/home/editorium/models/upscalers/RealESRGAN_x4.pth"):
+                hf_hub_download(repo_id="ai-forever/Real-ESRGAN", filename="RealESRGAN_x4.pth", local_dir="/home/editorium/models/upscalers")
+            self.upscaler_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
         
         if self.interpolation_model is None:
+            if not os.path.exists("/home/editorium/models/interpolations/model_rife/flownet.pkl"):
+                snapshot_download(repo_id="AlexWortega/RIFE", local_dir="/home/editorium/models/interpolations/model_rife")
             self.interpolation_model = load_rife_model("/home/editorium/models/interpolations/model_rife")
 
         gc.collect()
