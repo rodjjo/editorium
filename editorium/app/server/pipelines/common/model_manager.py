@@ -4,6 +4,8 @@ import torch
 
 
 class ManagedModel:
+    MODELS_PATH = "/home/editorium/models/"
+    
     def __init__(self, name: str):
         model_manager.register_model(name, self)
 

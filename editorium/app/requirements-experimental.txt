@@ -1,4 +1,0 @@
-# this requirements file was created to install depedencies directly from github git+https
-# it allows to test the latest version of the package
-git+https://github.com/huggingface/diffusers.git@main#egg=diffusers
-git+https://github.com/huggingface/accelerate.git@main#egg=accelerate

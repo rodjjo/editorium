@@ -12,6 +12,7 @@ import time
 import logging
 import sys
 import signal
+import traceback
 
 
 progress_title = ''
@@ -132,13 +133,17 @@ def work_on_task(task: Task) -> CompletedTask:
     print(f'Task type: {task.task_type}')
     
     result = {}
-    if task.task_type in (TaskType.COGVIDEO, TaskType.COGVIDEO_LORA):
-        from pipelines.cogvideo.task_processor import process_cogvideo_task
-        result = process_cogvideo_task(task.parameters, progress_callback)
-    elif task.task_type == TaskType.PYRAMID_FLOW:
-        from pipelines.pyramid_flow.task_processor import process_pyramid_task
-        result = process_pyramid_task(task.parameters, progress_callback)
-
+    try:
+        if task.task_type in (TaskType.COGVIDEO, TaskType.COGVIDEO_LORA):
+            from pipelines.cogvideo.task_processor import process_cogvideo_task
+            result = process_cogvideo_task(task.parameters, progress_callback)
+        elif task.task_type == TaskType.PYRAMID_FLOW:
+            from pipelines.pyramid_flow.task_processor import process_pyramid_task
+            result = process_pyramid_task(task.parameters, progress_callback)
+    except Exception as e:
+        # print stack
+        traceback.print_exc()
+        raise e 
     completed = CompletedTask(
         task.id,
         task.task_type,

@@ -22,8 +22,10 @@ class PromptConfig:
     count: int = 1
     quant: bool = False
     image: str = ""
+    _config_prefix: str = "#config."
     
-    def __init__(self, **kwargs):
+    def __init__(self, config_prefix, **kwargs):
+        self._config_prefix = config_prefix
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
@@ -37,8 +39,8 @@ class PromptConfig:
     # if the attribute is not found, it will be ignored
     def parse_lines(self, lines: List[str]):
         for line in lines:
-            if line.startswith("#config."):
-                key, value = line.split("#config.")[1].split("=")
+            if line.startswith(self._config_prefix):
+                key, value = line.split(self._config_prefix)[1].split("=")
                 if hasattr(self, key):
                     converted = False
                     try:
@@ -59,6 +61,12 @@ class PromptConfig:
                         elif value.lower() in ["no", "false", "0"]:
                             value = False
                             converted = True
+                    if not converted:
+                        if ',' in value:
+                            try:
+                                value = [int(v.strip()) for v in value.split(',')]
+                            except ValueError:
+                                pass
                     setattr(self, key, value)
 
     def to_dict(self):
@@ -100,7 +108,7 @@ class Prompt:
         return self.to_dict() == other.to_dict()
     
     def duplicate(self, randomize_seed=True):
-        config = PromptConfig(**self.config.to_dict())
+        config = PromptConfig(self.config._config_prefix, **self.config.to_dict())
         config.image = self.config.image
         return Prompt(config, self.prompt[:], -1 if randomize_seed else self.seed_use)
     
@@ -118,17 +126,18 @@ When it add a prompt it will have  a position index that is used to sort the pro
 If the prompt was used, the run count will be increased by 1 and the prompt will lose its position index
 '''
 class PromptStore:
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str, config_prefix: str = "#config.") -> None:
         self.filepath = filepath
         self.prompts = []
         self.raw_prompts = []
         self.load()
         self.current_position_index = 0
+        self.config_prefix = config_prefix
         
     def parse_prompt(self, captures) -> Tuple[Prompt, List[str]]:
-        config = PromptConfig()
+        config = PromptConfig(self.config_prefix)
         config.parse_lines(captures)
-        captures = [c for c in captures if not c.startswith("#config.")]
+        captures = [c for c in captures if not c.startswith(self.config_prefix)]
         images = []
         prompt = []
         images_started = False
@@ -250,9 +259,9 @@ class PromptStore:
         return self.raw_prompts.index(prompt.to_dict())
     
 
-def iterate_prompts(prompt_path: str):
+def iterate_prompts(prompt_path: str, config_prefix: str = '#config.') -> Tuple[dict, int, int]:
     from pipelines.common.prompt_parser import PromptStore
-    store = PromptStore(prompt_path)
+    store = PromptStore(prompt_path, config_prefix)
     while True:
         added, removed = store.load()
         print(f"Added {added} prompts and removed {removed} prompts.")

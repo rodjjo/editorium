@@ -50,17 +50,17 @@ To start you can create a prompt file at `~/my-cogvideo-root-dir` (the root path
 The file name could be `~/my-cogvideo-root-dir/prompts.editorium`:
 ```text
 #start
-#config.steps=50
-#config.seed=-1
-#config.num_videos_per_prompt=1
-#config.loop=false
-#config.generate_type=i2v
-#config.should_upscale=false
-#config.stoponthis=false
-#config.strength=55
-#config.count=1
-#config.quant=false
-#config.use_pyramid=false
+#cogvideo.steps=50
+#cogvideo.seed=-1
+#cogvideo.num_videos_per_prompt=1
+#cogvideo.loop=false
+#cogvideo.generate_type=i2v
+#cogvideo.should_upscale=false
+#cogvideo.stoponthis=false
+#cogvideo.strength=55
+#cogvideo.count=1
+#cogvideo.quant=false
+#cogvideo.use_pyramid=false
 Your prompt goes here.
 #image
 #comment The path bellow should allways tart with /app/output_dir and it's the root of our service 
@@ -97,3 +97,4 @@ editorium cogvideo generate-from-file --help
 [THUDM/CogVideo](https://github.com/THUDM/CogVideo)  
 [ComfyUI-CogVideoXWrapper](https://github.com/kijai/ComfyUI-CogVideoXWrapper)  
 [diffusers](https://github.com/huggingface/diffusers/)  
+[Pyramid Flow](https://github.com/jy0205/Pyramid-Flow)  

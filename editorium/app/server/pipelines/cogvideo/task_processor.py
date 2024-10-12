@@ -47,11 +47,6 @@ class TqdmUpTo(tqdm):
         return result
 
 
-def load_image_with_pil(image_path: str):
-    image = Image.open(image_path)
-    if image.mode != "RGB":
-        image = image.convert("RGB")
-    return image
 
 
 def generate_video(
@@ -108,7 +103,7 @@ def generate_video(
     }
     
     if generate_type == "i2v":
-        image = load_image_with_pil(image_or_video_path.strip())
+        image = utils.load_image_rgb(image_or_video_path.strip())
         pipe_args["image"] = image
         pipe_args["num_frames"] = 49
     elif generate_type != "t2v":
@@ -227,7 +222,7 @@ def process_prompts_from_file(prompts_path: str):
     saved_outpath = output_path
     args_lora_path = ''
     args_lora_rank = 128
-    for prompt, pos, count in iterate_prompts(prompts_path):
+    for prompt, pos, count in iterate_prompts(prompts_path, 'cogvideo'):
         if SHOULD_STOP:
             print("Stopped by user.")
             break

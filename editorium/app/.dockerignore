@@ -1,7 +1,9 @@
 *
 **/*
 !run-server.sh
-!requirements.txt
+!requirements1.txt
+!requirements2.txt
+!requirements3.txt
 !requirements-experimental.txt
 !server/*
 !server/**/*

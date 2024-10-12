@@ -22,8 +22,6 @@ from pipelines.common import utils
 
 from huggingface_hub import hf_hub_download, snapshot_download
 
-MODELS_PATH = "/home/editorium/models/videos/"
-
    
 class CogVideoModels(ManagedModel):
     def __init__(self):
@@ -108,7 +106,7 @@ class CogVideoModels(ManagedModel):
             if use_gguf:
                 # TODO: improve this. do not load transformer twice
                 transformer = transformer_class.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
-                gguf_path = os.path.join(MODELS_PATH, "CogVideoX_5b_I2V_GGUF_Q4_0.safetensors")
+                gguf_path = os.path.join(ManagedModel.MODELS_PATH, "CogVideoX_5b_I2V_GGUF_Q4_0.safetensors")
                 if os.path.exists(gguf_path):
                     load_gguf_transformer(transformer, gguf_path)
                 else:
@@ -141,14 +139,18 @@ class CogVideoModels(ManagedModel):
             self.pipe.to(dtype=torch.float16)
 
         if self.upscaler_model is None:
-            if not os.path.exists("/home/editorium/models/upscalers/RealESRGAN_x4.pth"):
-                hf_hub_download(repo_id="ai-forever/Real-ESRGAN", filename="RealESRGAN_x4.pth", local_dir="/home/editorium/models/upscalers")
-            self.upscaler_model = utils.load_sd_upscale('/home/editorium/models/upscalers/RealESRGAN_x4.pth', 'cpu')
+            upscaler_model_dir =  os.path.join(ManagedModel.MODELS_PATH, '/home/editorium/models/upscalers/')
+            upscaler_model_path = os.path.join(upscaler_model_dir, 'RealESRGAN_x4.pth')
+            if not os.path.exists(upscaler_model_path):
+                hf_hub_download(repo_id="ai-forever/Real-ESRGAN", filename="RealESRGAN_x4.pth", local_dir=upscaler_model_dir)
+            self.upscaler_model = utils.load_sd_upscale(upscaler_model_path, 'cpu')
         
         if self.interpolation_model is None:
-            if not os.path.exists("/home/editorium/models/interpolations/model_rife/flownet.pkl"):
-                snapshot_download(repo_id="AlexWortega/RIFE", local_dir="/home/editorium/models/interpolations/model_rife")
-            self.interpolation_model = load_rife_model("/home/editorium/models/interpolations/model_rife")
+            interpolation_model_dir =  os.path.join(ManagedModel.MODELS_PATH, '/home/editorium/models/interpolations/model_rife')
+            interpolation_model_path = os.path.join(interpolation_model_dir, 'flownet.pkl')
+            if not os.path.exists(interpolation_model_path):
+                snapshot_download(repo_id="AlexWortega/RIFE", local_dir=interpolation_model_dir)
+            self.interpolation_model = load_rife_model(interpolation_model_dir)
 
         gc.collect()
         torch.cuda.empty_cache()

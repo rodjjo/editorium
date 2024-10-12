@@ -16,8 +16,14 @@ from diffusers.utils import export_to_video
 from spandrel import ModelLoader
 
 
-
 logger = logging.getLogger(__file__)
+
+def load_image_rgb(image_path: str):
+    image = Image.open(image_path)
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+    return image
+
 
 
 def load_torch_file(ckpt, device=None, dtype=torch.float16):
