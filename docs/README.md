@@ -22,7 +22,7 @@ You need to install the following components at your ubuntu operating system:
 
 ```
 sudo apt-get update && apt-get install pipx
-pipx install --force git+https://github.com/rodjjo/video-editor-scripts.git
+pipx install --force git+https://github.com/rodjjo/editorium.git
 ```
 
 ## Server
