@@ -1,3 +1,4 @@
+import os
 import click
 
 from .docker_management import DockerManager, full_path
@@ -29,12 +30,31 @@ def run(path, docker_image, env, args, cache_dir, models_dir):
     args = list(args)
     env = list(env)
     path = full_path(path)
+    models_dir = full_path(models_dir)
+    cache_dir = full_path(cache_dir)
+    
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, exist_ok=True)
+    
+    if not os.path.exists(models_dir):
+        os.makedirs(models_dir, exist_ok=True)
+    
+    if not os.path.exists(path):
+        raise ValueError(f"Path {path} does not exist")
+    
     build_server_image(docker_image)
+
     volumes = {
         path: '/app/output_dir',
-        full_path(cache_dir): '/home/editorium/.cache',
-        full_path(models_dir): '/home/editorium/models',
+        cache_dir: '/home/editorium/.cache',
+        models_dir: '/home/editorium/models',
     }
+
+    print('Running server with the following parameters:')
+    print('Models dir:', models_dir)
+    print('Cache dir:', cache_dir)
+    print('Root directory:', path)
+
     manager.shell(
         host_network=True, 
         env=manager.parse_env_list(env), 

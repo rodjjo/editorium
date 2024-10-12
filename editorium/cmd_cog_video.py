@@ -4,15 +4,9 @@ import click
 import os
 
 from .help_formater import call_command
-from .request_wrapper import wait_task_completion, post_json_request, delete_request
+from .request_wrapper import wait_task_completion, post_json_request, delete_request, cancel_task_request
+from .common.path_utils import get_output_path
 
-
-def full_path(path: str) -> str:
-    if path.startswith('/'):
-        # remove the first '/' if it exists
-        path = path[1:]
-    return os.path.join('/app/output_dir', path)
-    
 
 @click.group(help="Manages CogVideoX")
 def cog_group():
@@ -33,7 +27,7 @@ def cog_group():
 @click.option('--should-upscale', is_flag=True, help="Upscale the video")
 @click.option('--should-use-pyramid', is_flag=True, help="Use pyramid")
 def text2video(prompt, lora_path, lora_rank, output_name, num_inference_steps, guidance_scale, num_videos_per_prompt, seed, quant, loop, should_upscale, should_use_pyramid):
-    lora_path = full_path(lora_path)
+    lora_path = get_output_path(lora_path)
     parameters = {
         "prompt": prompt,
         "generate_type": "t2v",
@@ -85,8 +79,8 @@ def text2video(prompt, lora_path, lora_rank, output_name, num_inference_steps, g
 @click.option('--should-upscale', is_flag=True, help="Upscale the video")
 @click.option('--should-use-pyramid', is_flag=True, help="Use pyramid")
 def image2video(prompt, image_path, lora_path, lora_rank, output_name, num_inference_steps, guidance_scale, num_videos_per_prompt, seed, quant, loop, should_upscale, should_use_pyramid):
-    image_path = full_path(image_path)
-    lora_path = full_path(lora_path)
+    image_path = get_output_path(image_path)
+    lora_path = get_output_path(lora_path)
     parameters = {
         "prompt": prompt,
         "image_or_video_path": image_path,
@@ -136,8 +130,8 @@ def image2video(prompt, image_path, lora_path, lora_rank, output_name, num_infer
 @click.option('--should-use-pyramid', is_flag=True, help="Use pyramid")
 @click.option('--strength', type=float, default=0.8, help="The strength")
 def video2video(prompt, video_path, lora_path, lora_rank, output_name, num_inference_steps, guidance_scale, num_videos_per_prompt, seed, quant, loop, should_upscale, should_use_pyramid, strength):
-    video_path = full_path(video_path)
-    lora_path = full_path(lora_path)
+    video_path = get_output_path(video_path)
+    lora_path = get_output_path(lora_path)
     parameters = {
         "prompt": prompt,
         "image_or_video_path": video_path,
@@ -175,7 +169,7 @@ def video2video(prompt, video_path, lora_path, lora_rank, output_name, num_infer
 @cog_group.command(help='Processes a prompts file line by line and generate videos following the instructions')
 @click.option('--prompts-path', type=str, required=True, help="The path to the prompts file")
 def generate_from_file(prompts_path):
-    prompts_path = full_path(prompts_path)
+    prompts_path = get_output_path(prompts_path)
     parameters = {
         "prompts_path": prompts_path
     }
@@ -223,14 +217,7 @@ def fine_tune(train_file):
 @cog_group.command(help='Cancels a task')
 @click.option('--task-id', type=str, required=True, help="The task id")
 def cancel_task(task_id):
-    try:
-        data = delete_request(f"http://localhost:5000/tasks/{task_id}")
-        print(data)
-    except urllib.error.HTTPError as e:
-        print(e)
-        print(e.read())
-    except urllib.error.URLError as e:
-        print(e)
+    cancel_task_request("http://localhost:5000", task_id)
             
 
 def register(main):

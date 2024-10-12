@@ -23,3 +23,5 @@ peft==0.13.0
 decord==0.6.0
 bitsandbytes==0.44.1
 prodigyopt==1.0
+requests==2.32.3
+huggingface-hub==0.25.2

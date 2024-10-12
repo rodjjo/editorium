@@ -10,8 +10,12 @@ import PIL.Image
 import safetensors.torch
 import tqdm
 import logging
+import requests
+
 from diffusers.utils import export_to_video
 from spandrel import ModelLoader
+
+
 
 logger = logging.getLogger(__file__)
 
@@ -206,19 +210,13 @@ def save_video(tensor: Union[List[np.ndarray], List[PIL.Image.Image]], fps: int 
     return video_path
 
 
-class ProgressBar:
-    def __init__(self, total, desc=None):
-        self.total = total
-        self.current = 0
-        self.b_unit = tqdm.tqdm(total=total, desc="ProgressBar context index: 0" if desc is None else desc)
-
-    def update(self, value):
-        if value > self.total:
-            value = self.total
-        self.current = value
-        if self.b_unit is not None:
-            self.b_unit.set_description("ProgressBar context index: {}".format(self.current))
-            self.b_unit.refresh()
-
-            # 更新进度
-            self.b_unit.update(self.current)
+def download_file(url, local_path, chunk_size=1024):
+    os.makedirs(os.path.split(local_path)[0], exist_ok=True)
+    with requests.get(url, stream=True) as r:
+        total_size = int(r.headers.get("content-length", 0))
+        with tqdm(total=total_size, unit="B", unit_scale=True) as pbar:
+            with open(local_path, "wb") as f:
+                for data in r.iter_content(chunk_size=chunk_size):
+                    if data:
+                        f.write(data)
+                        pbar.update(chunk_size)

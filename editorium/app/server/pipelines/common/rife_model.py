@@ -2,7 +2,7 @@ import torch
 from diffusers.image_processor import VaeImageProcessor
 from torch.nn import functional as F
 import cv2
-import pipelines.cogvideo.utils
+from pipelines.common import utils
 from pipelines.cogvideo.rife.pytorch_msssim import ssim_matlab
 import numpy as np
 import logging

@@ -55,3 +55,15 @@ def delete_request(url):
     except urllib.error.URLError as e:
         print(e)
     return {"error": "error"}
+
+
+def cancel_task_request(url_prefix, task_id):
+    try:
+        data = delete_request(f"{url_prefix}/tasks/{task_id}")
+        print(data)
+    except urllib.error.HTTPError as e:
+        print(e)
+        print(e.read())
+    except urllib.error.URLError as e:
+        print(e)
+            
