@@ -153,13 +153,13 @@ def generate_video(
         "guidance_scale": guidance_scale,
         "generator": generator,
         "num_videos_per_prompt": 1, 
-        "num_frames": 49,
         "use_dynamic_cfg": True,
     }
     
     if generate_type == "i2v":
         image = load_image_with_pil(image_or_video_path.strip())
         pipe_args["image"] = image
+        pipe_args["num_frames"] = 49
     elif generate_type != "t2v":
         video = load_video(image_or_video_path.strip())
         video_frames = len(video)
@@ -168,6 +168,9 @@ def generate_video(
             video = video[:max_frames]
         pipe_args["strength"] = strength
         pipe_args["video"] = video
+    else:
+        pipe_args["num_frames"] = 49
+        
 
     cogvideo_model.pipe.progress_bar = lambda total: TqdmUpTo(total=total)
 
@@ -217,6 +220,7 @@ def iterate_prompts(prompt_path):
         prompt_data = prompt.to_dict()
         if prompt_data["seed_use"] == -1:
             prompt_data["seed_use"] = random.randint(0, 100000)
+        prompt_data["strength"] = float(prompt_data["strength"])/100.0
         first_frame_pos = store.find_display_position_index()
         call_callback(f"Processing prompt {first_frame_pos + 1} of {len(store.prompts)}")
 
