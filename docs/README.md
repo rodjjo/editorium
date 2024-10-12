@@ -9,6 +9,10 @@ It provides a server that runs background tasks and a cli called editorium to ma
 TODOS  
 [x] Open the sources  
 [x] Add CogVideoX basic command  
+[ ] Add Pyramid Flow
+[ ] Add Flux
+[ ] Add Stable Diffusion 1.5
+[ ] Replace ffmpeg command by builtin scripts that manipulates the video.
 [ ] Create documentation explaining each command  
 
 ## Requirements
@@ -17,6 +21,7 @@ You need to install the following components at your ubuntu operating system:
 
 * Docker
 * Nvidia runtime for docker
+* ffmpeg  (only if you want to use editorium ffmpeg commands)
 
 ## Installation
 
@@ -30,7 +35,7 @@ pipx install --force git+https://github.com/rodjjo/editorium.git
 Before running the cli, it's necessary to start the server.
 It's required to define the following paths when we start the server:
 
-* **--models-dir** - Path where the models are stored. I this directory will be the olfline models, not managed by hugging face.
+* **--models-dir** - Path where the models are stored. In this directory will be the olfline models, not managed by hugging face.
 * **--path=** - Path of the root directory of the server. This is going to be the output directory and also where the files the server uses will be.
 * **--cache-dir** - It's where the cache directory will be located. It's detault to ~/.cache and it's necessary for hugginface being able to cache the files.
 
@@ -89,6 +94,6 @@ editorium cogvideo generate-from-file --help
 
 ## References
 
-[THUDM/CogVideo](https://github.com/THUDM/CogVideo)
-[ComfyUI-CogVideoXWrapper](https://github.com/kijai/ComfyUI-CogVideoXWrapper)
-[diffusers](https://github.com/huggingface/diffusers/)
+[THUDM/CogVideo](https://github.com/THUDM/CogVideo)  
+[ComfyUI-CogVideoXWrapper](https://github.com/kijai/ComfyUI-CogVideoXWrapper)  
+[diffusers](https://github.com/huggingface/diffusers/)  
