@@ -39,14 +39,14 @@ def save_video(frames, output_path, upscaler_model, fps_model, should_upscale=Fa
             frames[findex] = frames[findex].unsqueeze(0)
         
     if should_upscale:
-        call_callback("Upscaling video")
+        print("Upscaling video")
         frames = utils.upscale(upscaler_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
         frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
 
-    call_callback("Increasing video FPS")
+    print("Increasing video FPS")
     frames = rife_inference_with_latents(fps_model, torch.stack(frames))
     frames = rife_inference_with_latents(fps_model, torch.stack(frames))
     frames = [to_pil_transform(f[0]) for f in frames]
 
-    call_callback("Saving video")
+    print("Saving video")
     export_to_video(frames, output_path, fps=fps)
