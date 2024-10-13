@@ -244,7 +244,9 @@ def register_server(queue: Queue, completion_queue: Queue):
 
         if task.task_type == TaskType.COGVIDEO and task.parameters.get('prompts_path', False):
             from pipelines.cogvideo.task_processor import cancel_cogvideo_task
+            from pipelines.pyramid_flow.task_processor import cancel_pyramid_task
             cancel_cogvideo_task()
+            cancel_pyramid_task()
 
         app.service_queue.put(task)
         return jsonify({'status': 'ok', 'task_id': task.id})
