@@ -8,8 +8,8 @@ It provides a server that runs background tasks and a cli called editorium to ma
 
 TODOS  
 [x] Open the sources  
-[x] Add CogVideoX basic command  
-[ ] Add Pyramid Flow  
+[x] Add CogVideoX basic commands  
+[x] Add Pyramid Flow basic commands  
 [ ] Add Flux  
 [ ] Add Stable Diffusion 1.5  
 [ ] Replace ffmpeg command by builtin scripts that manipulates the video.  
@@ -41,13 +41,16 @@ It's required to define the following paths when we start the server:
 
 Starting the server:
 ```bash
-editorium-cli server run --docker-image --models-dir=~/my-offline-models --path=~/my-cogvideo-root-dir
+editorium-cli server run --docker-image --models-dir=~/my-offline-models --path=~/my-awesome-server
 ```
 
-## Prompt file format
+## Prompt file format 
 
-To start you can create a prompt file at `~/my-cogvideo-root-dir` (the root path you defined to start the server).
-The file name could be `~/my-cogvideo-root-dir/prompts.editorium`:
+To start you can create a prompt file anywhere,  
+however the image paths should be relative to the root directory of the server  
+for example: `~/my-awesome-server` (the root path you defined to start the server).  
+
+The file format for Cogvideo:
 ```text
 #start
 #cogvideo.steps=50
@@ -67,17 +70,34 @@ Your prompt goes here.
 /app/output_dir/<relative_path_to_the_image_or_Video
 #end
 ```
+
+The file format for Pyramid Flow:
+```text
+#start
+#pyramid.generate_type=i2v
+#pyramid.num_inference_steps=20,20,20
+#pyramid.video_num_inference_steps=10,10,10
+#pyramid.height=768
+#pyramid.width=1280
+#pyramid.temp=16
+#pyramid.guidance_scale=9.0
+#pyramid.video_guidance_scale=5.0
+#pyramid.seed=-1
+#pyramid.use768p_model=true
+Your prompt goes here.
+#image
+#comment The path bellow should allways tart with /app/output_dir and it's the root of our service 
+/app/output_dir/<relative_path_to_the_image_or_Video
+#end
+```
 You can add multiples entries starting with `#start` and finishing with `#end`, each block is going to be a prompt.
+
 
 
 The you can start the cli on the terminal
 
 ```bash
-# from the container perspective the prompts.editorium file will be located in /app/output_dir/ inside the container
-# As you started the server with --path=~/my-cogvideo-root-dir, you should save prompts.editorium there.
 editorium cogvideo generate-from-file --prompts-path=prompts.editorium
-# the full path para prompts.editorium:
-editorium cogvideo generate-from-file --prompts-path=/app/output_dir/prompts.editorium
 ```
 
 ## Help

@@ -47,8 +47,6 @@ class TqdmUpTo(tqdm):
         return result
 
 
-
-
 def generate_video(
     prompt: str,
     lora_path: str = None,
@@ -215,13 +213,21 @@ def process_cogvideo_task_generate(task: dict) -> dict:
         }
         
         
-def process_prompts_from_file(prompts_path: str):
+def process_prompts_from_file(prompts_data: str):
     dtype = torch.bfloat16
     file_index = 0
     output_path = 'output.mp4'
     saved_outpath = output_path
     args_lora_path = ''
     args_lora_rank = 128
+    
+    prompts_dir = '/app/output_dir/prompts'
+    os.makedirs(prompts_dir, exist_ok=True)
+    prompts_path = os.path.join(prompts_dir, 'cogvideo_prompts.txt')
+    
+    with open(prompts_path, "w") as f:
+        f.write(prompts_data)
+        
     for prompt, pos, count in iterate_prompts(prompts_path, 'cogvideo'):
         if SHOULD_STOP:
             print("Stopped by user.")
@@ -282,9 +288,9 @@ def process_cogvideo_task(task: dict, callback = None) -> dict:
         if 'prompt' in task:
             call_callback("Generating video from a prompt passed as parameter")
             return process_cogvideo_task_generate(task)
-        if 'prompts_path' in task:
+        if 'prompts_data' in task:
             call_callback("Iterating over a file and parsing prompts to generate videos")
-            return process_prompts_from_file(task['prompts_path'])
+            return process_prompts_from_file(task['prompts_data'])
         if 'train_file' in task:
             call_callback("Training lora model")
             return train_cogvideo_lora(task['train_file'])

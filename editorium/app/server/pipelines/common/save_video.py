@@ -44,9 +44,12 @@ def save_video(frames, output_path, upscaler_model, fps_model, should_upscale=Fa
         frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
 
     print("Increasing video FPS")
+    multiplier = 2
     frames = rife_inference_with_latents(fps_model, torch.stack(frames))
-    frames = rife_inference_with_latents(fps_model, torch.stack(frames))
+    if fps < 16:
+        multiplier = 4
+        frames = rife_inference_with_latents(fps_model, torch.stack(frames))
     frames = [to_pil_transform(f[0]) for f in frames]
 
     print("Saving video")
-    export_to_video(frames, output_path, fps=fps)
+    export_to_video(frames, output_path, fps=fps * multiplier)

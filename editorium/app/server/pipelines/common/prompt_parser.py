@@ -1,6 +1,7 @@
 import random
 from typing import List, Tuple, Optional
 
+from pipelines.common.exceptions import StopException
 
 # this prompt store was develope to be constantly updated with the prompts in the file
 # when the load function is called, it will add missing prompts and remove prompts that are not in the file
@@ -22,7 +23,7 @@ class PromptConfig:
     count: int = 1
     quant: bool = False
     image: str = ""
-    _config_prefix: str = "#config."
+    _config_prefix: str = "config"
     
     def __init__(self, config_prefix, **kwargs):
         self._config_prefix = config_prefix
@@ -39,8 +40,8 @@ class PromptConfig:
     # if the attribute is not found, it will be ignored
     def parse_lines(self, lines: List[str]):
         for line in lines:
-            if line.startswith(self._config_prefix):
-                key, value = line.split(self._config_prefix)[1].split("=")
+            if line.startswith(f'#{self._config_prefix}.'):
+                key, value = line.split(f'#{self._config_prefix}.')[1].split("=")
                 if hasattr(self, key):
                     converted = False
                     try:
@@ -87,8 +88,8 @@ class PromptConfig:
         }
         
     @classmethod
-    def from_dict(cls, data):
-        return cls(**data)
+    def from_dict(cls, config_prefix, data):
+        return cls(config_prefix, **data)
    
 class Prompt:
     def __init__(self, config: PromptConfig, prompt: List[str], seed_use: Optional[int] = None):
@@ -126,18 +127,17 @@ When it add a prompt it will have  a position index that is used to sort the pro
 If the prompt was used, the run count will be increased by 1 and the prompt will lose its position index
 '''
 class PromptStore:
-    def __init__(self, filepath: str, config_prefix: str = "#config.") -> None:
+    def __init__(self, filepath: str, config_prefix: str = "config") -> None:
         self.filepath = filepath
         self.prompts = []
         self.raw_prompts = []
-        self.load()
         self.current_position_index = 0
-        self.config_prefix = config_prefix
+        self._config_prefix = config_prefix
         
     def parse_prompt(self, captures) -> Tuple[Prompt, List[str]]:
-        config = PromptConfig(self.config_prefix)
+        config = PromptConfig(self._config_prefix)
         config.parse_lines(captures)
-        captures = [c for c in captures if not c.startswith(self.config_prefix)]
+        captures = [c for c in captures if not c.startswith(self._config_prefix)]
         images = []
         prompt = []
         images_started = False
@@ -259,7 +259,7 @@ class PromptStore:
         return self.raw_prompts.index(prompt.to_dict())
     
 
-def iterate_prompts(prompt_path: str, config_prefix: str = '#config.') -> Tuple[dict, int, int]:
+def iterate_prompts(prompt_path: str, config_prefix: str = 'config') -> Tuple[dict, int, int]:
     from pipelines.common.prompt_parser import PromptStore
     store = PromptStore(prompt_path, config_prefix)
     while True:

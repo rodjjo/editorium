@@ -6,6 +6,7 @@ import os
 from .help_formater import call_command
 from .request_wrapper import wait_task_completion, post_json_request, delete_request, cancel_task_request
 from .common.path_utils import get_output_path
+from .docker_management import full_path
 
 
 @click.group(help="Manages CogVideoX")
@@ -60,8 +61,6 @@ def text2video(prompt, lora_path, lora_rank, output_name, num_inference_steps, g
         print(e.read())
     except urllib.error.URLError as e:
         print(e)
-        
-    
 
 
 @cog_group.command(help='Generates video from image')
@@ -169,9 +168,16 @@ def video2video(prompt, video_path, lora_path, lora_rank, output_name, num_infer
 @cog_group.command(help='Processes a prompts file line by line and generate videos following the instructions')
 @click.option('--prompts-path', type=str, required=True, help="The path to the prompts file")
 def generate_from_file(prompts_path):
-    prompts_path = get_output_path(prompts_path)
+    prompts_path = full_path(prompts_path)
+    if os.path.exists(prompts_path) is False:
+        print(f"File {prompts_path} not found")
+        return
+
+    with open(prompts_path, 'r') as f:
+        file_content = f.read()
+    
     parameters = {
-        "prompts_path": prompts_path
+        "prompts_data": file_content
     }
     payload = {
         "task_type": "cogvideo",

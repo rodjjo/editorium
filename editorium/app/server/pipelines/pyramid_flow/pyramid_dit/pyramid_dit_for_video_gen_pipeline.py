@@ -1,4 +1,5 @@
 import torch
+import gc
 import os
 import sys
 import torch.nn as nn
@@ -16,7 +17,7 @@ from tqdm import tqdm
 from torchvision import transforms
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Union
-from accelerate import Accelerator
+from accelerate import Accelerator, cpu_offload
 from pipelines.pyramid_flow.diffusion_schedulers import PyramidFlowMatchEulerDiscreteScheduler
 from pipelines.pyramid_flow.video_vae.modeling_causal_vae import CausalVideoVAE
 
@@ -136,6 +137,22 @@ class PyramidDiTForVideoGeneration:
         self.cfg_rate = 0.1
         self.return_log = return_log
         self.use_flash_attn = use_flash_attn
+        self.sequential_offload_enabled = set()
+    
+    def _enable_sequential_cpu_offload(self, model):
+        torch_device = torch.device("cuda")
+        device_type = torch_device.type
+        device = torch.device(f"{device_type}:0")
+        offload_buffers = len(model._parameters) > 0
+        cpu_offload(model, device, offload_buffers=offload_buffers)
+    
+    def enable_sequential_cpu_offload(self, should_include_dit=True):
+        if should_include_dit:
+            self._enable_sequential_cpu_offload(self.dit)
+            self.sequential_offload_enabled.add("dit")
+        self._enable_sequential_cpu_offload(self.text_encoder)
+        self.sequential_offload_enabled.add("text_encoder")
+        
 
     def load_checkpoint(self, checkpoint_path, model_key='model', **kwargs):
         checkpoint = torch.load(checkpoint_path, map_location='cpu')
@@ -203,6 +220,8 @@ class PyramidDiTForVideoGeneration:
             int(height) // self.downsample,
             int(width) // self.downsample,
         )
+        if type(device) == str:
+            device = torch.device(device)
         latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
         return latents
 
@@ -311,22 +330,25 @@ class PyramidDiTForVideoGeneration:
         output_type: Optional[str] = "pil",
         save_memory: bool = True,
         cpu_offloading: bool = False, # If true, reload device will be cuda.
+        callback: Optional[Callable[[int, int, Dict], None]] = None,
     ):
-        device = self.device if not cpu_offloading else "cuda"
+        if 'dit' not in self.sequential_offload_enabled:
+            self.dit.to("cpu")
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        device = self.device if not cpu_offloading else torch.device("cuda")
         dtype = self.dtype
         if cpu_offloading:
             # skip caring about the text encoder here as its about to be used anyways.
-            if str(self.dit.device) != "cpu":
-                print("(dit) Warning: Do not preload pipeline components (i.e. to cuda) with cpu offloading enabled! Otherwise, a second transfer will occur needlessly taking up time.")
-                self.dit.to("cpu")
-                torch.cuda.empty_cache()
             if str(self.vae.device) != "cpu":
                 print("(vae) Warning: Do not preload pipeline components (i.e. to cuda) with cpu offloading enabled! Otherwise, a second transfer will occur needlessly taking up time.")
                 self.vae.to("cpu")
                 torch.cuda.empty_cache()
-
+                
         width = input_image.width
         height = input_image.height
+        
 
         assert temp % self.frame_per_unit == 0, "The frames should be divided by frame_per unit"
 
@@ -344,12 +366,10 @@ class PyramidDiTForVideoGeneration:
         negative_prompt = negative_prompt or ""
 
         # Get the text embeddings
-        # if cpu_offloading:
-            # self.text_encoder.to("cuda") # commented I'm using accelerate cpu offloading
         prompt_embeds, prompt_attention_mask, pooled_prompt_embeds = self.text_encoder(prompt, device)
         negative_prompt_embeds, negative_prompt_attention_mask, negative_pooled_prompt_embeds = self.text_encoder(negative_prompt, device)
+        
         if cpu_offloading:
-            # self.text_encoder.to("cpu") # commented I'm using accelerate cpu offloading
             self.vae.to("cuda")
             torch.cuda.empty_cache()
 
@@ -398,17 +418,28 @@ class PyramidDiTForVideoGeneration:
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
         ])
         input_image_tensor = image_transform(input_image).unsqueeze(0).unsqueeze(2)   # [b c 1 h w]
-        input_image_latent = (self.vae.encode(input_image_tensor.to(device)).latent_dist.sample() - self.vae_shift_factor) * self.vae_scale_factor  # [b c 1 h w]
+        input_image_latent = (self.vae.encode(input_image_tensor.to(self.vae.device, dtype=self.vae.dtype)).latent_dist.sample() - self.vae_shift_factor) * self.vae_scale_factor  # [b c 1 h w]
 
         generated_latents_list = [input_image_latent]    # The generated results
         last_generated_latents = input_image_latent
 
         if cpu_offloading:
             self.vae.to("cpu")
+            torch.cuda.empty_cache()
+        
+        if 'dit' not in self.sequential_offload_enabled:
             self.dit.to("cuda")
+            gc.collect()
             torch.cuda.empty_cache()
         
         for unit_index in tqdm(range(1, num_units)):
+            gc.collect()
+            torch.cuda.empty_cache()
+            
+            if callback:
+                callback(unit_index, num_units)
+
+            
             if use_linear_guidance:
                 self._guidance_scale = guidance_scale_list[unit_index]
                 self._video_guidance_scale = guidance_scale_list[unit_index]
@@ -463,11 +494,15 @@ class PyramidDiTForVideoGeneration:
 
         generated_latents = torch.cat(generated_latents_list, dim=2)
 
+        if 'dit' not in self.sequential_offload_enabled:
+            self.dit.to("cpu")
+            gc.collect()
+            torch.cuda.empty_cache()
+
         if output_type == "latent":
             image = generated_latents
         else:
             if cpu_offloading:
-                self.dit.to("cpu")
                 self.vae.to("cuda")
                 torch.cuda.empty_cache()
             image = self.decode_latent(generated_latents, save_memory=save_memory)
@@ -498,15 +533,12 @@ class PyramidDiTForVideoGeneration:
         output_type: Optional[str] = "pil",
         save_memory: bool = True,
         cpu_offloading: bool = False, # If true, reload device will be cuda.
+        callback: Optional[Callable[[int, int, Dict], None]] = None,
     ):
-        device = self.device if not cpu_offloading else "cuda"
+        device = self.device if not cpu_offloading else torch.device("cuda")
         dtype = self.dtype
         if cpu_offloading:
             # skip caring about the text encoder here as its about to be used anyways.
-            if str(self.dit.device) != "cpu":
-                print("(dit) Warning: Do not preload pipeline components (i.e. to cuda) with cpu offloading enabled! Otherwise, a second transfer will occur needlessly taking up time.")
-                self.dit.to("cpu")
-                torch.cuda.empty_cache()
             if str(self.vae.device) != "cpu":
                 print("(vae) Warning: Do not preload pipeline components (i.e. to cuda) with cpu offloading enabled! Otherwise, a second transfer will occur needlessly taking up time.")
                 self.vae.to("cpu")
@@ -531,14 +563,8 @@ class PyramidDiTForVideoGeneration:
         negative_prompt = negative_prompt or ""
 
         # Get the text embeddings
-        #if cpu_offloading:
-        #    self.text_encoder.to("cuda") # commented I'm using accelerate cpu offloading
         prompt_embeds, prompt_attention_mask, pooled_prompt_embeds = self.text_encoder(prompt, device)
         negative_prompt_embeds, negative_prompt_attention_mask, negative_pooled_prompt_embeds = self.text_encoder(negative_prompt, device)
-        if cpu_offloading:
-            # self.text_encoder.to("cpu") # commented I'm using accelerate cpu offloading
-            self.dit.to("cuda")
-            torch.cuda.empty_cache()
 
         if use_linear_guidance:
             max_guidance_scale = guidance_scale
@@ -621,6 +647,12 @@ class PyramidDiTForVideoGeneration:
                     cur_unit_ptx = 1
 
                     while cur_unit_ptx < cur_unit_num:
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                        
+                        if callback:
+                            callback(unit_index, num_units)
+                
                         cur_stage = max(cur_stage - 1, 0)
                         if cur_stage == 0:
                             break
@@ -659,15 +691,13 @@ class PyramidDiTForVideoGeneration:
         if output_type == "latent":
             image = generated_latents
         else:
-            if cpu_offloading:
-                self.dit.to("cpu")
-                self.vae.to("cuda")
-                torch.cuda.empty_cache()
-            image = self.decode_latent(generated_latents, save_memory=save_memory)
-            if cpu_offloading:
-                self.vae.to("cpu")
-                torch.cuda.empty_cache()
-                # not technically necessary, but returns the pipeline to its original state
+            self.vae.to("cuda")
+            torch.cuda.empty_cache()
+        image = self.decode_latent(generated_latents, save_memory=save_memory)
+        if cpu_offloading:
+            self.vae.to("cpu")
+            torch.cuda.empty_cache()
+            # not technically necessary, but returns the pipeline to its original state
 
         return image
 

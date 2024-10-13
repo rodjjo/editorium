@@ -17,32 +17,9 @@ class PyramidFlowModels(ManagedModel):
         self.pipeline = None
         self.upscaler_model = None
         self.interpolation_model = None
-        self.use5b_model = False
+        self.use768p_model = False
         self.generate_type = 't2v'
         
-    def enable_sequential_cpu_offload(self, model):
-        from accelerate import cpu_offload
-        gpu_id = None
-        device = "cuda"
-        
-        torch_device = torch.device(device)
-        device_index = torch_device.index
-
-        if gpu_id is not None and device_index is not None:
-            raise ValueError(
-                f"You have passed both `gpu_id`={gpu_id} and an index as part of the passed device `device`={device}"
-                f"Cannot pass both. Please make sure to either not define `gpu_id` or not pass the index as part of the device: `device`={torch_device.type}"
-            )
-
-        # _offload_gpu_id should be set to passed gpu_id (or id in passed `device`) or default to previously set id or default to 0
-        self._offload_gpu_id = gpu_id or torch_device.index or 0
-
-        device_type = torch_device.type
-        device = torch.device(f"{device_type}:{self._offload_gpu_id}")
-        self._offload_device = device
-
-        offload_buffers = len(model._parameters) > 0
-        cpu_offload(model, device, offload_buffers=offload_buffers)
 
     def release_model(self):
         self.pipeline = None
@@ -52,12 +29,12 @@ class PyramidFlowModels(ManagedModel):
         torch.cuda.empty_cache()
         
     def load_models(self, 
-                use5b_model,
+                use768p_model,
                 generate_type
     ):
         has_changes = any([
             self.pipeline is None,
-            self.use5b_model != use5b_model,
+            self.use768p_model != use768p_model,
             self.generate_type != generate_type,
             self.upscaler_model is None,
             self.interpolation_model is None
@@ -67,7 +44,7 @@ class PyramidFlowModels(ManagedModel):
 
         self.release_model()
         
-        self.use5b_model = use5b_model
+        self.use768p_model = use768p_model
         self.generate_type = generate_type
         
         model_path = os.path.join(
@@ -80,7 +57,7 @@ class PyramidFlowModels(ManagedModel):
             os.makedirs(model_path, exist_ok=True)
         model_dtype = 'bf16'
 
-        if use5b_model:
+        if use768p_model:
             variant = 'diffusion_transformer_768p'
         else:
             variant = 'diffusion_transformer_384p'
@@ -91,9 +68,8 @@ class PyramidFlowModels(ManagedModel):
             model_variant=variant,
         )
 
+        model.enable_sequential_cpu_offload(False)
         model.vae.enable_tiling()
-
-        self.enable_sequential_cpu_offload(model.text_encoder)
         
         self.pipeline = model
 

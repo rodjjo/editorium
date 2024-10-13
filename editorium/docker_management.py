@@ -213,11 +213,13 @@ class DockerManager:
             net_params = ['--network', 'host']
 
         command = [
-            'docker', 'run', '--shm-size=4096m', '--init', '-it', '--rm', '--runtime=nvidia', '--gpus', 'all',
+            'docker', 'run', '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', '--init', '-it', '--rm', '--runtime=nvidia',
         ] + volume_args + env_ags + net_params + [ 
             self.docker_tag, 'bash', '-c',
         ] + args
         subprocess.check_call(command)
+        
+        # '--shm-size=4096m'
         
     @staticmethod
     def parse_env_list(env_list) -> dict:

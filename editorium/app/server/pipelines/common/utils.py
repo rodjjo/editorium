@@ -12,6 +12,7 @@ import tqdm
 import logging
 import requests
 
+from PIL import Image
 from diffusers.utils import export_to_video
 from spandrel import ModelLoader
 
@@ -23,7 +24,6 @@ def load_image_rgb(image_path: str):
     if image.mode != "RGB":
         image = image.convert("RGB")
     return image
-
 
 
 def load_torch_file(ckpt, device=None, dtype=torch.float16):
@@ -226,3 +226,4 @@ def download_file(url, local_path, chunk_size=1024):
                     if data:
                         f.write(data)
                         pbar.update(chunk_size)
+
