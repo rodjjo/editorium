@@ -139,8 +139,6 @@ def generate_video(task: PyramidTaskParameters) -> dict:
         video_generate = pyramid_model.pipeline.generate_i2v(
             **pipe_args
         )
-        
-    print(f"Video generated with: {len(video_generate)} frames")
     
     save_video(
         video_generate, 
@@ -172,7 +170,7 @@ def process_prompts_from_file(prompts_data: str):
             print("Stopped by user.")
             break
 
-        print(f"Processing prompt {pos}/{count}")
+        print(f"Processing prompt {pos + 1}/{count}")
 
         args_output_path = saved_outpath
         

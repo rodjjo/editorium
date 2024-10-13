@@ -50,7 +50,8 @@ def save_video(frames, output_path, upscaler_model=None, fps_model=None,  fps=8)
         print("Upscaling video")
         frames = utils.upscale(upscaler_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
         frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
-
+    
+    multiplier = 1
     if fps_model:
         print("Increasing video FPS")
         multiplier = 2

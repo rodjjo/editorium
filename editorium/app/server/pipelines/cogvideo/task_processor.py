@@ -231,7 +231,7 @@ def process_prompts_from_file(prompts_data: str):
             print("Stopped by user.")
             break
 
-        print(f"Processing prompt {pos}/{count}")
+        print(f"Processing prompt {pos + 1}/{count}")
 
         args_output_path = saved_outpath
         seed = prompt["seed_use"]

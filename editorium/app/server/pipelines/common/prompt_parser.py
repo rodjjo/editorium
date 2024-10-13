@@ -137,7 +137,7 @@ class PromptStore:
     def parse_prompt(self, captures) -> Tuple[Prompt, List[str]]:
         config = PromptConfig(self._config_prefix)
         config.parse_lines(captures)
-        captures = [c for c in captures if not c.startswith(self._config_prefix)]
+        captures = [c for c in captures if not c.startswith(f'#{self._config_prefix}.')]
         images = []
         prompt = []
         images_started = False
