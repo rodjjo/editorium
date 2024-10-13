@@ -15,16 +15,12 @@ class PyramidFlowModels(ManagedModel):
     def __init__(self):
         super().__init__("pyramidflow_pipeline")
         self.pipeline = None
-        self.upscaler_model = None
-        self.interpolation_model = None
         self.use768p_model = False
         self.generate_type = 't2v'
         
 
     def release_model(self):
         self.pipeline = None
-        self.upscaler_model = None
-        self.interpolation_model = None
         gc.collect()
         torch.cuda.empty_cache()
         
@@ -35,9 +31,7 @@ class PyramidFlowModels(ManagedModel):
         has_changes = any([
             self.pipeline is None,
             self.use768p_model != use768p_model,
-            self.generate_type != generate_type,
-            self.upscaler_model is None,
-            self.interpolation_model is None
+            self.generate_type != generate_type
         ])
         if not has_changes:
             return
@@ -73,19 +67,6 @@ class PyramidFlowModels(ManagedModel):
         
         self.pipeline = model
 
-        if self.upscaler_model is None:
-            upscaler_model_dir =  os.path.join(ManagedModel.MODELS_PATH, '/home/editorium/models/upscalers/')
-            upscaler_model_path = os.path.join(upscaler_model_dir, 'RealESRGAN_x4.pth')
-            if not os.path.exists(upscaler_model_path):
-                hf_hub_download(repo_id="ai-forever/Real-ESRGAN", filename="RealESRGAN_x4.pth", local_dir=upscaler_model_dir)
-            self.upscaler_model = utils.load_sd_upscale(upscaler_model_path, 'cpu')
-        
-        if self.interpolation_model is None:
-            interpolation_model_dir =  os.path.join(ManagedModel.MODELS_PATH, '/home/editorium/models/interpolations/model_rife')
-            interpolation_model_path = os.path.join(interpolation_model_dir, 'flownet.pkl')
-            if not os.path.exists(interpolation_model_path):
-                snapshot_download(repo_id="AlexWortega/RIFE", local_dir=interpolation_model_dir)
-            self.interpolation_model = load_rife_model(interpolation_model_dir)
 
         gc.collect()
         torch.cuda.empty_cache()

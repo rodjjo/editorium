@@ -609,6 +609,11 @@ class PyramidDiTForVideoGeneration:
         generated_latents_list = []    # The generated results
         last_generated_latents = None
 
+        if 'dit' not in self.sequential_offload_enabled:
+            self.dit.to("cuda")
+            gc.collect()
+            torch.cuda.empty_cache()
+
         for unit_index in tqdm(range(num_units)):
             if use_linear_guidance:
                 self._guidance_scale = guidance_scale_list[unit_index]
@@ -687,6 +692,11 @@ class PyramidDiTForVideoGeneration:
             last_generated_latents = intermed_latents
 
         generated_latents = torch.cat(generated_latents_list, dim=2)
+
+        if 'dit' not in self.sequential_offload_enabled:
+            self.dit.to("cpu")
+            gc.collect()
+            torch.cuda.empty_cache()
 
         if output_type == "latent":
             image = generated_latents

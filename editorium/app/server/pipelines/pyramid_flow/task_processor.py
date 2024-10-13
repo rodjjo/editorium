@@ -49,6 +49,7 @@ class PyramidTaskParameters:
     video_guidance_scale: float = 5.0   # The guidance for the other video latent
     use768p_model: bool = True
     image: str = None
+    stoponthis: bool = False
 
     def __init__(self):
         pass
@@ -67,6 +68,7 @@ class PyramidTaskParameters:
             'seed_use': self.seed,
             'use768p_model': self.use768p_model,
             'image': self.image,
+            'stoponthis': self.stoponthis,
         }
     
     @staticmethod
@@ -81,9 +83,10 @@ class PyramidTaskParameters:
         params.temp = data.get('temp', 16)
         params.guidance_scale = data.get('guidance_scale', 9.0)
         params.video_guidance_scale = data.get('video_guidance_scale', 5.0)
-        params.seed = data.get('seed', 42)
+        params.seed_use = data.get('seed', 42)
         params.use768p_model = data.get('use768p_model', True)
         params.image = data.get('image', None)
+        params.stoponthis = data.get('stoponthis', False)
         return params
 
 
@@ -136,13 +139,12 @@ def generate_video(task: PyramidTaskParameters) -> dict:
         video_generate = pyramid_model.pipeline.generate_i2v(
             **pipe_args
         )
+        
+    print(f"Video generated with: {len(video_generate)} frames")
     
     save_video(
         video_generate, 
         f"pyramid_seed_{seed}_steps{task.num_inference_steps[0]}.mp4", 
-        pyramid_model.upscaler_model,
-        pyramid_model.interpolation_model,
-        False,
         fps=24
     )
     
@@ -183,7 +185,7 @@ def process_prompts_from_file(prompts_data: str):
 
         generate_video(prompt)
 
-        if prompt.get("stoponthis", "") in ['yes', 'true', '1']:
+        if prompt.stoponthis in ['yes', 'true', '1', True]:
             print("Only this prompt was generated due config.stoponthis in prompt.txt")
             break
     return {
