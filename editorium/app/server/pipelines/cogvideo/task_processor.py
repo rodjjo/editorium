@@ -316,7 +316,6 @@ def process_cogvideo_task(task: dict, callback = None) -> dict:
 
 def cancel_cogvideo_task():
     global SHOULD_STOP
-    print("Cancelling CogVideo tasks if any...") 
     SHOULD_STOP = True
     return {
         "success": True,

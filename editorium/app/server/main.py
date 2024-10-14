@@ -242,9 +242,10 @@ def register_server(queue: Queue, completion_queue: Queue):
         data['id'] = str(uuid4())
         task = Task.from_dict(data)
 
-        if task.task_type == TaskType.COGVIDEO and task.parameters.get('prompts_path', False):
+        if task.task_type in (TaskType.COGVIDEO, TaskType.PYRAMID_FLOW) and task.parameters.get('prompts_data', False):
             from pipelines.cogvideo.task_processor import cancel_cogvideo_task
             from pipelines.pyramid_flow.task_processor import cancel_pyramid_task
+            print("Canceling any cogvideo or pyramid task")
             cancel_cogvideo_task()
             cancel_pyramid_task()
 
