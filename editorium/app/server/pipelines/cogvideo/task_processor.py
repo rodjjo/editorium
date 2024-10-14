@@ -16,7 +16,6 @@ from pipelines.common import utils
 from pipelines.common.rife_model import rife_inference_with_latents
 from pipelines.common.save_video import save_video, to_tensors_transform
 from pipelines.common.prompt_parser import iterate_prompts
-from pipelines.cogvideo.cogvideox_lora_trainer import train_lora_model
 from pipelines.cogvideo.managed_model import cogvideo_model
 from pipelines.common.exceptions import StopException
 
@@ -265,15 +264,6 @@ def process_prompts_from_file(prompts_data: str):
     return {
         "success": True,
     }
-    
-
-def train_cogvideo_lora(train_filepath: str):
-    print("Training LoRA model")
-    train_lora_model(train_filepath)
-    return {
-        "success": False,
-    }
-
 
 def process_cogvideo_task(task: dict, callback = None) -> dict:
     global SHOULD_STOP
@@ -289,9 +279,6 @@ def process_cogvideo_task(task: dict, callback = None) -> dict:
         if 'prompts_data' in task:
             call_callback("Iterating over a file and parsing prompts to generate videos")
             return process_prompts_from_file(task['prompts_data'])
-        if 'train_file' in task:
-            call_callback("Training lora model")
-            return train_cogvideo_lora(task['train_file'])
         return {
             "success": False,
             "error": "Cogvideo: Invalid task",

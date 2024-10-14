@@ -134,9 +134,12 @@ def work_on_task(task: Task) -> CompletedTask:
     
     result = {}
     try:
-        if task.task_type in (TaskType.COGVIDEO, TaskType.COGVIDEO_LORA):
+        if task.task_type == TaskType.COGVIDEO:
             from pipelines.cogvideo.task_processor import process_cogvideo_task
             result = process_cogvideo_task(task.parameters, progress_callback)
+        if task.task_type == TaskType.COGVIDEO_LORA:
+            from pipelines.cogvideo_lora.task_processor import process_cogvideo_lora_task
+            result = process_cogvideo_lora_task(task.parameters, progress_callback)
         elif task.task_type == TaskType.PYRAMID_FLOW:
             from pipelines.pyramid_flow.task_processor import process_pyramid_task
             result = process_pyramid_task(task.parameters, progress_callback)

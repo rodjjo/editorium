@@ -52,6 +52,33 @@ from diffusers.utils.torch_utils import is_compiled_module
 
 import skvideo.io
 
+
+PROGRESS_CALLBACK = None
+SHOULD_STOP = False
+
+
+def set_title(title):
+    global CURRENT_TITLE
+    CURRENT_TITLE = f'CogVideoX: {title}'
+    print(CURRENT_TITLE)    
+
+
+def call_callback(title):
+    set_title(title)
+    if PROGRESS_CALLBACK is not None:
+        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
+
+
+class TqdmUpTo(tqdm):
+    def update(self, n=1):
+        result = super().update(n)
+        if SHOULD_STOP:
+            raise StopException("Stopped by user.")
+        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
+            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
+        return result
+
+
 def get_train_base_directory() -> str:
     dir_path = os.path.join('/app/output_dir/', "cogvideox_lora_train")
     if not os.path.exists(dir_path):
@@ -88,7 +115,7 @@ def get_hash(video_path: str):
         buffer.append(fp.read(32000))
         fp.seek(64001, io.SEEK_END)
         buffer.append(fp.read(32000))
-        su = hashlib.md5(usedforsecurity=False)
+        su = hashlib.md5()
         for b in buffer:
             su.update(b)
         return f'{su.hexdigest()}-{str(file_size)}'
@@ -110,8 +137,18 @@ class ModelHolder:
         self.scheduler = scheduler
         self._offload_device = None
         self._offload_gpu_id = None
+        self._sequential_enabled = set()
+        self._not_lora_parameters = []
+        self._lora_parameters = []
+        self._transformer_state_dict = {}
         
-    def enable_sequential_cpu_offload(self, model):
+    def get_transformer_state_dict(self):
+        return self._transformer_state_dict
+        
+    def enable_sequential_cpu_offload(self, model, state_dict=None):
+        if model in self._sequential_enabled:
+            return
+        self._sequential_enabled.add(model)
         from accelerate import cpu_offload
         gpu_id = None
         device = "cuda"
@@ -133,25 +170,32 @@ class ModelHolder:
         self._offload_device = device
 
         offload_buffers = len(model._parameters) > 0
-        cpu_offload(model, device, offload_buffers=offload_buffers)
+        cpu_offload(model, device, offload_buffers=offload_buffers, state_dict=state_dict)
 
 
     def get_model(self, model_type, path=None):
         if model_type == EnumModelType.transformer:
             self.vae.to('cpu')
-            self.text_encoder.to('cpu')
-            if path is not None:
+            if self.text_encoder not in self._sequential_enabled:
+                self.text_encoder.to('cpu')
+            if path is not None and self.transformer not in self._sequential_enabled:
                 state_dict = torch.load(path)
                 self.transformer.to('cpu')
                 self.transformer.load_state_dict(state_dict)
-            # self.enable_sequential_cpu_offload(self.transformer)
-            self.transformer.to('cuda')
+            if self.transformer not in self._sequential_enabled:
+                params = self.transformer.parameters()
+                self._not_lora_parameters = list(filter(lambda p: not p.requires_grad, self.transformer.parameters()))
+                self._lora_parameters = list(filter(lambda p: not p.requires_grad, self.transformer.parameters()))
+                self._transformer_state_dict = self.transformer.state_dict()
+                self.enable_sequential_cpu_offload(self.transformer)
             gc.collect()
             torch.cuda.empty_cache()
             return self.transformer, self.scheduler
         elif model_type == EnumModelType.vae:
-            self.transformer.to('cpu')
-            self.text_encoder.to('cpu')
+            if self.transformer not in self._sequential_enabled:
+                self.transformer.to('cpu')
+            if self.text_encoder not in self._sequential_enabled:
+                self.text_encoder.to('cpu')
             self.vae.enable_slicing()
             self.vae.enable_tiling()
             self.vae.to('cuda')
@@ -159,9 +203,11 @@ class ModelHolder:
             torch.cuda.empty_cache()
             return self.vae
         elif model_type == EnumModelType.text_encoder:
-            self.transformer.to('cpu')
+            if self.transformer not in self._sequential_enabled:
+                self.transformer.to('cpu')
             self.vae.to('cpu')
-            self.text_encoder.to('cpu')
+            if self.text_encoder not in self._sequential_enabled:
+                self.text_encoder.to('cpu')
             self.enable_sequential_cpu_offload(self.text_encoder)
             gc.collect()
             torch.cuda.empty_cache()
@@ -412,7 +458,7 @@ class ValidationConfig:
 
 
 class TrainerConfig:
-    model_path = "THUDM/CogVideoX-2b"
+    model_path = "THUDM/CogVideoX-5b"
     learning_rate = 1e-4
     optimizer = 'adamw'
     use_8bit_adam = False
@@ -454,7 +500,7 @@ class TrainerConfig:
     lr_warmup_steps = 0
     lr_num_cycles = 0.5
     lr_power = 1.0
-    checkpointing_steps = 1000
+    checkpointing_steps = 1
     rank = 128
     lora_alpha = 128
     height = 480
@@ -462,6 +508,12 @@ class TrainerConfig:
     
     def __init__(self):
         pass
+    
+    @property
+    def output_dir(self):
+        result = os.path.join(get_train_base_directory(), "checkpoints")
+        os.makedirs(result, exist_ok=True)
+        return result
     
     @classmethod
     def from_dict(cls, data: dict):
@@ -730,6 +782,13 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
         model = model._orig_mod if is_compiled_module(model) else model
         return model
     
+    def save_lora_myself(transformer, state_dict, path):
+        transformer_lora_layers_to_save = get_peft_model_state_dict(transformer, state_dict=state_dict)
+        CogVideoXPipeline.save_lora_weights(
+            path,
+            transformer_lora_layers=transformer_lora_layers_to_save,
+        )
+    
     for epoch in range(first_epoch, trainer_config.num_train_epochs):
         gc.collect()
         torch.cuda.empty_cache()
@@ -829,7 +888,8 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
                                 shutil.rmtree(removing_checkpoint)
 
                     save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
-                    accelerator.save_state(save_path)
+                    save_lora_myself(transformer, model_holder.get_transformer_state_dict(), save_path)
+                    # accelerator.save_state(save_path)
                     print(f"Saved state to {save_path}")
                 
             logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}  
@@ -842,13 +902,13 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
     accelerator.end_training()
   
 
-def _train_lora_model(train_file: str):
-    train_file = os.path.join(get_train_base_directory(), train_file)
-    if not os.path.exists(train_file):
+def train_lora_model(train_filepath: str):
+    train_filepath = os.path.join(get_train_base_directory(), train_filepath)
+    if not os.path.exists(train_filepath):
         train_config = TrainerConfig()
-        train_config.save(train_file)
+        train_config.save(train_filepath)
     else:
-        train_config = TrainerConfig.from_file(train_file)
+        train_config = TrainerConfig.from_file(train_filepath)
         
     pretrained_model_name_or_path = "THUDM/CogVideoX-2b"
     text_encoder = T5EncoderModel.from_pretrained(
@@ -910,14 +970,53 @@ def _train_lora_model(train_file: str):
     len_vae_block_out_channels = len(vae.config.block_out_channels)
     train_pipeline(dataset, model_holder, train_config, transformer_lora_parameters, len_vae_block_out_channels)
     
+
+def train_cogvideo_lora(train_filepath: str):
+    print("Training LoRA model")
     
-def train_lora_model(train_file: str) -> bool:
     try:
-        _train_lora_model(train_file)
-        return True
+        train_lora_model(train_filepath)
+        return {
+            "success": True,
+        }
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback)        
         gc.collect()
         torch.cuda.empty_cache()
-        return False
+        return {
+            "success": False,
+        }
+
+
+def process_cogvideo_lora_task(task: dict, callback = None) -> dict:
+    global SHOULD_STOP
+    global PROGRESS_CALLBACK
+    PROGRESS_CALLBACK = callback
+
+    SHOULD_STOP = False
+
+    try:
+        if 'train_file' in task:
+            call_callback("Training lora model")
+            return train_cogvideo_lora(task['train_file'])
+        return {
+            "success": False,
+            "error": "Cogvideo: Invalid task",
+        }
+        SHOULD_STOP = False
+    except StopException as ex:
+        SHOULD_STOP = False
+        print("Task stopped by the user.")
+        return {
+            "success": False,
+            "error": str(ex)
+        }
+    except Exception as ex:
+        SHOULD_STOP = False
+        print(str(ex))
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(ex)
+        }
