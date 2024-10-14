@@ -3,6 +3,8 @@ import torch.nn as nn
 import gc
 import safetensors
 
+from typing import Tuple
+
 
 class quantize_lazy_load():
     def __init__(self):
@@ -135,7 +137,7 @@ def split_block_dims(blocks, *args):
     return torch.split(blocks, dims, dim=1)
 
 
-def quant_shape_to_byte_shape(shape, qtype) -> tuple[int, ...]:
+def quant_shape_to_byte_shape(shape, qtype) -> Tuple[int, ...]:
     # shape = shape[::-1]
     block_size, type_size = GGML_QUANT_SIZES[qtype]
     if shape[-1] % block_size != 0:
@@ -144,7 +146,7 @@ def quant_shape_to_byte_shape(shape, qtype) -> tuple[int, ...]:
     return (*shape[:-1], shape[-1] // block_size * type_size)
 
 
-def quant_shape_from_byte_shape(shape, qtype) -> tuple[int, ...]:
+def quant_shape_from_byte_shape(shape, qtype) -> Tuple[int, ...]:
     # shape = shape[::-1]
     block_size, type_size = GGML_QUANT_SIZES[qtype]
     if shape[-1] % type_size != 0:
