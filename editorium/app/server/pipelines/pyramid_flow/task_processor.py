@@ -65,7 +65,7 @@ class PyramidTaskParameters:
             'temp': self.temp,
             'guidance_scale': self.guidance_scale,
             'video_guidance_scale': self.video_guidance_scale,
-            'seed_use': self.seed,
+            'seed': self.seed_use,
             'use768p_model': self.use768p_model,
             'image': self.image,
             'stoponthis': self.stoponthis,

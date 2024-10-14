@@ -22,7 +22,7 @@ def pyramid_group():
 def text2video(prompt, seed):
     parameters = {
         "prompt": prompt,
-        "seed_use": seed,
+        "seed": seed,
         "generate_type": "t2v",
     }
     payload = {
@@ -47,10 +47,12 @@ def text2video(prompt, seed):
 @pyramid_group.command(help='Generates video from image')
 @click.option('--prompt', type=str, required=True, help="The prompt to generate the video")
 @click.option('--image', type=str, required=True, help="The image to generate the video")
-def image2video(prompt, image):
+@click.option('--seed', type=int, required=False, default=-1, help="The image to generate the video")
+def image2video(prompt, image, seed):
     parameters = {
         "prompt": prompt,
         "generate_type": "i2v",
+        "seed": seed,
         'image': get_output_path(image)
     }
     payload = {
