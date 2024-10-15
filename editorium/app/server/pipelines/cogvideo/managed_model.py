@@ -34,6 +34,8 @@ class CogVideoModels(ManagedModel):
         self.use_gguf = False
         self.upscaler_model = None
         self.interpolation_model = None
+        self.lora_path = None
+        self.lora_rank = None
 
         if not os.path.exists("/home/editorium/models/upscalers"):
             os.makedirs("/home/editorium/models/upscalers", exist_ok=True)
@@ -54,7 +56,8 @@ class CogVideoModels(ManagedModel):
                     use_pyramid,
                     use_sageatt,
                     use_gguf,
-                    
+                    lora_path=None,
+                    lor_rank=None,
         ):
         self.release_other_models()
         if generate_type != "i2v" and use_gguf and not use5b_model:
@@ -69,7 +72,9 @@ class CogVideoModels(ManagedModel):
             self.use5b_model != use5b_model,
             self.use_gguf != use_gguf,
             self.upscaler_model is None,
-            self.interpolation_model is None
+            self.interpolation_model is None,
+            self.lora_path != lora_path,
+            self.lora_rank != lora_rank,
         ])
         if not has_changes:
             return
@@ -80,6 +85,8 @@ class CogVideoModels(ManagedModel):
         self.use_sageatt = use_sageatt
         self.use5b_model = use5b_model
         self.use_gguf = use_gguf
+        self.lora_path = lora_path
+        self.lora_rank = lora_rank
         
         print(f'Loading models parameters: generate_type={generate_type}, '
               f'use_pyramid={use_pyramid}, use_sageatt={use_sageatt}, use5b_model={use5b_model}, use_gguf={use_gguf}')
@@ -130,6 +137,10 @@ class CogVideoModels(ManagedModel):
             transformer=transformer,
             text_encoder=text_encoder
         )
+        
+        if self.lora_path and self.lora_rank:
+            pipe.load_lora_weights(os.path.dirname(self.lora_path), weight_name=os.path.basename(self.lora_path), adapter_name="test_1")
+            pipe.fuse_lora(lora_scale=1 / self.lora_rank)
 
         self.pipe.enable_sequential_cpu_offload()
         self.pipe.vae.enable_slicing()

@@ -23,16 +23,18 @@ import json
 import io
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Mapping
 import traceback
 
 import torch
 import transformers
-from accelerate import Accelerator
+import deepspeed
+from accelerate import Accelerator, cpu_offload, DeepSpeedPlugin
+from accelerate.utils import DummyScheduler
 from accelerate.logging import get_logger
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
 from huggingface_hub import create_repo, upload_folder
-from peft import LoraConfig, get_peft_model_state_dict, set_peft_model_state_dict
+from peft import LoraConfig, get_peft_model_state_dict, set_peft_model_state_dict, get_peft_model
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from tqdm.auto import tqdm
@@ -50,8 +52,9 @@ from diffusers.utils import check_min_version, convert_unet_state_dict_to_peft, 
 from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
 from diffusers.utils.torch_utils import is_compiled_module
 
-import skvideo.io
 
+
+from pipelines.common.exceptions import StopException
 
 PROGRESS_CALLBACK = None
 SHOULD_STOP = False
@@ -127,10 +130,11 @@ class EnumModelType:
     text_encoder = "text_encoder"
     scheduler = "scheduler"
     
-    
+
 class ModelHolder:
     def __init__(self, transformer, vae, tokenizer, text_encoder, scheduler):
         self.transformer = transformer
+        self.offloaded_transformer = transformer
         self.vae = vae
         self.text_encoder = text_encoder
         self.tokenizer = tokenizer
@@ -138,18 +142,14 @@ class ModelHolder:
         self._offload_device = None
         self._offload_gpu_id = None
         self._sequential_enabled = set()
-        self._not_lora_parameters = []
-        self._lora_parameters = []
-        self._transformer_state_dict = {}
         
     def get_transformer_state_dict(self):
-        return self._transformer_state_dict
-        
-    def enable_sequential_cpu_offload(self, model, state_dict=None):
+        return self.transformer.state_dict()
+    
+    def enable_sequential_cpu_offload(self, model):
         if model in self._sequential_enabled:
             return
         self._sequential_enabled.add(model)
-        from accelerate import cpu_offload
         gpu_id = None
         device = "cuda"
         
@@ -170,7 +170,7 @@ class ModelHolder:
         self._offload_device = device
 
         offload_buffers = len(model._parameters) > 0
-        cpu_offload(model, device, offload_buffers=offload_buffers, state_dict=state_dict)
+        cpu_offload(model, device, offload_buffers=offload_buffers)
 
 
     def get_model(self, model_type, path=None):
@@ -178,19 +178,25 @@ class ModelHolder:
             self.vae.to('cpu')
             if self.text_encoder not in self._sequential_enabled:
                 self.text_encoder.to('cpu')
-            if path is not None and self.transformer not in self._sequential_enabled:
-                state_dict = torch.load(path)
-                self.transformer.to('cpu')
-                self.transformer.load_state_dict(state_dict)
+            #if path is not None and self.transformer not in self._sequential_enabled:
+                #state_dict = torch.load(path)
+                #self.transformer.to('cpu')
+             #   self.transformer.load_state_dict(state_dict)
             if self.transformer not in self._sequential_enabled:
-                params = self.transformer.parameters()
-                self._not_lora_parameters = list(filter(lambda p: not p.requires_grad, self.transformer.parameters()))
-                self._lora_parameters = list(filter(lambda p: not p.requires_grad, self.transformer.parameters()))
-                self._transformer_state_dict = self.transformer.state_dict()
-                self.enable_sequential_cpu_offload(self.transformer)
+                self._sequential_enabled.add(self.transformer)
+                # self.offloaded_transformer = OffloadModel(
+                #    self.transformer, 
+                #    'cuda',
+                #    offload_device=torch.device('cpu'),
+                #    num_slices=3,
+                #    checkpoint_activation=True,
+                #    num_microbatches=5
+                #)
+                #self.enable_sequential_cpu_offload(self.transformer)
             gc.collect()
             torch.cuda.empty_cache()
-            return self.transformer, self.scheduler
+            # self.offloaded_transformer.to('cuda')
+            return self.offloaded_transformer, self.scheduler
         elif model_type == EnumModelType.vae:
             if self.transformer not in self._sequential_enabled:
                 self.transformer.to('cpu')
@@ -407,14 +413,29 @@ class VideoDataset:
         for item in self.items:
             yield item
             
+            
 class DeepSpeedConfig:
     def __init__(self):
         self.gradient_accumulation_steps = 1
         self.gradient_clipping = 1.0
-        self.offload_optimizer_device = None
-        self.offload_param_device = None
-        self.zero3_init_flag = False
-        self.zero_stage = 2
+        self.offload_optimizer_device = 'cpu'
+        self.offload_param_device = 'cpu'
+        self.zero3_init_flag = True
+        self.zero_stage = 3
+        self.config = {
+            "optimizer": {
+                "type": "Adam",
+                "params": {
+                    "lr": 0.001,
+                    "betas": [
+                        0.8,
+                        0.999
+                    ],
+                    "eps": 1e-8,
+                    "weight_decay": 3e-7
+                }
+            }
+        }
         
     @classmethod
     def from_dict(cls, data: dict):
@@ -493,14 +514,14 @@ class TrainerConfig:
     checkpoints_total_limit = None
     max_grad_norm = 1.0
     max_train_steps = None
-    num_train_epochs = 1
+    num_train_epochs = 30
     train_batch_size = 1
     gradient_accumulation_steps = 1
     lr_scheduler = 'linear'
     lr_warmup_steps = 0
     lr_num_cycles = 0.5
     lr_power = 1.0
-    checkpointing_steps = 1
+    checkpointing_steps = 10
     rank = 128
     lora_alpha = 128
     height = 480
@@ -586,72 +607,14 @@ class TrainerConfig:
 
 
 def get_optimizer(trainer_config: TrainerConfig, params_to_optimize):
-    # Optimizer creation
-    supported_optimizers = ["adam", "adamw", "prodigy"]
-    if trainer_config.optimizer not in supported_optimizers:
-        logger.warning(
-            f"Unsupported choice of optimizer: {trainer_config.optimizer}. Supported optimizers include {supported_optimizers}. Defaulting to AdamW"
-        )
-        trainer_config.optimizer = "adamw"
-
-    if trainer_config.use_8bit_adam and not (trainer_config.optimizer.lower() not in ["adam", "adamw"]):
-        logger.warning(
-            f"use_8bit_adam is ignored when optimizer is not set to 'Adam' or 'AdamW'. Optimizer was "
-            f"set to {trainer_config.optimizer.lower()}"
-        )
-
-    if trainer_config.use_8bit_adam:
-        try:
-            import bitsandbytes as bnb
-        except ImportError:
-            raise ImportError(
-                "To use 8-bit Adam, please install the bitsandbytes library: `pip install bitsandbytes`."
-            )
-
-    if trainer_config.optimizer.lower() == "adamw":
-        optimizer_class = bnb.optim.AdamW8bit if trainer_config.use_8bit_adam else torch.optim.AdamW
-
-        optimizer = optimizer_class(
-            params_to_optimize,
-            betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
-            eps=trainer_config.adam_epsilon,
-            weight_decay=trainer_config.adam_weight_decay,
-        )
-    elif trainer_config.optimizer.lower() == "adam":
-        optimizer_class = bnb.optim.Adam8bit if trainer_config.use_8bit_adam else torch.optim.Adam
-
-        optimizer = optimizer_class(
-            params_to_optimize,
-            betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
-            eps=trainer_config.adam_epsilon,
-            weight_decay=trainer_config.adam_weight_decay,
-        )
-    elif trainer_config.optimizer.lower() == "prodigy":
-        try:
-            import prodigyopt
-        except ImportError:
-            raise ImportError("To use Prodigy, please install the prodigyopt library: `pip install prodigyopt`")
-
-        optimizer_class = prodigyopt.Prodigy
-
-        if trainer_config.learning_rate <= 0.1:
-            logger.warning(
-                "Learning rate is too low. When using prodigy, it's generally better to set learning rate around 1.0"
-            )
-
-        optimizer = optimizer_class(
-            params_to_optimize,
-            lr=trainer_config.learning_rate,
-            betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
-            beta3=trainer_config.prodigy_beta3,
-            weight_decay=trainer_config.adam_weight_decay,
-            eps=trainer_config.adam_epsilon,
-            decouple=trainer_config.prodigy_decouple,
-            use_bias_correction=trainer_config.prodigy_use_bias_correction,
-            safeguard_warmup=trainer_config.prodigy_safeguard_warmup,
-        )
-
-    return optimizer
+    from accelerate.utils import DummyOptim
+    return DummyOptim(
+        params_to_optimize,
+        lr=trainer_config.learning_rate,
+        betas=(trainer_config.adam_beta1, trainer_config.adam_beta2),
+        eps=trainer_config.adam_epsilon,
+        weight_decay=trainer_config.adam_weight_decay,
+    )
 
 
 def prepare_rotary_positional_embeddings(
@@ -698,14 +661,12 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
     if trainer_config.max_train_steps is None:
         trainer_config.max_train_steps = trainer_config.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
-        
-    lr_scheduler = get_scheduler(
-        trainer_config.lr_scheduler,
+
+    lr_scheduler = DummyScheduler(
+        name=trainer_config.lr_scheduler,
         optimizer=optimizer,
-        num_warmup_steps=trainer_config.lr_warmup_steps,
-        num_training_steps=trainer_config.max_train_steps,
-        num_cycles=trainer_config.lr_num_cycles,
-        power=trainer_config.lr_power,
+        total_num_steps=trainer_config.max_train_steps * 1,
+        num_warmup_steps=trainer_config.lr_warmup_steps * 1,
     )
     
      # We need to recalculate our total training steps as the size of the training dataloader may have changed.
@@ -759,147 +720,205 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
         disable=False,
     )
     vae_scale_factor_spatial = 2 ** (len_vae_block_out_channels - 1)
-
+    path = os.path.join(get_checkpoint_directory(), path, 'pytorch_lora_weights.safetensors') if path else None
     # For DeepSpeed training
     transformer, scheduler = model_holder.get_model(EnumModelType.transformer, path)
     model_config = transformer.module.config if hasattr(transformer, "module") else transformer.config
     
-    accelerator_project_config = ProjectConfiguration(project_dir=get_checkpoint_directory())
-    accelerator = Accelerator(
-        gradient_accumulation_steps=trainer_config.gradient_accumulation_steps,
-        mixed_precision=trainer_config.mixed_precision,
-        log_with=None,
-        project_config=accelerator_project_config,
-        kwargs_handlers=[],
-    )
+
+    # accelerator_project_config = ProjectConfiguration(project_dir=get_checkpoint_directory())
     
-    # transformer, optimizer, lr_scheduler = accelerator.prepare(
-    #    transformer, optimizer, lr_scheduler
+    # deepspeed_plugin = DeepSpeedPlugin(**trainer_config.deepspeed_config.to_dict())
+    # deepspeed_plugin.deepspeed_config
+    #accelerator = Accelerator(
+    #    gradient_accumulation_steps=trainer_config.gradient_accumulation_steps,
+    #    mixed_precision=trainer_config.mixed_precision,
+    #    log_with=None,
+    #    project_config=accelerator_project_config,
+    #    kwargs_handlers=[],
     #)
     
-    def unwrap_model(model):
-        model = accelerator.unwrap_model(model)
-        model = model._orig_mod if is_compiled_module(model) else model
-        return model
+    def collate_fn(examples):
+        data = [example  for example in examples]
+        return {
+            "data": data
+        }
+
+    train_dataloader = DataLoader(
+        dataset,
+        batch_size=trainer_config.train_batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+        num_workers=1,
+    )
     
-    def save_lora_myself(transformer, state_dict, path):
-        transformer_lora_layers_to_save = get_peft_model_state_dict(transformer, state_dict=state_dict)
-        CogVideoXPipeline.save_lora_weights(
-            path,
-            transformer_lora_layers=transformer_lora_layers_to_save,
-        )
+    transformer_lora_config = LoraConfig(
+        r=trainer_config.rank,
+        lora_alpha=trainer_config.lora_alpha,
+        init_lora_weights=True,
+        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+    )
+    transformer.train()
+    model = get_peft_model(transformer, transformer_lora_config)
+    model_engine, optimizer, _, _ = deepspeed.initialize(
+        model=model,
+        model_parameters=model.parameters(),
+        config={
+            "train_batch_size": trainer_config.train_batch_size,
+            "gradient_accumulation_steps": 1,
+            "bf16": {
+                "enabled": True
+            },
+            "fp16": {
+                "enabled": False
+            },
+            "zero_optimization": {
+                "stage": 3, 
+                "offload_optimizer": {
+                    "device": "cpu", 
+                    "pin_memory": True
+                },
+                "offload_param": {
+                    "device": "cpu",  
+                    "pin_memory": True
+                }
+            },
+            "optimizer": {
+                "type": "AdamW",
+                "params": {
+                    "lr": trainer_config.learning_rate,  
+                    "betas": [trainer_config.adam_beta1, trainer_config.adam_beta2],
+                    "eps": trainer_config.adam_epsilon,
+                    "weight_decay": trainer_config.adam_weight_decay
+                }
+            },
+            "scheduler": {
+                "type": "WarmupLR",
+                "params": {
+                "warmup_min_lr": 0,
+                "warmup_max_lr": 0.0001,
+                "warmup_num_steps": 1000
+                }
+            }
+        }
+    )
+
+    
+    device = next(model_engine.parameters()).device
     
     for epoch in range(first_epoch, trainer_config.num_train_epochs):
         gc.collect()
         torch.cuda.empty_cache()
-        transformer.train()
-        for step, item in enumerate(dataset):
-            with accelerator.accumulate(transformer):
-                model_input = torch.cat([item.load_video_pt()])
-                model_input = model_input.to(memory_format=torch.contiguous_format).float()
-                model_input = model_input.permute(0, 2, 1, 3, 4).to(dtype=torch.bfloat16)  # [B, F, C, H, W]
-                prompt_embeds = item.load_prompt_pt()
-                model_input.to('cpu')
-                prompt_embeds.to('cpu')
-                
-                noise = torch.randn_like(model_input)
-                batch_size, num_frames, num_channels, height, width = model_input.shape
+        for step, batch in enumerate(train_dataloader):
+            data = batch["data"]
+            videos = []
+            prompts = []
+            for d in data:
+                video = d.load_video_pt()
+                prompt = d.load_prompt_pt()
+                videos.append(video)
+                prompts.append(prompt)
+            model_input  = torch.cat(videos).permute(0, 2, 1, 3, 4).to(dtype=torch.bfloat16)  # [B, F, C, H, W]
+            prompt_embeds = torch.cat(prompts)
+            
+            model_input = model_input.to(device)
+            prompt_embeds = prompt_embeds.to(device)
+            
+            noise = torch.randn_like(model_input)
+            batch_size, num_frames, num_channels, height, width = model_input.shape
 
-                # Sample a random timestep for each image
-                timesteps = torch.randint(
-                    0, scheduler.config.num_train_timesteps, (batch_size,), device=model_input.device
+            # Sample a random timestep for each image
+            timesteps = torch.randint(
+                0, scheduler.config.num_train_timesteps, (batch_size,), device=model_input.device
+            )
+            timesteps = timesteps.long()
+
+            # Prepare rotary embeds
+            image_rotary_emb = (
+                prepare_rotary_positional_embeddings(
+                    height=trainer_config.height,
+                    width=trainer_config.width,
+                    num_frames=num_frames,
+                    vae_scale_factor_spatial=vae_scale_factor_spatial,
+                    patch_size=model_config.patch_size,
+                    attention_head_dim=model_config.attention_head_dim,
+                    device=device,
                 )
-                timesteps = timesteps.long()
+                if model_config.use_rotary_positional_embeddings
+                else None
+            )
 
-                # Prepare rotary embeds
-                image_rotary_emb = (
-                    prepare_rotary_positional_embeddings(
-                        height=trainer_config.height,
-                        width=trainer_config.width,
-                        num_frames=num_frames,
-                        vae_scale_factor_spatial=vae_scale_factor_spatial,
-                        patch_size=model_config.patch_size,
-                        attention_head_dim=model_config.attention_head_dim,
-                        device=accelerator.device,
-                    )
-                    if model_config.use_rotary_positional_embeddings
-                    else None
-                )
+            # Add noise to the model input according to the noise magnitude at each timestep
+            # (this is the forward diffusion process)
+            noisy_model_input = scheduler.add_noise(model_input, noise, timesteps)
+            noisy_model_input = noisy_model_input.to(device)
+            
+            # Predict the noise residual
+            model_output = model_engine(
+                hidden_states=noisy_model_input,
+                encoder_hidden_states=prompt_embeds,
+                timestep=timesteps,
+                image_rotary_emb=(image_rotary_emb[0].to(device), image_rotary_emb[1].to(device)) if image_rotary_emb is not None else None,
+                return_dict=False,
+            )[0]
 
-                # Add noise to the model input according to the noise magnitude at each timestep
-                # (this is the forward diffusion process)
-                noisy_model_input = scheduler.add_noise(model_input, noise, timesteps)
+            model_pred = scheduler.get_velocity(model_output, noisy_model_input, timesteps)
 
-                # Predict the noise residual
-                model_output = transformer(
-                    hidden_states=noisy_model_input,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep=timesteps,
-                    image_rotary_emb=image_rotary_emb,
-                    return_dict=False,
-                )[0]
+            alphas_cumprod = scheduler.alphas_cumprod[timesteps]
+            weights = 1 / (1 - alphas_cumprod)
+            while len(weights.shape) < len(model_pred.shape):
+                weights = weights.unsqueeze(-1)
 
-                model_pred = scheduler.get_velocity(model_output, noisy_model_input, timesteps)
+            target = model_input
 
-                alphas_cumprod = scheduler.alphas_cumprod[timesteps]
-                weights = 1 / (1 - alphas_cumprod)
-                while len(weights.shape) < len(model_pred.shape):
-                    weights = weights.unsqueeze(-1)
+            loss = torch.mean((weights * (model_pred - target) ** 2).reshape(batch_size, -1), dim=1)
+            loss = loss.mean()
+            
+            model_engine.backward(loss)
+            model_engine.step()
+            # lr_scheduler.step()
 
-                target = model_input
+            progress_bar.update(1)
+            global_step += 1
 
-                loss = torch.mean((weights * (model_pred - target) ** 2).reshape(batch_size, -1), dim=1)
-                loss = loss.mean()
+            if global_step % trainer_config.checkpointing_steps == 0 or SHOULD_STOP:
+                # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
+                if trainer_config.checkpoints_total_limit is not None:
+                    checkpoints = os.listdir(trainer_config.output_dir)
+                    checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
+                    checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
+
+                    # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
+                    if len(checkpoints) >= trainer_config.checkpoints_total_limit:
+                        num_to_remove = len(checkpoints) - trainer_config.checkpoints_total_limit + 1
+                        removing_checkpoints = checkpoints[0:num_to_remove]
+
+                        print(
+                            f"{len(checkpoints)} checkpoints already exist, removing {len(removing_checkpoints)} checkpoints"
+                        )
+                        print(f"Removing checkpoints: {', '.join(removing_checkpoints)}")
+
+                        for removing_checkpoint in removing_checkpoints:
+                            removing_checkpoint = os.path.join(trainer_config.output_dir, removing_checkpoint)
+                            shutil.rmtree(removing_checkpoint)
+
+                save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
+                model_engine.save_checkpoint(save_path)
+                # accelerator.save_state(save_path)
+                print(f"Saved state to {save_path}")
                 
-                accelerator.backward(loss)
-
-                if accelerator.sync_gradients:
-                    params_to_clip = transformer.parameters()
-                    accelerator.clip_grad_norm_(params_to_clip, trainer_config.max_grad_norm)
-
-                optimizer.step()
-                optimizer.zero_grad()
-
-                lr_scheduler.step()
-                
-            if accelerator.sync_gradients:
-                progress_bar.update(1)
-                global_step += 1
-
-                if global_step % trainer_config.checkpointing_steps == 0:
-                    # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
-                    if trainer_config.checkpoints_total_limit is not None:
-                        checkpoints = os.listdir(trainer_config.output_dir)
-                        checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
-                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
-
-                        # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
-                        if len(checkpoints) >= trainer_config.checkpoints_total_limit:
-                            num_to_remove = len(checkpoints) - trainer_config.checkpoints_total_limit + 1
-                            removing_checkpoints = checkpoints[0:num_to_remove]
-
-                            print(
-                                f"{len(checkpoints)} checkpoints already exist, removing {len(removing_checkpoints)} checkpoints"
-                            )
-                            print(f"Removing checkpoints: {', '.join(removing_checkpoints)}")
-
-                            for removing_checkpoint in removing_checkpoints:
-                                removing_checkpoint = os.path.join(trainer_config.output_dir, removing_checkpoint)
-                                shutil.rmtree(removing_checkpoint)
-
-                    save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
-                    save_lora_myself(transformer, model_holder.get_transformer_state_dict(), save_path)
-                    # accelerator.save_state(save_path)
-                    print(f"Saved state to {save_path}")
-                
-            logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}  
-            progress_bar.set_postfix(**logs)  
-            accelerator.log(logs, step=global_step)
+                if SHOULD_STOP:
+                    raise StopException("Training stopped by the user.")
+            
+            logs = {"loss": loss.detach().item(), "lr": loss.item()}  
+            progress_bar.set_postfix(**logs) 
             
             if global_step >= trainer_config.max_train_steps:
+                save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
+                model_engine.save_checkpoint(save_path, save_lora_only=True)
                 break                  
 
-    accelerator.end_training()
+    # accelerator.end_training()
   
 
 def train_lora_model(train_filepath: str):
@@ -910,11 +929,13 @@ def train_lora_model(train_filepath: str):
     else:
         train_config = TrainerConfig.from_file(train_filepath)
         
+    weight_dtype = torch.bfloat16
+        
     pretrained_model_name_or_path = "THUDM/CogVideoX-2b"
     text_encoder = T5EncoderModel.from_pretrained(
         pretrained_model_name_or_path, subfolder="text_encoder", revision=None
     )
-    text_encoder.to(device='cpu')
+    text_encoder.to(device='cpu', dtype=weight_dtype)
     transformer = CogVideoXTransformer3DModel.from_pretrained(
         pretrained_model_name_or_path,
         subfolder="transformer",
@@ -922,7 +943,7 @@ def train_lora_model(train_filepath: str):
         revision=None,
         variant=None,
     )
-    transformer.to('cpu')
+    transformer.to('cpu', dtype=weight_dtype)
     vae = AutoencoderKLCogVideoX.from_pretrained(
         pretrained_model_name_or_path, 
         subfolder="vae", 
@@ -931,7 +952,7 @@ def train_lora_model(train_filepath: str):
     )
     vae.enable_slicing()
     vae.enable_tiling()
-    vae.to('cpu', dtype=torch.bfloat16)
+    vae.to('cpu', dtype=weight_dtype)
     scheduler = CogVideoXDPMScheduler.from_pretrained(
         pretrained_model_name_or_path, 
         subfolder="scheduler"
@@ -965,7 +986,7 @@ def train_lora_model(train_filepath: str):
     )
     
     # now we will add new LoRA weights to the attention layers
-    transformer.add_adapter(transformer_lora_config)
+    #transformer.add_adapter(transformer_lora_config)
     transformer_lora_parameters = list(filter(lambda p: p.requires_grad, transformer.parameters()))
     len_vae_block_out_channels = len(vae.config.block_out_channels)
     train_pipeline(dataset, model_holder, train_config, transformer_lora_parameters, len_vae_block_out_channels)
@@ -987,7 +1008,6 @@ def train_cogvideo_lora(train_filepath: str):
         return {
             "success": False,
         }
-
 
 def process_cogvideo_lora_task(task: dict, callback = None) -> dict:
     global SHOULD_STOP

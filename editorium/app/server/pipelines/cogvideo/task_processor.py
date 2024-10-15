@@ -79,7 +79,9 @@ def generate_video(
         generate_type=generate_type, 
         use_pyramid=False,
         use_sageatt=generate_type == "i2v", 
-        use_gguf=False
+        use_gguf=False,
+        lora_path=lora_path,
+        lora_rank=lora_rank,
     )
 
     if num_videos_per_prompt > 1:
