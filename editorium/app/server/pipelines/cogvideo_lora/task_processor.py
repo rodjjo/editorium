@@ -29,6 +29,7 @@ import traceback
 import torch
 import transformers
 import deepspeed
+from deepspeed.runtime.checkpoint_engine.torch_checkpoint_engine import TorchCheckpointEngine
 from accelerate import Accelerator, cpu_offload, DeepSpeedPlugin
 from accelerate.utils import DummyScheduler
 from accelerate.logging import get_logger
@@ -52,7 +53,7 @@ from diffusers.utils import check_min_version, convert_unet_state_dict_to_peft, 
 from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
 from diffusers.utils.torch_utils import is_compiled_module
 
-
+from safetensors.torch import save_file
 
 from pipelines.common.exceptions import StopException
 
@@ -521,7 +522,7 @@ class TrainerConfig:
     lr_warmup_steps = 0
     lr_num_cycles = 0.5
     lr_power = 1.0
-    checkpointing_steps = 10
+    checkpointing_steps = 500
     rank = 128
     lora_alpha = 128
     height = 480
@@ -751,18 +752,11 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
         collate_fn=collate_fn,
         num_workers=1,
     )
-    
-    transformer_lora_config = LoraConfig(
-        r=trainer_config.rank,
-        lora_alpha=trainer_config.lora_alpha,
-        init_lora_weights=True,
-        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-    )
+
     transformer.train()
-    model = get_peft_model(transformer, transformer_lora_config)
     model_engine, optimizer, _, _ = deepspeed.initialize(
-        model=model,
-        model_parameters=model.parameters(),
+        model=transformer,
+        model_parameters=transformer.parameters(),
         config={
             "train_batch_size": trainer_config.train_batch_size,
             "gradient_accumulation_steps": 1,
@@ -773,7 +767,7 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
                 "enabled": False
             },
             "zero_optimization": {
-                "stage": 3, 
+                "stage": 2, 
                 "offload_optimizer": {
                     "device": "cpu", 
                     "pin_memory": True
@@ -805,7 +799,7 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
 
     
     device = next(model_engine.parameters()).device
-    
+   
     for epoch in range(first_epoch, trainer_config.num_train_epochs):
         gc.collect()
         torch.cuda.empty_cache()
@@ -877,6 +871,12 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
             model_engine.backward(loss)
             model_engine.step()
             # lr_scheduler.step()
+            
+            # current_lr = optimizer.param_groups[0]['lr']
+            #if step % decay_interval == 0 and step > 0:
+            #    new_lr = current_lr * decay_factor
+            #    for param_group in optimizer.param_groups:
+            #        param_group['lr'] = new_lr
 
             progress_bar.update(1)
             global_step += 1
@@ -903,7 +903,7 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
                             shutil.rmtree(removing_checkpoint)
 
                 save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
-                model_engine.save_checkpoint(save_path)
+                save_lora_myself(model_engine, transformer, save_path)
                 # accelerator.save_state(save_path)
                 print(f"Saved state to {save_path}")
                 
@@ -915,35 +915,43 @@ def train_pipeline(dataset: VideoDataset, model_holder: ModelHolder, trainer_con
             
             if global_step >= trainer_config.max_train_steps:
                 save_path = os.path.join(trainer_config.output_dir, f"checkpoint-{global_step}")
-                model_engine.save_checkpoint(save_path, save_lora_only=True)
+                save_lora_myself(model_engine, transformer, save_path)
                 break                  
 
-    # accelerator.end_training()
-  
+
+
+def save_lora_myself(engine, transformer, directory):
+    engine_state_dict = engine._zero3_consolidated_16bit_state_dict()
+    lora_state_dict = get_peft_model_state_dict(transformer, engine_state_dict)
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, 'pytorch_lora_weights.safetensors')
+    save_file(lora_state_dict, path)
+
 
 def train_lora_model(train_filepath: str):
     train_filepath = os.path.join(get_train_base_directory(), train_filepath)
     if not os.path.exists(train_filepath):
-        train_config = TrainerConfig()
-        train_config.save(train_filepath)
+        trainer_config = TrainerConfig()
+        trainer_config.save(train_filepath)
     else:
-        train_config = TrainerConfig.from_file(train_filepath)
+        trainer_config = TrainerConfig.from_file(train_filepath)
         
     weight_dtype = torch.bfloat16
         
-    pretrained_model_name_or_path = "THUDM/CogVideoX-2b"
+    pretrained_model_name_or_path = trainer_config.model_path  # "THUDM/CogVideoX-2b"
     text_encoder = T5EncoderModel.from_pretrained(
         pretrained_model_name_or_path, subfolder="text_encoder", revision=None
     )
     text_encoder.to(device='cpu', dtype=weight_dtype)
-    transformer = CogVideoXTransformer3DModel.from_pretrained(
-        pretrained_model_name_or_path,
-        subfolder="transformer",
-        torch_dtype=torch.bfloat16,
-        revision=None,
-        variant=None,
-    )
-    transformer.to('cpu', dtype=weight_dtype)
+    with deepspeed.zero.Init():
+        transformer = CogVideoXTransformer3DModel.from_pretrained(
+            pretrained_model_name_or_path,
+            subfolder="transformer",
+            torch_dtype=torch.bfloat16,
+            revision=None,
+            variant=None,
+            empty_init=False
+        )
     vae = AutoencoderKLCogVideoX.from_pretrained(
         pretrained_model_name_or_path, 
         subfolder="vae", 
@@ -975,21 +983,21 @@ def train_lora_model(train_filepath: str):
     dataset = VideoDataset(model_holder)
     dataset.preprocess()
     
-    if train_config.gradient_checkpointing:
+    if trainer_config.gradient_checkpointing:
         transformer.enable_gradient_checkpointing()
         
     transformer_lora_config = LoraConfig(
-        r=train_config.rank,
-        lora_alpha=train_config.lora_alpha,
+        r=trainer_config.rank,
+        lora_alpha=trainer_config.lora_alpha,
         init_lora_weights=True,
         target_modules=["to_k", "to_q", "to_v", "to_out.0"],
     )
     
     # now we will add new LoRA weights to the attention layers
-    #transformer.add_adapter(transformer_lora_config)
+    transformer.add_adapter(transformer_lora_config)
     transformer_lora_parameters = list(filter(lambda p: p.requires_grad, transformer.parameters()))
     len_vae_block_out_channels = len(vae.config.block_out_channels)
-    train_pipeline(dataset, model_holder, train_config, transformer_lora_parameters, len_vae_block_out_channels)
+    train_pipeline(dataset, model_holder, trainer_config, transformer_lora_parameters, len_vae_block_out_channels)
     
 
 def train_cogvideo_lora(train_filepath: str):

@@ -58,6 +58,7 @@ RUN groupadd -g $GID $USER && useradd -m -u $UID -g $GID -s /bin/bash -d /home/$
 USER $USER
 
 ENV TOKENIZERS_PARALLELISM=false
+# ENV DS_ACCELERATOR=cpu
 
 CMD ["/app/editorium/run-server.sh"]
 
