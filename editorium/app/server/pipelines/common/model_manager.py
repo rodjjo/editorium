@@ -1,5 +1,6 @@
 from typing import Dict
 import gc 
+import os
 import torch
 
 
@@ -14,6 +15,12 @@ class ManagedModel:
     
     def release_other_models(self):
         model_manager.release_all_models(self)
+        
+    def model_dir(self, model_name: str):
+        result = os.path.join(self.MODELS_PATH, model_name)
+        os.makedirs(result, exist_ok=True)
+        return result
+
 
 
 class ModelManager:

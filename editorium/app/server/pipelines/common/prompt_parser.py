@@ -23,6 +23,7 @@ class PromptConfig:
     count: int = 1
     quant: bool = False
     image: str = ""
+    frame_interpolation: bool = False
     _config_prefix: str = "config"
     
     def __init__(self, config_prefix, **kwargs):
@@ -84,7 +85,8 @@ class PromptConfig:
             "strength": self.strength,
             "count": self.count,
             "quant": self.quant,
-            "image": self.image
+            "image": self.image,
+            "frame_interpolation": self.frame_interpolation,
         }
         
     @classmethod

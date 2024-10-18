@@ -15,6 +15,7 @@ from transformers import T5EncoderModel
 
 from pipelines.cogvideo.cogvideox_transformer import CogVideoXTransformer3DModel as CogVideoXTransformer3DModelPAB
 from pipelines.cogvideo.core.pab_mgr import set_pab_manager, CogVideoXPABConfig
+from pipelines.cogvideo.interpolation_pipeline import CogVideoXInterpolationPipeline
 from pipelines.common.load_gguf import load_gguf_transformer
 from pipelines.common.model_manager import ManagedModel
 from pipelines.common.rife_model import load_rife_model
@@ -36,6 +37,7 @@ class CogVideoModels(ManagedModel):
         self.interpolation_model = None
         self.lora_path = None
         self.lora_rank = None
+        self.cog_interpolation = False
 
         if not os.path.exists("/home/editorium/models/upscalers"):
             os.makedirs("/home/editorium/models/upscalers", exist_ok=True)
@@ -57,13 +59,18 @@ class CogVideoModels(ManagedModel):
                     use_sageatt,
                     use_gguf,
                     lora_path=None,
-                    lor_rank=None,
+                    lora_rank=None,
+                    cog_interpolation=False
         ):
         self.release_other_models()
         if generate_type != "i2v" and use_gguf and not use5b_model:
             raise ValueError("GGUF can only be used with i2v model")
         if use_sageatt and use_pyramid:
             raise ValueError("SageAtt and Pyramid can not be used together")
+        if cog_interpolation and not use5b_model:
+            raise ValueError("CogVideoX Interpolation model can only be used with 5b model")
+        if cog_interpolation and generate_type != "i2v":
+            raise ValueError("CogVideoX Interpolation model can only be used with i2v model")
         has_changes = any([
             self.pipeline is None,
             self.generate_type != generate_type,
@@ -75,6 +82,7 @@ class CogVideoModels(ManagedModel):
             self.interpolation_model is None,
             self.lora_path != lora_path,
             self.lora_rank != lora_rank,
+            self.cog_interpolation != cog_interpolation
         ])
         if not has_changes:
             return
@@ -87,6 +95,7 @@ class CogVideoModels(ManagedModel):
         self.use_gguf = use_gguf
         self.lora_path = lora_path
         self.lora_rank = lora_rank
+        self.cog_interpolation = cog_interpolation
         
         print(f'Loading models parameters: generate_type={generate_type}, '
               f'use_pyramid={use_pyramid}, use_sageatt={use_sageatt}, use5b_model={use5b_model}, use_gguf={use_gguf}')
@@ -94,7 +103,13 @@ class CogVideoModels(ManagedModel):
         dtype = torch.bfloat16 if self.use5b_model else torch.float16
 
         if use5b_model:
-            model_path = 'THUDM/CogVideoX-5b' if generate_type != "i2v" else 'THUDM/CogVideoX-5b-I2V'
+            if generate_type == "i2v":
+                if self.cog_interpolation:
+                    model_path = "feizhengcong/CogvideoX-Interpolation"
+                else:
+                    model_path = 'THUDM/CogVideoX-5b-I2V'
+            else:
+                model_path = 'THUDM/CogVideoX-5b'
         else:
             model_path = 'THUDM/CogVideoX-2b'
             
@@ -121,7 +136,9 @@ class CogVideoModels(ManagedModel):
         if transformer is None:
             transformer = transformer_class.from_pretrained(model_path, subfolder="transformer", torch_dtype=dtype)
 
-        if self.generate_type == "t2v":
+        if self.cog_interpolation:
+            pipe_class = CogVideoXInterpolationPipeline
+        elif self.generate_type == "t2v":
             pipe_class = CogVideoXPipeline
         elif self.generate_type == "i2v":
             pipe_class = CogVideoXImageToVideoPipeline
@@ -129,13 +146,15 @@ class CogVideoModels(ManagedModel):
             pipe_class= CogVideoXVideoToVideoPipeline
         else:
             raise ValueError(f"Invalid generate_type: {self.generate_type}")
-        
+
+        scheduler = CogVideoXDDIMScheduler()        
         self.pipe = pipe_class.from_pretrained(
             model_path, 
             torch_dtype=dtype,
             vae=vae,
             transformer=transformer,
-            text_encoder=text_encoder
+            text_encoder=text_encoder,
+            scheduler=scheduler
         )
         
         if self.lora_path and self.lora_rank:

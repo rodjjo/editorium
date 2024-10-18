@@ -28,6 +28,7 @@ class PyramidFlowModels(ManagedModel):
                 use768p_model,
                 generate_type
     ):
+        self.release_other_models()
         has_changes = any([
             self.pipeline is None,
             self.use768p_model != use768p_model,

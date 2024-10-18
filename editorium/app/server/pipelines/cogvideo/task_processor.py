@@ -62,6 +62,7 @@ def generate_video(
     should_upscale: bool = False,
     should_use_pyramid: bool = False,
     strength: float = 0.8,
+    cog_interpolation: bool = False,
 ):
     output_path = output_path.replace(".mp4", "")
     
@@ -82,6 +83,7 @@ def generate_video(
         use_gguf=False,
         lora_path=lora_path,
         lora_rank=lora_rank,
+        cog_interpolation=cog_interpolation,
     )
 
     if num_videos_per_prompt > 1:
@@ -102,8 +104,19 @@ def generate_video(
     }
     
     if generate_type == "i2v":
-        image = utils.load_image_rgb(image_or_video_path.strip())
-        pipe_args["image"] = image
+        if cog_interpolation:
+            if not ':' in image_or_video_path:
+                image_or_video_path = f'{image_or_video_path}:{image_or_video_path}'
+            image_or_video_path = image_or_video_path.split(':')
+            path1 = image_or_video_path[0].strip()
+            path2 = image_or_video_path[1].strip()
+            image1 = utils.load_image_rgb(path1)
+            image2 = utils.load_image_rgb(path2)
+            pipe_args["first_image"] = image1
+            pipe_args["last_image"] = image2
+        else:
+            image = utils.load_image_rgb(image_or_video_path.strip())
+            pipe_args["image"] = image
         pipe_args["num_frames"] = 49
     elif generate_type != "t2v":
         video = load_video(image_or_video_path.strip())
@@ -183,6 +196,7 @@ def process_cogvideo_task_generate(task: dict) -> dict:
         should_upscale = task.get("should_upscale", False)
         use_pyramid = task.get("use_pyramid", False)
         strength = task.get("strength", 0.8)
+        cog_interpolation = task.get("cog_interpolation", False)
             
         generate_video(
             prompt=prompt,
@@ -199,6 +213,7 @@ def process_cogvideo_task_generate(task: dict) -> dict:
             should_upscale=should_upscale,
             should_use_pyramid=use_pyramid,
             strength=strength,
+            cog_interpolation=cog_interpolation,
         )
         
         return {
@@ -258,6 +273,7 @@ def process_prompts_from_file(prompts_data: str):
             should_upscale=prompt["should_upscale"],
             should_use_pyramid=prompt["use_pyramid"],
             strength=prompt["strength"],
+            cog_interpolation=prompt["frame_interpolation"],
         )
 
         if prompt.get("stoponthis", "") in ['yes', 'true', '1']:
