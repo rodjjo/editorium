@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from transformers import T5EncoderModel, T5Tokenizer
 
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline 
+from diffusers.pipelines.cogvideo.pipeline_output import CogVideoXPipelineOutput
 from diffusers.schedulers import CogVideoXDDIMScheduler, CogVideoXDPMScheduler
 from diffusers.models import AutoencoderKLCogVideoX, CogVideoXTransformer3DModel
 from diffusers.utils import (
@@ -794,4 +795,4 @@ class CogVideoXInterpolationPipeline(DiffusionPipeline):
         if not return_dict:
             return (video,)
 
-        return (video,)
+        return CogVideoXPipelineOutput(frames=video)

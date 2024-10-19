@@ -147,16 +147,14 @@ class CogVideoModels(ManagedModel):
         else:
             raise ValueError(f"Invalid generate_type: {self.generate_type}")
 
-        scheduler = CogVideoXDDIMScheduler()        
         self.pipe = pipe_class.from_pretrained(
             model_path, 
             torch_dtype=dtype,
             vae=vae,
             transformer=transformer,
-            text_encoder=text_encoder,
-            scheduler=scheduler
+            text_encoder=text_encoder
         )
-        
+
         if self.lora_path and self.lora_rank:
             pipe.load_lora_weights(os.path.dirname(self.lora_path), weight_name=os.path.basename(self.lora_path), adapter_name="test_1")
             pipe.fuse_lora(lora_scale=1 / self.lora_rank)

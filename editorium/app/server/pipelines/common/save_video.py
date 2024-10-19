@@ -2,7 +2,7 @@ from PIL import Image
 from torchvision import transforms
 import os
 import torch
-from pipelines.common.rife_model import rife_inference_with_latents
+from pipelines.common.rife_model import rife_inferece_with_pil_4x
 from pipelines.common.utils import export_to_video
 
 to_tensors_transform = transforms.ToTensor()
@@ -39,29 +39,22 @@ def save_video(frames, output_path, upscaler_model=None, fps_model=None,  fps=8)
     output_path = os.path.join("/app/output_dir/output/videos", output_path)
     output_path = get_non_existing_path(output_path.replace(".mp4", ".fps.mp4"))
     
-    if upscaler_model or fps_model:
+    if upscaler_model:
         frames = [resize_pil_image(frames[i]) for i in range(len(frames))]
         for findex in range(len(frames)):
             frames[findex] = to_tensors_transform(frames[findex])
-            if not upscaler_model:
-                frames[findex] = frames[findex].unsqueeze(0)
         
     if upscaler_model:
         print("Upscaling video")
         frames = utils.upscale(upscaler_model, torch.stack(frames).to('cuda'), 'cuda', output_device="cpu")
-        frames = [to_tensors_transform(resize_pil_image(to_pil_transform(frames[i].cpu()), True)).unsqueeze(0) for i in range(frames.size(0))]
+        frames = [resize_pil_image(to_pil_transform(frames[i].cpu()), True) for i in range(frames.size(0))]
     
     multiplier = 1
-    if fps_model:
+    if fps_model and fps < 15:
         print("Increasing video FPS")
-        multiplier = 2
-        frames = rife_inference_with_latents(fps_model, torch.stack(frames))
-        if fps < 16:
-            multiplier = 4
-            frames = rife_inference_with_latents(fps_model, torch.stack(frames))
+        multiplier = 4
+        frames = rife_inferece_with_pil_4x(fps_model, frames)
 
-    if upscaler_model or fps_model:
-        frames = [to_pil_transform(f[0]) for f in frames]
-
-    print("Saving video")
-    export_to_video(frames, output_path, fps=fps * multiplier)
+    fps *= multiplier
+    print(f"Saving video {fps} fps, frame count {len(frames)}")
+    export_to_video(frames, output_path, fps=fps)

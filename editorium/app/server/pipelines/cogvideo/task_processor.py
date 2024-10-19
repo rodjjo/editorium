@@ -157,17 +157,17 @@ def generate_video(
     if num_videos_per_prompt < 2:
         save_video(
             video_generate[0], 
-            f'{output_path}_seed_{seed}_steps{num_inference_steps}.mp4', 
-            cogvideo_model.upscaler_model if should_upscale else None,
-            cogvideo_model.interpolation_model,
+            output_path=f'{output_path}_seed_{seed}_steps{num_inference_steps}.mp4', 
+            upscaler_model=cogvideo_model.upscaler_model if should_upscale else None,
+            fps_model=cogvideo_model.interpolation_model,
         )
     else:
         for i in range(len(video_generate)):
             save_video(
                 video_generate[i], 
-                f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", 
-                cogvideo_model.upscaler_model if should_upscale else None,
-                cogvideo_model.interpolation_model,
+                output_path=f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", 
+                upscaler_model=cogvideo_model.upscaler_model if should_upscale else None,
+                fps_model=cogvideo_model.interpolation_model,
             )
 
 

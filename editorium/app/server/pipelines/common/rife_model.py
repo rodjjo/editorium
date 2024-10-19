@@ -141,6 +141,29 @@ def rife_inference_with_latents(model, latents):
     return rife_results
 
 
+def rife_inferece_with_pil_4x(model, pil_images):
+    pt_frame_data = []
+    for frame in pil_images:
+        frame = np.array(frame.resize((736, 496)))
+        pt_frame_data.append(
+            torch.from_numpy(np.transpose(frame, (2, 0, 1))).to("cpu", non_blocking=True).float() / 255.0
+        )
+    
+    pt_frame = torch.from_numpy(np.stack(pt_frame_data))
+    pt_frame = pt_frame.to(device)
+    
+    frames = ssim_interpolation_rife(model, pt_frame, upscale_amount=1)
+    frames = torch.stack([frames[i].squeeze(0) for i in range(len(frames))]).to(device)
+    frames = ssim_interpolation_rife(model, frames, upscale_amount=1)
+    
+    pt_image = torch.stack([frames[i].squeeze(0) for i in range(len(frames))])
+    image_np = VaeImageProcessor.pt_to_numpy(pt_image)  # (to [49, 512, 480, 3])
+    image_pil = VaeImageProcessor.numpy_to_pil(image_np)
+    
+    return image_pil
+    
+
+
 if __name__ == '__main__':
     import sys
     model = load_rife_model("model_rife")
