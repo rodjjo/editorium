@@ -44,6 +44,7 @@ class TaskType:
     STABLE_DIFFUSION_15 = 'stable_diffusion_1.5'
     FLUX = 'flux'
     PREPROCESSOR = 'image_preprocessor'
+    WORKFLOW = 'workflow'
 
 
 class Task:
@@ -143,6 +144,9 @@ def work_on_task(task: Task) -> CompletedTask:
         elif task.task_type == TaskType.PYRAMID_FLOW:
             from pipelines.pyramid_flow.task_processor import process_pyramid_task
             result = process_pyramid_task(task.parameters, progress_callback)
+        elif task.task_type == TaskType.WORKFLOW:
+            from pipelines.workflow.task_processor import process_workflow_task
+            result = process_workflow_task(task.parameters, progress_callback)
     except Exception as e:
         # print stack
         traceback.print_exc()
@@ -302,6 +306,11 @@ def register_server(queue: Queue, completion_queue: Queue):
                     return jsonify({'status': 'ok', 'message': 'Task cancelled'})
                 return jsonify({'status': 'ok', 'message': 'No task in progress'})
         return jsonify({'status': 'error', 'message': 'Not implemented'}), 501
+    
+    @app.route('/workflow-tasks', methods=['GET'])
+    def list_workflow_tasks():
+        from pipelines.workflow.tasks.task import get_workflow_manager
+        return jsonify(get_workflow_manager().get_registered_tasks())
     
     return app
 

@@ -25,12 +25,15 @@ class PromptConfig:
     image: str = ""
     frame_interpolation: bool = False
     _config_prefix: str = "config"
+    other_configs: dict = {}
     
     def __init__(self, config_prefix, **kwargs):
         self._config_prefix = config_prefix
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+            else:
+                self.other_configs[key] = value
                 
     def __eq__(self, other):
         self_dict = self.to_dict()
@@ -87,6 +90,7 @@ class PromptConfig:
             "quant": self.quant,
             "image": self.image,
             "frame_interpolation": self.frame_interpolation,
+            **self.other_configs,
         }
         
     @classmethod

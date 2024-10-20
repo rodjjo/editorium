@@ -16,8 +16,8 @@ class ManagedModel:
     def release_other_models(self):
         model_manager.release_all_models(self)
         
-    def model_dir(self, model_name: str):
-        result = os.path.join(self.MODELS_PATH, model_name)
+    def model_dir(self, *args):
+        result = os.path.join(self.MODELS_PATH, *args)
         os.makedirs(result, exist_ok=True)
         return result
 

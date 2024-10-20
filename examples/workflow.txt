@@ -1,0 +1,21 @@
+#start
+#name=positive-prompt
+#task_type=prompt
+#prompt
+a castle on the mountains
+#end
+
+#start
+#name=negative-prompt
+#task_type=prompt
+#prompt
+burry, cartoon, 3d, render
+#end
+
+#start
+#name=generate-image
+#task_type=flux
+#config.model_name=black-forest-labs/FLUX.1-schnell
+#prompt
+from://positive-prompt
+#end
