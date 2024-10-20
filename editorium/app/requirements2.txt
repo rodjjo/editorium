@@ -2,7 +2,7 @@
 #accelerate>=0.34.2
 git+https://github.com/huggingface/diffusers.git@main#egg=diffusers
 git+https://github.com/huggingface/accelerate.git@main#egg=accelerate
-transformers>=4.44.2
+transformers>=4.45.2
 numpy==1.24.4
 sentencepiece>=0.2.0
 SwissArmyTransformer>=0.4.12
@@ -25,5 +25,5 @@ bitsandbytes==0.44.1
 prodigyopt==1.0
 requests==2.32.3
 huggingface-hub==0.25.2
-flash-attn==2.6.3
+# flash-attn==2.6.3
 einops==0.8.0 

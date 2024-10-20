@@ -1,4 +1,4 @@
-timm==0.6.12
-mpi4py==4.0.1
-deepspeed==0.15.2
+# timm==0.6.12
+# mpi4py==4.0.1
+# deepspeed==0.15.2
 marshmallow==3.22.0

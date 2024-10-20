@@ -1,5 +1,5 @@
 # FROM nvidia/cuda:12.6.1-cudnn-runtime-ubuntu22.04
-FROM ubuntu:22.04
+FROM nvcr.io/nvidia/pytorch:22.12-py3 
 # disable interactive functions
 ENV DEBIAN_FRONTEND=noninteractive
 # define timezone utc
@@ -45,6 +45,10 @@ RUN pip install -r /tmp/requirements2.txt && rm /tmp/requirements2.txt
 
 ADD ./requirements3.txt /tmp/requirements3.txt
 RUN pip install -r /tmp/requirements3.txt && rm /tmp/requirements3.txt
+
+# ADD ./requirements-experimental.txt /tmp/requirements.txt
+# RUN pip install -r /tmp/requirements.txt --force-reinstall
+# RUN rm /tmp/requirements.txt
 
 ADD ./server /app/editorium/server
 ADD ./run-server.sh /app/editorium/run-server.sh

@@ -6,6 +6,12 @@ from io import StringIO
 from typing import List, Tuple
 import pwd
 import grp
+import datetime
+
+server_time = datetime.datetime.now()
+local_now = server_time.astimezone()
+local_tz = local_now.tzinfo
+local_tzname = local_tz.tzname(local_now)
 
 
 import click
@@ -202,8 +208,11 @@ class DockerManager:
             volume_args += [
                 '-v', f'{k}:{v}'
             ]
+            
+        env_ags  = [
+            '--env', f'TZ={local_tzname}',
+        ]
 
-        env_ags  = []
         for k, v in env.items(): 
             env_ags += [
                 '--env', f'{k}={v}'
@@ -213,7 +222,7 @@ class DockerManager:
             net_params = ['--network', 'host']
 
         command = [
-            'docker', 'run', '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', '--init', '-it', '--rm', '--runtime=nvidia',
+            'docker', 'run', '--cpuset-cpus=0', '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', '--init', '-it', '--rm', '--runtime=nvidia',
         ] + volume_args + env_ags + net_params + [ 
             self.docker_tag, 'bash', '-c',
         ] + args

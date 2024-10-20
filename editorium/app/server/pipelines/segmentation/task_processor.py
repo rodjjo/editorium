@@ -133,9 +133,13 @@ def detect(
     labels: List[str],
     threshold: float = 0.3
 ) -> List[Dict[str, Any]]:
-    labels = [label if label.endswith(".") else label + "." for label in labels]
-    results = segmentation_models.model(image,  candidate_labels=labels, threshold=threshold)
+    labels = [label if label.endswith(".") else label+"." for label in labels]
+
+    print("Detecting objects...")
+    results = segmentation_models.model(image.convert('RGB'), candidate_labels=labels, threshold=threshold)
+    print("Compiling detection results")
     results = [DetectionResult.from_dict(result) for result in results]
+    print(f"Detected objects cont: {len(results)}")
 
     return results
 
@@ -149,22 +153,26 @@ def segment(
     """
     boxes = get_boxes(detection_results)
     inputs = segmentation_models.processor_seg(images=image, input_boxes=boxes, return_tensors="pt").to('cuda')
-
+    
+    print("Segmenting objects...")
     outputs = segmentation_models.model_seg(**inputs)
     masks = segmentation_models.processor_seg.post_process_masks(
         masks=outputs.pred_masks,
         original_sizes=inputs.original_sizes,
         reshaped_input_sizes=inputs.reshaped_input_sizes
     )[0]
-
-    masks = refine_masks(masks, polygon_refinement)
     
+    print(f"Segmented objects count: {len(masks)}")
+    print("Refining masks...")
+    masks = refine_masks(masks, polygon_refinement)
+    print("Masks refined")
     img = Image.new("RGB", image.size)
     # draw all the mask into the img
+    white_image = Image.new("RGB", image.size, "white")
     for m in masks:
         mask = Image.fromarray(m).convert("RGB")
-        img = Image.composite(img, mask, mask)
-
+        mask.putalpha(mask.split()[0])
+        img = Image.composite(img, white_image, mask)
     return img
 
 
@@ -181,14 +189,19 @@ def grounded_segmentation(
 
 def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: str, base_dir: str, input: dict, params: dict):
     segmentation_models.load_models(model_name_det=model_name_det, model_name_seg=model_name_seg)
+
     if (input.get('default') is None):
         raise Exception("Invalid input data")
     
-    if (type(input['default']) is str):
-        image = Image.open(input['default'])
+    input = input['default']
+    if input.get('output') is None:
+        raise Exception("Invalid input data")
+    
+    if (type(input['output']) is str):
+        image = Image.open(input['output'])
     else:
-        image = input['default']
-        
+        image = input['output']
+    
     labels = params['prompt'].lower().replace(',', '.')
     labels = [label.strip() for label in labels.split('.')]
     
@@ -198,6 +211,7 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         threshold=params.get('threshold', 0.3), 
         polygon_refinement=params.get('polygon_refinement', True)
     )
+    
     
     filepath = os.path.join(base_dir, f'{task_name}.png')
     mask.save(filepath)

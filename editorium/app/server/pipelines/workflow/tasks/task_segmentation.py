@@ -6,8 +6,8 @@ from marshmallow import Schema, fields
 
 class FluxPayloadSchema(Schema):
     prompt = fields.Str(required=True)
-    model_name_seg = fields.Str(required=True)
-    model_name_det = fields.Str(required=True)
+    model_name_segmentation = fields.Str(required=False, default='facebook/sam-vit-base')
+    model_name_detection = fields.Str(required=False, default='IDEA-Research/grounding-dino-tiny')
 
 
 class SegmentationTask(WorkflowTask):
@@ -24,7 +24,8 @@ class SegmentationTask(WorkflowTask):
         return True
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-        return process_workflow_task(base_dir, name, input, config, callback)
+        print("Processing segmentation task")
+        return process_workflow_task(base_dir, name, input, FluxPayloadSchema().load(config), callback)
 
 
 def register():

@@ -28,6 +28,7 @@ class FluxTask(WorkflowTask):
         return True
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+        print("Processing flux task")
         return process_workflow_task(base_dir, name, input, config, callback)
 
 

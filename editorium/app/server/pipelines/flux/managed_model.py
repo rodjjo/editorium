@@ -3,7 +3,6 @@ import torch
 import os
 
 from pipelines.common.model_manager import ManagedModel
-from huggingface_hub import snapshot_download
 from diffusers import FluxPipeline
    
 class FluxModels(ManagedModel):
@@ -27,13 +26,10 @@ class FluxModels(ManagedModel):
             return
         self.release_model()
         self.model_name = model_name
-        model_path = os.path.join(self.model_dir('images', 'flux'), model_name)
-        snapshot_download(repo_id=model_name, local_dir=model_path)
-        self.pipe = FluxPipeline.from_pretrained(model_path)
-        self.pipe.enable_sequential_cpu_offload()
+        self.pipe = FluxPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
         self.pipe.vae.enable_slicing()
         self.pipe.vae.enable_tiling()
-        self.pipe.to(torch.float16)
+        self.pipe.enable_sequential_cpu_offload()        
 
 flux_models = FluxModels()
 

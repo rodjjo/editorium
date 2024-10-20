@@ -1,11 +1,25 @@
 import os
-from datetime import datetime
+from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta
 from importlib import import_module
 from typing import List
 
 from pipelines.common.flow_parser import register_validator, flow_store, FlowItem
 
 BASE_DIR = '/app/output_dir'
+
+
+def now_on_tz():
+    tz = os.environ.get('TZ', 'UTC')
+    try:
+        hours = int(tz)
+        if hours < 0:
+            hours = -hours
+            return datetime.now() - timedelta(hours=hours)
+        return datetime.now() + timedelta(hours=hours)
+    except ValueError:
+        tz_info = ZoneInfo(tz)
+        return datetime.now().astimezone(tz_info)
 
 
 class WorkflowTask:
@@ -84,11 +98,10 @@ class WorkflowTaskManager:
             callback
         )
         
-    
     def execute(self, contents: List[str], callback = None) -> dict:
         self.results = {}
-        # dirname = current date and time in format YYYYMMDD-HH-MM-SS
-        dirname = datetime.now().strftime('%Y%m%d-%H-%M-%S')
+        # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
+        dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
         dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
         os.makedirs(dirpath, exist_ok=True)
         with open(os.path.join(dirpath, 'workflow.txt'), 'w') as f:

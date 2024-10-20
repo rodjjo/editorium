@@ -149,10 +149,9 @@ class FlowStore:
     def parse_flow(self, lines: List[str]):
         try:
             flow = FlowItem.from_lines(lines)
-            print(f"Adding flow task type: {flow.task_type}")
             self.add_flow(flow)
         except IgnoredItemException:
-            print("Item ignored")
+            pass
             
 
     def find_circular_deps(self, flow: FlowItem, names: set) -> bool:
@@ -185,8 +184,6 @@ class FlowStore:
         self.flows = {}
         flow_started = False
         flow_lines = []
-        print(f"Loading flows line count: {len(lines)}")
-        
         for line in lines:
             line = line.strip()
             if line.startswith('#comment'):
@@ -198,7 +195,6 @@ class FlowStore:
 
             if line.startswith('#end'):
                 flow_started = False
-                print("Parsing flow task")
                 self.parse_flow(flow_lines)
                 flow_lines = []
                 continue

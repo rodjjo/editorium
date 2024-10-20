@@ -52,7 +52,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
     result.save(filepath)
  
     return {
-        "default": result,
+        "output": result,
         "filepath": os.path.join(base_dir, f'{task_name}.png')
     }
 
