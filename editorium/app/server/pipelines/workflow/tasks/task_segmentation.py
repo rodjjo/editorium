@@ -1,20 +1,16 @@
 from .task import WorkflowTask
-from pipelines.flux.task_processor import process_workflow_task
+from pipelines.segmentation.task_processor import process_workflow_task
 
 from marshmallow import Schema, fields
 
 
 class FluxPayloadSchema(Schema):
     prompt = fields.Str(required=True)
-    model_name = fields.Str(required=True)
-    guidance_scale = fields.Float(required=False)
-    height = fields.Int(required=False)
-    width = fields.Int(required=False)
-    num_inference_steps = fields.Int(required=False)
-    max_sequence_length = fields.Int(required=False)
+    model_name_seg = fields.Str(required=True)
+    model_name_det = fields.Str(required=True)
 
 
-class FluxTask(WorkflowTask):
+class SegmentationTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
         super().__init__(task_type, description)
 
@@ -32,4 +28,4 @@ class FluxTask(WorkflowTask):
 
 
 def register():
-    FluxTask.register("flux", "Generate images using a model based on Flux")
+    SegmentationTask.register("sam-dino-segmentation", "Segment a image based on lables like: person, car, etc.")

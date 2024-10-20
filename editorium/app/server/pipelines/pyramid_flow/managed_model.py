@@ -4,8 +4,6 @@ import gc
 import torch
 
 from pipelines.common.model_manager import ManagedModel
-from pipelines.common.rife_model import load_rife_model
-from pipelines.common import utils
 from pipelines.pyramid_flow.pyramid_dit import PyramidDiTForVideoGeneration
 
 from huggingface_hub import hf_hub_download, snapshot_download
