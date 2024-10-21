@@ -1,6 +1,8 @@
-# timm==0.6.12
+timm==0.6.12
 # mpi4py==4.0.1
 # deepspeed==0.15.2
 marshmallow==3.22.0
 OmegaConf==2.3.0
 xformers
+ctransformers==0.2.27
+auto-gptq==0.7.1

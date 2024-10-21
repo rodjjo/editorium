@@ -58,3 +58,4 @@ def save_video(frames, output_path, upscaler_model=None, fps_model=None,  fps=8)
     fps *= multiplier
     print(f"Saving video {fps} fps, frame count {len(frames)}")
     export_to_video(frames, output_path, fps=fps)
+    return output_path, frames

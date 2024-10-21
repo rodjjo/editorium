@@ -2,10 +2,12 @@ from typing import List
 
 import os
 import torch
+import random
 from tqdm import tqdm
 
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
+from pipelines.common.task_result import TaskResult
 from pipelines.flux.managed_model import flux_models
 
 SHOULD_STOP = False
@@ -38,7 +40,13 @@ class TqdmUpTo(tqdm):
 
 def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
     flux_models.load_models(model_name)
-
+    
+    seed = params.get('seed', -1)
+    if seed != -1:
+        seed = random.randint(0, 1000000)
+        
+    generator = torch.Generator(device='cuda').manual_seed(seed)
+        
     result = flux_models.pipe(
         prompt=params['prompt'],
         guidance_scale=params.get('guidance_scale', 0.0),
@@ -46,16 +54,14 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         width=params.get('width', 1360),
         num_inference_steps=params.get('num_inference_steps', 4),
         max_sequence_length=params.get('max_sequence_length', 256),
+        generator=generator,
     ).images
 
     for i, img in enumerate(result):
-        filepath = os.path.join(base_dir, f'{task_name}_{i}.png')
+        filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}_{i}.png')
         img.save(filepath)
  
-    return {
-        "output": result,
-        "filepath": os.path.join(base_dir, f'{task_name}.png')
-    }
+    return TaskResult(result, filepath).to_dict()
 
     
 

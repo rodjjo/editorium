@@ -79,12 +79,15 @@ def generate_video(
         use5b_model=True, 
         generate_type=generate_type, 
         use_pyramid=False,
-        use_sageatt=generate_type == "i2v", 
+        use_sageatt=False, 
         use_gguf=False,
         lora_path=lora_path,
         lora_rank=lora_rank,
         cog_interpolation=cog_interpolation,
     )
+    
+    if seed == -1:
+        seed = random.randint(0, 1000000)
 
     if num_videos_per_prompt > 1:
         prompt = [prompt] * num_videos_per_prompt
@@ -105,21 +108,34 @@ def generate_video(
     
     if generate_type == "i2v":
         if cog_interpolation:
-            if not ':' in image_or_video_path:
-                image_or_video_path = f'{image_or_video_path}:{image_or_video_path}'
-            image_or_video_path = image_or_video_path.split(':')
-            path1 = image_or_video_path[0].strip()
-            path2 = image_or_video_path[1].strip()
-            image1 = utils.load_image_rgb(path1)
-            image2 = utils.load_image_rgb(path2)
+            if type(image_or_video_path) == str:
+                if not ':' in image_or_video_path:
+                    image_or_video_path = f'{image_or_video_path}:{image_or_video_path}'
+                image_or_video_path = image_or_video_path.split(':')
+                path1 = image_or_video_path[0].strip()
+                path2 = image_or_video_path[1].strip()
+                image1 = utils.load_image_rgb(path1)
+                image2 = utils.load_image_rgb(path2)
+            elif type(image_or_video_path) == list:
+                image1 = image_or_video_path[0]
+                image2 = image_or_video_path[1]
+            else:
+                image1 = image_or_video_path
+                image2 = image_or_video_path
             pipe_args["first_image"] = image1
             pipe_args["last_image"] = image2
         else:
-            image = utils.load_image_rgb(image_or_video_path.strip())
+            if type(image_or_video_path) == str:
+                image = utils.load_image_rgb(image_or_video_path.strip())
+            else:
+                image = image_or_video_path
             pipe_args["image"] = image
         pipe_args["num_frames"] = 49
     elif generate_type != "t2v":
-        video = load_video(image_or_video_path.strip())
+        if type(image_or_video_path) == str:
+            video = load_video(image_or_video_path.strip())
+        else:
+            video = image_or_video_path
         video_frames = len(video)
         max_frames = 49
         if video_frames > max_frames:
@@ -153,22 +169,28 @@ def generate_video(
     if len(video_generate) < 1:
         call_callback("No video generated.")
         return
-    
+    saved_videos = []
+    paths = []
     if num_videos_per_prompt < 2:
-        save_video(
+        path, saved = save_video(
             video_generate[0], 
             output_path=f'{output_path}_seed_{seed}_steps{num_inference_steps}.mp4', 
             upscaler_model=cogvideo_model.upscaler_model if should_upscale else None,
             fps_model=cogvideo_model.interpolation_model,
         )
+        saved_videos.append(saved)
+        paths.append(path)
     else:
         for i in range(len(video_generate)):
-            save_video(
+            path, saved = save_video(
                 video_generate[i], 
                 output_path=f"_seed_{seed}_steps{num_inference_steps}.{i}.mp4", 
                 upscaler_model=cogvideo_model.upscaler_model if should_upscale else None,
                 fps_model=cogvideo_model.interpolation_model,
             )
+            saved_videos.append(saved)
+            paths.append(path)
+    return paths, saved_videos
 
 
 def process_cogvideo_task_generate(task: dict) -> dict:
@@ -198,7 +220,7 @@ def process_cogvideo_task_generate(task: dict) -> dict:
         strength = task.get("strength", 0.8)
         cog_interpolation = task.get("cog_interpolation", False)
             
-        generate_video(
+        paths, saved = generate_video(
             prompt=prompt,
             lora_path=lora_path,
             lora_rank=lora_rank,
@@ -217,6 +239,8 @@ def process_cogvideo_task_generate(task: dict) -> dict:
         )
         
         return {
+            "paths": paths,
+            "output": saved,
             "success": True,
         }
     except Exception as ex:
@@ -324,4 +348,67 @@ def cancel_cogvideo_task():
     SHOULD_STOP = True
     return {
         "success": True,
+    }
+
+
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable):
+    global PROGRESS_CALLBACK
+    global SHOULD_STOP
+    SHOULD_STOP = False
+    PROGRESS_CALLBACK = callback
+
+    input_images = None
+    if input.get('default', None):
+        if type(input['default']) == str:
+            input_images = [Image.open(input['default'])]
+        elif type(input['default']) == dict and 'output' in input['default']:
+            input_images = input['default']['output']
+    
+    input_videos = None
+    if input.get('video', None):
+        if type(input['video']) == str:
+            input_videos = [load_video(input['video'])]
+        elif type(input['video']) == dict and 'output' in input['video']:
+            input_videos = input['video']['output']
+            
+    if input_images and input_videos:
+        raise ValueError("Both images and videos were passed as input")
+    
+    if input_images is not None:
+        generate_type = 'i2v'
+    elif input_videos is not None:
+        generate_type = 'v2v'
+    else:
+        generate_type = 't2v'
+
+    inputs = input_images if input_images else input_videos
+    
+    all_paths = []
+    all_saved = []
+    
+    for index, input in enumerate(inputs):
+        output_path = os.path.join(base_dir, f'{name}-{index}.mp4')
+        paths, saved = generate_video(
+            prompt=config['prompt'],
+            lora_path=config.get('lora_path', None),
+            lora_rank=config.get('lora_rank', 128),
+            output_path=output_path,
+            image_or_video_path=input,
+            num_inference_steps=config.get('num_inference_steps', 50),
+            guidance_scale=config.get('guidance_scale', 6.0),
+            num_videos_per_prompt=config.get('num_videos_per_prompt', 1),
+            generate_type=generate_type,
+            seed=config.get('seed', -1),
+            quant=config.get('quant', False),
+            should_upscale=config.get('should_upscale', False),
+            should_use_pyramid=config.get('use_pyramid', False),
+            strength=config.get('strength', 0.8),
+            cog_interpolation=config.get('cog_interpolation', False),
+        )
+        all_paths.extend(paths)
+        all_saved.extend(saved)
+
+    return {
+        "output": all_saved,
+        "paths": all_paths,
     }

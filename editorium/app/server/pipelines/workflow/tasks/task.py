@@ -94,7 +94,12 @@ class WorkflowTaskManager:
             base_dir,
             item.name,
             resolved_inputs, 
-            item.config,
+            {
+                **item.config,
+                'globals': {
+                    **flow_store.globals,
+                }
+            },
             callback
         )
         

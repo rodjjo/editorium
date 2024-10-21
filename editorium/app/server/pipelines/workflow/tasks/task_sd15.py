@@ -4,29 +4,29 @@ from pipelines.sd15.task_processor import process_workflow_task
 from marshmallow import Schema, fields
 
 
-class FluxPayloadSchema(Schema):
+class Sd15PayloadSchema(Schema):
     model_name = fields.Str(required=True)
     prompt = fields.Str(required=True)
-    negative_prompt = fields.Str(required=False, default=None)
-    use_lcm = fields.Bool(required=False, default=False)
-    scheduler_name = fields.Str(required=False, default='EulerAncestralDiscreteScheduler')
-    use_float16 = fields.Bool(required=False, default=True)
-    seed = fields.Int(required=False, default=-1)
-    cfg = fields.Float(required=False, default=7.5)
-    steps = fields.Int(required=False, default=20)
-    width = fields.Int(required=False, default=512)
-    height = fields.Int(required=False, default=512)
-    strength = fields.Float(required=False, default=0.75)
-    batch_size = fields.Int(required=False, default=1)
-    inpaint_mode = fields.Str(required=False, default="original")
-
+    negative_prompt = fields.Str(required=False, load_default=None)
+    use_lcm = fields.Bool(required=False, load_default=False)
+    scheduler_name = fields.Str(required=False, load_default='EulerAncestralDiscreteScheduler')
+    use_float16 = fields.Bool(required=False, load_default=True)
+    seed = fields.Int(required=False, load_default=-1)
+    cfg = fields.Float(required=False, load_default=7.5)
+    steps = fields.Int(required=False, load_default=20)
+    width = fields.Int(required=False, load_default=512)
+    height = fields.Int(required=False, load_default=512)
+    strength = fields.Float(required=False, load_default=0.75)
+    batch_size = fields.Int(required=False, load_default=1)
+    inpaint_mode = fields.Str(required=False, load_default="original")
+    globals = fields.Dict(required=False, load_default={})
 
 class Sd15Task(WorkflowTask):
     def __init__(self, task_type: str, description: str):
         super().__init__(task_type, description)
 
     def validate_config(self, config: dict):
-        schema = FluxPayloadSchema()
+        schema = Sd15PayloadSchema()
         try:
             schema.load(config)
         except Exception as e:

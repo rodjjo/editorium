@@ -6,9 +6,9 @@ from marshmallow import Schema, fields
 
 class FluxPayloadSchema(Schema):
     prompt = fields.Str(required=True)
-    model_name_segmentation = fields.Str(required=False, default='facebook/sam-vit-base')
-    model_name_detection = fields.Str(required=False, default='IDEA-Research/grounding-dino-tiny')
-
+    model_name_segmentation = fields.Str(required=False, load_default='facebook/sam-vit-base')
+    model_name_detection = fields.Str(required=False, load_default='IDEA-Research/grounding-dino-tiny')
+    globals = fields.Dict(required=False, load_default={})
 
 class SegmentationTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):

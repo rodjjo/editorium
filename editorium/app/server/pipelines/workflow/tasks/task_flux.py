@@ -12,7 +12,8 @@ class FluxPayloadSchema(Schema):
     width = fields.Int(required=False)
     num_inference_steps = fields.Int(required=False)
     max_sequence_length = fields.Int(required=False)
-
+    seed = fields.Int(required=False, load_default=-1)
+    globals = fields.Dict(required=False, load_default={})
 
 class FluxTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
@@ -29,7 +30,7 @@ class FluxTask(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing flux task")
-        return process_workflow_task(base_dir, name, input, config, callback)
+        return process_workflow_task(base_dir, name, input, FluxPayloadSchema().load(config), callback)
 
 
 def register():

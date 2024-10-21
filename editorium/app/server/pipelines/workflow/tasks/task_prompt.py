@@ -6,7 +6,7 @@ from marshmallow import Schema, fields
 
 class PromptTaskSchema(Schema):
     prompt = fields.Str(required=True)
-
+    globals = fields.Dict(required=False, load_default={})
 
 class FluxTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):

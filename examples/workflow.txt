@@ -19,3 +19,14 @@ burry, cartoon, 3d, render
 #prompt
 from://positive-prompt
 #end
+
+#start
+#comment: this generate a mask were the castle is located at.
+#name=segment-castle
+#task_type=sam-dino-segmentation
+#config.model_name_segmentation=facebook/sam-vit-base
+#config.model_name_detection=IDEA-Research/grounding-dino-tiny
+#input=task://generate-image
+#prompt
+castle.
+#end

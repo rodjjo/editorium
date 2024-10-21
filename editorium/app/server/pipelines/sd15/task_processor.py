@@ -6,9 +6,11 @@ import torch
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
+import random
 
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
+from pipelines.common.task_result import TaskResult
 from pipelines.sd15.managed_model import sd15_models
 from pipelines.sd15.loader import LORA_DIR
 
@@ -185,7 +187,7 @@ def run_pipeline(
     latents_noise = create_latents_noise(shape, seed, subseed, var_stren)
     latents_noise = latents_noise.to(dtype=dtype)
     
-    generator = None if seed == -1  else [
+    generator = [
         torch.Generator(device=device).manual_seed(seed + i)
         for i in range(batch_size)
     ]
@@ -366,12 +368,16 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         scheduler_name='EulerAncestralDiscreteScheduler',
         use_float16=True,
     )
+    
+    seed = params.get('seed', -1)
+    if seed != -1:
+        seed = random.randint(0, 1000000)
 
     results = run_pipeline(
         pipeline=sd15_models.pipe,
         prompt=prompt,
         negative=negative_prompt,
-        seed=params.get('seed', -1),
+        seed=seed,
         cfg=params.get('cfg', 7.5),
         steps=params.get('steps', 20),
         width=params.get('width', 512),
@@ -385,15 +391,15 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         use_float16=True
     )
 
-    filepath = os.path.join(base_dir, f'{task_name}.png')
+    filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.png')
+    paths = []
     for i, result in enumerate(results):
-        result.save(filepath.replace('.png', f'_{i}.png'))
+        path2save = filepath.replace('.png', f'_{i}.png')
+        result.save(path2save)
+        paths.append(path2save)
  
-    return {
-        "output": results,
-        "filepath": os.path.join(base_dir, f'{task_name}.png')
-    }
-    
+    return TaskResult(results, paths).to_dict()
+
 
 def process_sd15_task(task: dict, callback=None) -> dict:
     global SHOULD_STOP
