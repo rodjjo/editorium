@@ -197,27 +197,32 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
     if input.get('output') is None:
         raise Exception("Invalid input data")
     
-    if (type(input['output']) is str):
-        image = Image.open(input['output'])
-    else:
-        image = input['output']
-    
-    labels = params['prompt'].lower().replace(',', '.')
-    labels = [label.strip() for label in labels.split('.')]
-    
-    mask = grounded_segmentation(
-        image, 
-        labels, 
-        threshold=params.get('threshold', 0.3), 
-        polygon_refinement=params.get('polygon_refinement', True)
-    )
-    
-    
-    filepath = os.path.join(base_dir, f'{task_name}.png')
-    mask.save(filepath)
+    if type(input['output']) is not list:
+        raise Exception("Invalid input data expected list")
+
+    masks = []
+    for index, output in enumerate(input['output']):
+        if (type(output) is str):
+            image = Image.open(output)
+        else:
+            image = output
+        
+        labels = params['prompt'].lower().replace(',', '.')
+        labels = [label.strip() for label in labels.split('.')]
+        
+        mask = grounded_segmentation(
+            image, 
+            labels, 
+            threshold=params.get('threshold', 0.3), 
+            polygon_refinement=params.get('polygon_refinement', True)
+        )
+        
+        filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
+        mask.save(filepath)
+        masks.append(mask)
 
     return {
-        "result": mask,
+        "result": masks,
         "filepaths": os.path.join(base_dir, f'{task_name}.png')
     }
 

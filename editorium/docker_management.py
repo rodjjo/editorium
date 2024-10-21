@@ -206,7 +206,8 @@ class DockerManager:
 
         for k, v in volumes.items():
             volume_args += [
-                '-v', f'{k}:{v}'
+                #'-v', f'{k}:{v}'
+                '--mount', f'type=bind,source={k},target={v}'
             ]
             
         env_ags  = [

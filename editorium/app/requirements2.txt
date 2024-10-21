@@ -18,7 +18,7 @@ spandrel==0.4.0
 # opencv-contrib-python==4.10.0.84
 opencv-python-headless==4.8.0.74
 sk-video==1.1.10
-safetensors==0.4.5
+safetensors==0.4.4
 peft==0.13.0
 decord==0.6.0
 bitsandbytes==0.44.1

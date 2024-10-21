@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
-from pipelines.flux.managed_model import flux_models
+from pipelines.sdxl.managed_model import sdxl_models
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
@@ -36,21 +36,20 @@ class TqdmUpTo(tqdm):
 
 
 
-def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
-    flux_models.load_models(model_name)
+def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
+    sdxl_models.load_models(model_name)
 
-    result = flux_models.pipe(
+    result = sdxl_models.pipe(
         prompt=params['prompt'],
         guidance_scale=params.get('guidance_scale', 0.0),
         height=params.get('height', 768),
         width=params.get('width', 1360),
         num_inference_steps=params.get('num_inference_steps', 4),
         max_sequence_length=params.get('max_sequence_length', 256),
-    ).images
+    ).images[0]
 
-    for i, img in enumerate(result):
-        filepath = os.path.join(base_dir, f'{task_name}_{i}.png')
-        img.save(filepath)
+    filepath = os.path.join(base_dir, f'{task_name}.png')
+    result.save(filepath)
  
     return {
         "output": result,
@@ -59,7 +58,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
 
     
 
-def process_flux_task(task: dict, callback=None) -> dict:
+def process_sdxl_task(task: dict, callback=None) -> dict:
     global SHOULD_STOP
     global PROGRESS_CALLBACK
     PROGRESS_CALLBACK = callback
@@ -70,7 +69,7 @@ def process_flux_task(task: dict, callback=None) -> dict:
     }
 
 
-def cancel_flux_task():
+def cancel_sdxl_task():
     global SHOULD_STOP
     SHOULD_STOP = True
     return {
@@ -84,7 +83,7 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
     PROGRESS_CALLBACK = callback
     SHOULD_STOP = False
 
-    return generate_flux_image(
+    return generate_sdxl_image(
         model_name=config['model_name'],
         task_name=name,
         base_dir=base_dir,
