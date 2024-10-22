@@ -437,10 +437,10 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
                 
         results.extend(current_results)
 
-    filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.png')
+    filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.jpg')
     paths = []
     for i, result in enumerate(results):
-        path2save = filepath.replace('.png', f'_{i}.png')
+        path2save = filepath.replace('.jpg', f'_{i}.jpg')
         result.save(path2save)
         paths.append(path2save)
  

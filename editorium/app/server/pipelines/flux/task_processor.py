@@ -58,7 +58,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
     ).images
 
     for i, img in enumerate(result):
-        filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}_{i}.png')
+        filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}_{i}.jpg')
         img.save(filepath)
  
     return TaskResult(result, filepath).to_dict()
