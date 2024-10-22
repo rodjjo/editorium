@@ -349,8 +349,6 @@ def run_pipeline(
             if image_list_adapt:
                 additional_args["ip_adapter_image"] = image_list_adapt
 
-        
-        
         additional_args['guidance_scale'] = cfg
         additional_args['num_inference_steps'] = steps
         additional_args['prompt'] = prompt
@@ -391,24 +389,53 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     seed = params.get('seed', -1)
     if seed == -1:
         seed = random.randint(0, 1000000)
+    
+    inpaint_image = inpaint_image or []
+    inpaint_mask = inpaint_mask or []
+    if type(inpaint_image) is not list:
+        inpaint_image = [inpaint_image]
+    
+    if type(inpaint_mask) is not list:
+        inpaint_mask = [inpaint_mask]
+        
+    if len(inpaint_mask) > 0 and len(inpaint_image) != len(inpaint_mask):
+        raise ValueError("Number of inpaint images and masks must be the same")
+    
+    if len(inpaint_image) == 0:
+        inpaint_image = [None]
+        inpaint_mask = [None]
 
-    results = run_pipeline(
-        pipeline=sd15_models.pipe,
-        prompt=prompt,
-        negative=negative_prompt,
-        seed=seed,
-        cfg=params.get('cfg', 7.5),
-        steps=params.get('steps', 20),
-        width=params.get('width', 512),
-        height=params.get('height', 512),
-        strength=params.get('strength', 0.75),
-        batch_size=params.get('batch_size', 1),
-        input_image=inpaint_image,
-        input_mask=inpaint_mask,
-        inpaint_mode="original",
-        controlnets=params.get('controlnets', []),
-        use_float16=True
-    )
+    results = []        
+    for (image, mask) in zip(inpaint_image, inpaint_mask):
+        if type(image) is str:
+            image = Image.open(image)
+        if type(mask) is str:
+            mask = Image.open(mask)
+        batch_size = params.get('batch_size', 1)
+        current_results = run_pipeline(
+            pipeline=sd15_models.pipe,
+            prompt=prompt,
+            negative=negative_prompt,
+            seed=seed,
+            cfg=params.get('cfg', 7.5),
+            steps=params.get('steps', 20),
+            width=params.get('width', 512),
+            height=params.get('height', 512),
+            strength=params.get('strength', 0.75),
+            batch_size=batch_size,
+            input_image=image,
+            input_mask=mask,
+            inpaint_mode="original",
+            controlnets=params.get('controlnets', []),
+            use_float16=True
+        )
+        if mask:
+            for i, result in enumerate(current_results):
+                mask = mask.convert("RGBA")
+                mask.putalpha(mask.split()[0])
+                current_results[i] = Image.composite(result, image, mask)
+                
+        results.extend(current_results)
 
     filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.png')
     paths = []

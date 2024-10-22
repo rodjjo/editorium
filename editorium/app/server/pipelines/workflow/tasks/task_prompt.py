@@ -1,6 +1,4 @@
 from .task import WorkflowTask
-from pipelines.flux.task_processor import process_workflow_task
-
 from marshmallow import Schema, fields
 
 
@@ -9,7 +7,7 @@ class PromptTaskSchema(Schema):
     globals = fields.Dict(required=False, load_default={})
 
 
-class FluxTask(WorkflowTask):
+class PromptTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
         super().__init__(task_type, description)
 
@@ -31,4 +29,4 @@ class FluxTask(WorkflowTask):
 
 
 def register():
-    FluxTask.register("prompt", "Store a prompt that can be used by other tasks")
+    PromptTask.register("prompt", "Store a prompt that can be used by other tasks")

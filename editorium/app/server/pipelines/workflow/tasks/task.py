@@ -104,19 +104,35 @@ class WorkflowTaskManager:
         )
         
     def execute(self, contents: List[str], callback = None) -> dict:
-        self.results = {}
-        # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
-        dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
-        dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
-        os.makedirs(dirpath, exist_ok=True)
-        with open(os.path.join(dirpath, 'workflow.txt'), 'w') as f:
-            for line in contents:
-                f.write(line + '\n')
-        flow_store.load(contents)
-        for item in flow_store.iterate():
-            if item.flow_lazy:
-                continue
-            self.process_task(dirpath, item, callback)
+        replace_seeds = True
+        should_repeat = True
+        for line in contents:
+            if line.startswith('#global.repeat='):
+                should_repeat = line.split('#global.repeat=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
+                break
+        while True:
+            self.results = {}
+            # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
+            dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
+            dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
+            os.makedirs(dirpath, exist_ok=True)
+            with open(os.path.join(dirpath, 'workflow.txt'), 'w') as f:
+                for line in contents:
+                    f.write(line + '\n')
+            flow_store.load(contents)
+            for item in flow_store.iterate():
+                if item.flow_lazy:
+                    continue
+                self.process_task(dirpath, item, callback)
+            if not should_repeat:
+                break
+            if replace_seeds:
+                replace_seeds = False
+                for i, l in enumerate(contents):
+                    if l.startswith('#config.seed=') and not l.startswith('#config.seed=global://seed'):
+                        contents[i] = f'#config.seed=-1'
+                    elif l.startswith('#global.seed='):
+                        contents[i] = f'#global.seed=-1'
         return { 
             "success": True 
         }

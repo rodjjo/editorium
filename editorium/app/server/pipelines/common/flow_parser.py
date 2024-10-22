@@ -126,8 +126,6 @@ class FlowItem:
         if len(negative_prompt) > 0:
             config['negative_prompt'] = '\n'.join(negative_prompt)
         
-        if not config:
-            raise InvalidItemException("No config found")
 
         if not task_type:
             raise InvalidItemException("No task type found")
