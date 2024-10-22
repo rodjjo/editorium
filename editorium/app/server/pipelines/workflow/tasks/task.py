@@ -114,6 +114,8 @@ class WorkflowTaskManager:
                 f.write(line + '\n')
         flow_store.load(contents)
         for item in flow_store.iterate():
+            if item.flow_lazy:
+                continue
             self.process_task(dirpath, item, callback)
         return { 
             "success": True 

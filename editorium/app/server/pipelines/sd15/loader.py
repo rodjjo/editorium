@@ -23,9 +23,9 @@ from transformers import CLIPTextModel,  CLIPTokenizer, AutoFeatureExtractor
 from omegaconf import OmegaConf
 
 CACHE_DIR = None
-EMBEDDING_DIR = "/home/editorium/models/sd15/embeddings"
-LORA_DIR = "/home/editorium/models/sd15/lora"
-CONFIG_DIR = "/home/editorium/models/sd15/configs"
+EMBEDDING_DIR = "/home/editorium/models/images/sd15/embeddings"
+LORA_DIR = "/home/editorium/models/images/sd15/loras"
+CONFIG_DIR = "/home/editorium/models/images/sd15/configs"
 
 def create_inpaint_inference_config():
     path = os.path.join(CONFIG_DIR, 'v1-inpainting-inference.yaml')
@@ -720,6 +720,8 @@ def load_stable_diffusion_model(
     report(f"loading {model_path}")
     create_inpaint_inference_config()
     create_inference_config()
+    
+    os.makedirs(LORA_DIR, exist_ok=True)
 
     from_cloud = False
     
@@ -836,17 +838,13 @@ def load_stable_diffusion_model(
 
     if scheduler_name == 'LCMScheduler':
         text_model.to('cpu')
-        lora_list = [l for l in lora_list if 'xl' not in l[0].lower()]
         load_embeddings(text_model, tokenizer)
         load_lora_list(lora_list + [(get_lora_location('lcm-lora-sdv1-5'), 1.0)], unet, text_model)
     else:
         unet.to('cpu')
         text_model.to('cpu')
-        lora_list = [l for l in lora_list if 'xl' not in l[0].lower()]
         load_lora_list(lora_list, unet, text_model)
         load_embeddings(text_model, tokenizer)
-    
-
 
     if vae:
         vae.to(device_name)

@@ -47,15 +47,17 @@ class FlowItem:
     config: dict = {}
     task_type: str = ""
     input: dict = {}
+    flow_lazy: bool = False
     
-    def __init__(self, name: str, task_type: str, input: dict, config: dict) -> None:
+    def __init__(self, name: str, task_type: str, input: dict, config: dict, flow_lazy: bool) -> None:
         self.name = name
         self.config = config
         self.input = input
         self.task_type = task_type
+        self.flow_lazy = flow_lazy
     
     @classmethod
-    def from_lines(cls, lines: List[str], globals: dict):
+    def from_lines(cls, lines: List[str], globals: dict, flow_lazy: bool):
         config = {}
         name = str(uuid4())
         input = {}
@@ -112,7 +114,8 @@ class FlowItem:
                 key = key.strip()
                 value = convert_value(value.strip())
                 if type(value) is str and value.startswith("global://"):
-                    value = globals.get(value.split("global://")[1], '')
+                    global_key = value.split("global://")[1]
+                    value = globals.get(global_key, '')
                 if key == 'seed' and value == -1:
                     value = random.randint(0, 1000000)
                 config[key] = value
@@ -132,7 +135,7 @@ class FlowItem:
         if not CONFIG_VALIDATOR(task_type, config):
             raise InvalidItemException("Invalid config")
 
-        return cls(name, task_type, input, config)
+        return cls(name, task_type, input, config, flow_lazy)
 
 
 class FlowStore:
@@ -143,9 +146,9 @@ class FlowStore:
     def add_flow(self, flow: FlowItem):
         self.flows[flow.name] = flow
         
-    def parse_flow(self, lines: List[str]):
+    def parse_flow(self, lines: List[str], flow_lazy: bool):
         try:
-            flow = FlowItem.from_lines(lines, self.globals)
+            flow = FlowItem.from_lines(lines, self.globals, flow_lazy)
             self.add_flow(flow)
         except IgnoredItemException:
             pass
@@ -181,6 +184,7 @@ class FlowStore:
         self.flows = {}
         self.globals = {}
         flow_started = False
+        flow_lazy = False
         flow_lines = []
         for line in lines:
             line = line.strip()
@@ -203,9 +207,16 @@ class FlowStore:
                 continue
 
             if line.startswith('#end'):
+                self.parse_flow(flow_lines, flow_lazy)
                 flow_started = False
-                self.parse_flow(flow_lines)
+                flow_lazy = False
                 flow_lines = []
+                continue
+            
+            if line.strip() == "#lazy":
+                if not flow_started:
+                    raise InvalidItemException("#Lazy outside a task")
+                flow_lazy = True
                 continue
 
             if flow_started:

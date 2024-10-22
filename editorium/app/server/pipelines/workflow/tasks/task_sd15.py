@@ -13,7 +13,7 @@ class Sd15PayloadSchema(Schema):
     use_float16 = fields.Bool(required=False, load_default=True)
     seed = fields.Int(required=False, load_default=-1)
     cfg = fields.Float(required=False, load_default=7.5)
-    steps = fields.Int(required=False, load_default=20)
+    steps = fields.Int(required=False, load_default=50)
     width = fields.Int(required=False, load_default=512)
     height = fields.Int(required=False, load_default=512)
     strength = fields.Float(required=False, load_default=0.75)
@@ -36,7 +36,7 @@ class Sd15Task(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing SD 1.5 task")
-        return process_workflow_task(base_dir, name, input, config, callback)
+        return process_workflow_task(base_dir, name, input, Sd15PayloadSchema().load(config), callback)
 
 
 def register():

@@ -166,13 +166,12 @@ def segment(
     print("Refining masks...")
     masks = refine_masks(masks, polygon_refinement)
     print("Masks refined")
-    img = Image.new("RGB", image.size)
     # draw all the mask into the img
-    white_image = Image.new("RGB", image.size, "white")
+    img = Image.new("RGB", image.size, "black")
+    white = Image.new("RGB", image.size, "white")
     for m in masks:
-        mask = Image.fromarray(m).convert("RGB")
-        mask.putalpha(mask.split()[0])
-        img = Image.composite(img, white_image, mask)
+        inverted_mask = Image.fromarray(255 - m)
+        img = Image.composite(img, white, inverted_mask)
     return img
 
 

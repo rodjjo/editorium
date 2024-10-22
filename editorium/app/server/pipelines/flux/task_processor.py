@@ -42,7 +42,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
     flux_models.load_models(model_name)
     
     seed = params.get('seed', -1)
-    if seed != -1:
+    if seed == -1:
         seed = random.randint(0, 1000000)
         
     generator = torch.Generator(device='cuda').manual_seed(seed)

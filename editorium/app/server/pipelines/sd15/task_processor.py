@@ -44,36 +44,49 @@ class TqdmUpTo(tqdm):
 
 
 
-def get_lora_path(lora: str) -> str:
-    for e in ('.safetensors', '.ckpt'):
-        filepath = os.path.join(LORA_DIR, f'{lora}{e}')
-        if os.path.exists(filepath):
-            return filepath
+def get_lora_path(lora: str, lora_dir_contents: list) -> str:
+    if '*' not in lora:
+        for e in ('.ckpt', '.safetensors'):
+            for content in lora_dir_contents:
+                if f'{lora}{e}'.lower() == content.lower():
+                    return os.path.join(LORA_DIR, content)
+        return None
+
+    lora_elements = lora.split("*")
+    for item in lora_dir_contents:
+        lower_item = item.lower()
+        if not lower_item.endswith('.ckpt') and not lower_item.endswith('.safetensors'):
+            continue
+        found = True
+        for element in lora_elements:
+            if element.lower() not in lower_item:
+                found = False
+                break
+        if not found:
+            continue
+        return os.path.join(LORA_DIR, item)
+
     return None
 
 
 def parse_prompt_loras(prompt: str):
-    lora_re = re.compile('<lora:[^:]+:[^>]+>')
-    lora_list = re.findall(lora_re, prompt)
-
-    lora_items = []
-    for lora in lora_list:
-        lora = lora.replace('<', '').replace('>', '')
-        p = lora.split(':')
-        if len(p) != 3:
-            continue
-        p = [p[1], p[2]]
-        try:
-            weight = float(p[1])
-        except Exception:
-            print(f"Invalid lora weigth {p[1]}")
-            continue
-        filepath = get_lora_path(p[0])
-        if not filepath:
-            print(f"Lora not found: {p[0]}")
-            continue
-        lora_items.append([filepath, weight])
-    return re.sub(lora_re, '', prompt), lora_items
+    lines = prompt.split('\n')
+    result = []
+    lora_dir_contents = os.listdir(LORA_DIR)
+    lora_dir_contents.sort(key=lambda x: (len(x), x.lower()))
+    for line in lines:
+        line = line.strip()
+        if ':' in line:
+            lora, alpha = tuple(line.split(':', maxsplit=1))
+            alpha = float(alpha)
+        else:
+            lora = line
+            alpha = 1.0
+        path = get_lora_path(lora, lora_dir_contents)
+        if not path:
+            raise ValueError(f"Lora {lora} not found")
+        result.append((path, alpha))
+    return result
 
 
 def randn(seed, shape):
@@ -353,7 +366,13 @@ def run_pipeline(
 
 
 def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
-    prompt, lora_list = parse_prompt_loras(params['prompt'])
+    prompt = params['prompt'] 
+    lora_list = []
+    if 'loras' in input:
+        output = input['loras']
+        if 'default' in output:
+            lora_list = parse_prompt_loras(output['default'])
+    
     negative_prompt = params.get('negative_prompt', None)
     
     inpaint_image = input.get('default', {}).get('output', None)
@@ -370,7 +389,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     )
     
     seed = params.get('seed', -1)
-    if seed != -1:
+    if seed == -1:
         seed = random.randint(0, 1000000)
 
     results = run_pipeline(
