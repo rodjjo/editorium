@@ -59,6 +59,8 @@ def get_lora_path(lora: str, lora_dir_contents: list) -> str:
             continue
         found = True
         for element in lora_elements:
+            if len(element) < 1:
+                continue
             if element.lower() not in lower_item:
                 found = False
                 break
