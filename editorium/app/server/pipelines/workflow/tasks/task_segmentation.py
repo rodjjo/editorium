@@ -4,18 +4,20 @@ from pipelines.segmentation.task_processor import process_workflow_task
 from marshmallow import Schema, fields
 
 
-class FluxPayloadSchema(Schema):
+class SegmentationPayloadSchema(Schema):
     prompt = fields.Str(required=True)
     model_name_segmentation = fields.Str(required=False, load_default='facebook/sam-vit-base')
     model_name_detection = fields.Str(required=False, load_default='IDEA-Research/grounding-dino-tiny')
+    margin = fields.Int(required=False, load_default=5)
     globals = fields.Dict(required=False, load_default={})
+
 
 class SegmentationTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
         super().__init__(task_type, description)
 
     def validate_config(self, config: dict):
-        schema = FluxPayloadSchema()
+        schema = SegmentationPayloadSchema()
         try:
             schema.load(config)
         except Exception as e:
@@ -25,7 +27,7 @@ class SegmentationTask(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing segmentation task")
-        return process_workflow_task(base_dir, name, input, FluxPayloadSchema().load(config), callback)
+        return process_workflow_task(base_dir, name, input, SegmentationPayloadSchema().load(config), callback)
 
 
 def register():

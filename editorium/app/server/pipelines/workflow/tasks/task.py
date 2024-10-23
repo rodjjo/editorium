@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 from importlib import import_module
 from typing import List
-
+from copy import deepcopy
 from pipelines.common.flow_parser import register_validator, flow_store, FlowItem
 
 BASE_DIR = '/app/output_dir'
@@ -93,12 +93,10 @@ class WorkflowTaskManager:
         self.results[item.name] = self.tasks[item.task_type].process_task(
             base_dir,
             item.name,
-            resolved_inputs, 
+            deepcopy(resolved_inputs), 
             {
-                **item.config,
-                'globals': {
-                    **flow_store.globals,
-                }
+                **deepcopy(item.config),
+                'globals': deepcopy(flow_store.globals),
             },
             callback
         )

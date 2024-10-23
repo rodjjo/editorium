@@ -211,6 +211,8 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
     
     if type(input['output']) is not list:
         raise Exception("Invalid input data expected list")
+    
+    box_margin = params.get('margin', 5)
 
     masks = []
     boxes = []
@@ -229,7 +231,10 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
             threshold=params.get('threshold', 0.3), 
             polygon_refinement=params.get('polygon_refinement', True)
         )
-        
+
+        if len(box) == 4 and box_margin > 0:
+            box = [box[0] - box_margin, box[1] - box_margin, box[2] + box_margin, box[3] + box_margin]
+            
         filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
         mask.save(filepath)
         masks.append(mask)

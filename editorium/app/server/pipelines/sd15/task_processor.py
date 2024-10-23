@@ -462,6 +462,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             for i, result in enumerate(current_results):
                 mask = mask.convert("RGBA")
                 mask.putalpha(mask.split()[0])
+                result = result.resize(image.size)
                 current_results[i] = Image.composite(result, image, mask)
                 
         results.extend(current_results)

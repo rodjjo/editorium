@@ -208,6 +208,8 @@ class FlowStore:
                 continue
 
             if line.startswith('#end'):
+                if not flow_started:
+                    raise InvalidItemException("#End outside a task")
                 self.parse_flow(flow_lines, flow_lazy)
                 flow_started = False
                 flow_lazy = False
@@ -227,7 +229,9 @@ class FlowStore:
         self.validate_circular_dependencies()
         
     def get_task(self, name: str) -> FlowItem:
-        return self.flows.get(name, None)
+        if name not in self.flows:
+            raise InvalidItemException(f"Task not found {name}")
+        return self.flows[name]
     
     def iterate(self):
         for flow in self.flows.values():

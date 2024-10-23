@@ -5,7 +5,6 @@ from marshmallow import Schema, fields
 from pipelines.common.task_result import TaskResult
 
 class BlurImageTaskSchema(Schema):
-    invert_colors = fields.Bool(required=False, load_default=False)
     dilate_size = fields.Int(required=False, load_default=3)
     blur_size = fields.Int(required=False, load_default=3)
     globals = fields.Dict(required=False, load_default={})
@@ -29,7 +28,6 @@ class BlurImageTask(WorkflowTask):
         params = BlurImageTaskSchema().load(config)
         dilate_size = params['dilate_size']
         blur_size = params['blur_size']
-        invert_colors = params['invert_colors']
         
         kernel_size_dilate = 3
         kernel_size_blur = 3
@@ -37,10 +35,11 @@ class BlurImageTask(WorkflowTask):
             kernel_size_dilate = 5
         if blur_size > 3:
             kernel_size_blur = 5
-
-        image_list = input.get('default', {}).get('result', None)
+        
+        image_list = input.get('default', {}).get('result', None) or input.get('default', {}).get('output', None)
         if not image_list:
-            raise ValueError("It's required a image to blur #config.input=value")
+            print(input)
+            raise ValueError("It's required a image to blur #input=value")
         if type(image_list) is not list:
             image_list = [image_list]
         
@@ -49,8 +48,6 @@ class BlurImageTask(WorkflowTask):
                 image = Image.open(output)
             else:
                 image = output
-            if invert_colors:
-                image = ImageOps.invert(image)
             index = 0
             while index < dilate_size:
                 image = image.filter(ImageFilter.MaxFilter(kernel_size_dilate))

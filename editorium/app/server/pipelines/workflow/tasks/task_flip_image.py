@@ -47,4 +47,4 @@ class FlipImageTask(WorkflowTask):
 
 
 def register():
-    FlipImageTask.register("flip-image", "Flip a image horizontally or vertically")
+    FlipImageTask.register("flip-image", "Flip an image horizontally or vertically")
