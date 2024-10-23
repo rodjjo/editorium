@@ -21,16 +21,15 @@ from pipelines.sd15.loader import load_stable_diffusion_model
 from pipelines.sd15.img2img_controlnet import StableDiffusionControlNetImg2ImgPipeline
 from pipelines.sd15.img2img_inpaint_controlnet import StableDiffusionControlNetInpaintImg2ImgPipeline
 
+
 def create_pipeline(
         inpaint: bool, 
         image2image: bool,
         components : dict, 
         controlnets=None,
-        free_lunch=False, 
-        face_image=False, 
-        adapter_image=False, 
         use_float16=False,
-        control_model=[]
+        control_model=[],
+        adapter_models=[]
 ):
     if inpaint:
         mode = 'inpaint2img'
@@ -88,13 +87,23 @@ def create_pipeline(
     else:
         pipe = StableDiffusionPipeline(**model_params)
 
+    pipe = pipe.to(dtype)
+    pipe.enable_xformers_memory_efficient_attention()
+    pipe.enable_attention_slicing()
+    pipe.unet.set_attn_processor(AttnProcessor2_0())
+
+    if adapter_models and hasattr(pipe, 'load_ip_adapter'):
+        add_args = {
+            'subfolder': "models",
+            'weight_name': adapter_models[:],
+        }
+        pipe.load_ip_adapter("h94/IP-Adapter", **add_args)
+        # pipe.set_ip_adapter_scale(0.6)
+
     if tiny_vae:
         pipe.vae = tiny_vae
 
     pipe.to('cuda')
-    pipe.enable_attention_slicing()
-    pipe.enable_xformers_memory_efficient_attention()
-    pipe.unet.set_attn_processor(AttnProcessor2_0())
     
     return pipe
 
@@ -113,6 +122,7 @@ class Sd15Models(ManagedModel):
         self.use_float16 = True
         self.controlnets = []
         self.controlnet_models = []
+        self.adapter_models = []
         
     def release_model(self):
         self.pipe = None
@@ -125,7 +135,7 @@ class Sd15Models(ManagedModel):
         self.controlnets = []
         self.controlnet_models = controlnet_models
         
-        model_repos = {
+        cnet_repos = {
             'canny': 'lllyasviel/sd-controlnet-canny',
             'pose': 'lllyasviel/sd-controlnet-openpose',
             'scribble': 'lllyasviel/sd-controlnet-scribble',
@@ -139,7 +149,7 @@ class Sd15Models(ManagedModel):
         dtype = torch.float16 if self.use_float16 else torch.float32
         for (repo_id, control_type) in controlnet_models:
             if repo_id in ('', None):
-                repo_id = model_repos[control_type]
+                repo_id = cnet_repos[control_type]
             self.controlnets.append(
                 ControlNetModel.from_pretrained(repo_id, torch_dtype=dtype))
         gc.collect()
@@ -155,7 +165,8 @@ class Sd15Models(ManagedModel):
                     use_lcm: bool = False,
                     scheduler_name: str = 'EulerAncestralDiscreteScheduler',
                     use_float16: bool = True,
-                    controlnet_models: list = []):
+                    controlnet_models: list = [],
+                    adapter_models: list = []):
         self.release_other_models()
         has_changes = any([
             self.pipe is None,
@@ -168,6 +179,7 @@ class Sd15Models(ManagedModel):
             self.use_float16 != use_float16,
             len(self.controlnets) != len(controlnet_models),
             self.controlnet_models != controlnet_models,
+            self.adapter_models != adapter_models,
         ])
         if not has_changes:
             return
@@ -179,6 +191,23 @@ class Sd15Models(ManagedModel):
         self.scheduler_name = scheduler_name
         self.use_float16 = use_float16
         self.image2image = image2image
+        self.adapter_models = adapter_models
+        
+        
+        ipdapter_repos = {
+            'plus-face': 'ip-adapter-plus-face_sd15.safetensors',
+            'full-face': 'ip-adapter-full-face_sd15.safetensors',
+            'plus': 'ip-adapter-plus_sd15.safetensors',
+            'common': 'ip-adapter_sd15.safetensors',
+            'light': 'ip-adapter_sd15_light.safetensors',
+            'vit': 'ip-adapter_sd15_vit-G.safetensors',
+        }
+
+        adapter_models_resolved = []
+        for ip_model in adapter_models:
+            if ip_model in ('', None):
+                continue
+            adapter_models_resolved.append(ipdapter_repos[ip_model])
         
         model_path = os.path.join(self.model_dir('images', 'sd15'), model_name)
         
@@ -196,7 +225,8 @@ class Sd15Models(ManagedModel):
             image2image=image2image,
             components=components,
             use_float16=use_float16,
-            control_model=self.controlnets
+            control_model=self.controlnets,
+            adapter_models=adapter_models_resolved
         )
         gc.collect()
         torch.cuda.empty_cache()

@@ -19,6 +19,7 @@ class Sd15PayloadSchema(Schema):
     strength = fields.Float(required=False, load_default=0.75)
     batch_size = fields.Int(required=False, load_default=1)
     inpaint_mode = fields.Str(required=False, load_default="original")
+    ip_adapter_scale = fields.Float(required=False, load_default=0.6)
     globals = fields.Dict(required=False, load_default={})
 
 class Sd15Task(WorkflowTask):

@@ -70,7 +70,7 @@ class WorkflowTaskManager:
                     resolved = self.results[task_name]
             elif value:
                 resolved = {
-                    "filepath": value
+                    "result": [value]
                 }
             else:
                 resolved = {}

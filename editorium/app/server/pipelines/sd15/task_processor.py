@@ -142,6 +142,16 @@ def make_inpaint_condition(image, image_mask):
     image = torch.from_numpy(image)
     return image
 
+
+def create_ipadapter_embds(pipeline, image):
+    return pipeline.prepare_ip_adapter_image_embeds(
+        ip_adapter_image=image,
+        ip_adapter_image_embeds=None,
+        device="cuda",
+        num_images_per_prompt=1,
+        do_classifier_free_guidance=True,
+    )
+
 @torch.no_grad()
 def run_pipeline(
         pipeline: object,
@@ -158,8 +168,10 @@ def run_pipeline(
         input_mask: Image.Image = None,
         inpaint_mode: str = "original",
         controlnets: list = [],
+        adapter_scale: float = 0.6,
+        adapter_images: list = [],
         use_float16: bool = True):
-    
+
     pipeline_type = "txt2img"
     if input_image is not None:
         pipeline_type = "img2img"
@@ -217,8 +229,14 @@ def run_pipeline(
     additional_args = {
         'generator': generator
     }
+    
+    if hasattr(pipeline, 'set_ip_adapter_scale') and len(adapter_images) > 0:
+        pipeline.set_ip_adapter_scale(adapter_scale)
+        additional_args["ip_adapter_image"] = adapter_images
+
     if pipeline_type == 'txt2img':
         additional_args = {
+            **additional_args,
             'width': width, 
             'height': height,
             'latents': latents_noise,
@@ -241,6 +259,7 @@ def run_pipeline(
             additional_args['controlnet_conditioning_scale'] = conds
     elif pipeline_type == 'img2img':
         additional_args = {
+            **additional_args,
             'image': input_image,
             'strength': strength,
         }
@@ -273,6 +292,7 @@ def run_pipeline(
         mask = input_mask
 
         additional_args = {
+            **additional_args,
             'image': image,
             'mask_image': mask,
             'width': width,
@@ -389,13 +409,40 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         elif type(image) is list:
             image = [Image.open(i) if type(i) is str else i for i in image]
         if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
-            raise ValueError("Number of controlnet images must be the same as inpaint images")
+            if len(inpaint_image) == 1:
+                image = [image[0]] * len(inpaint_image)
+            else:
+                raise ValueError("Number of controlnet images must be the same as inpaint images")
         controlnets.append({
             'strength': controlnet['strength'],
             'image': image,
             'control_type': controlnet['control_type'],
         })
     
+    adapter_images = []
+    adapter_models = []
+    for adapter_index in range(1, 7):
+        param_name = f'adapter_{adapter_index}'
+        if param_name not in input:
+            continue
+        adapter = input.get(param_name, {}).get('default', {})
+        if not adapter:
+            raise ValueError(f"Adapter {adapter_index} not found")
+        adapter_models.append(
+            adapter['adapter_model']
+        )
+        image = adapter['image']
+        if type(image) is str:
+            image = [Image.open(image)]
+        elif type(image) is list:
+            image = [Image.open(i) if type(i) is str else i for i in image]
+        if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
+            if len(inpaint_image) == 1:
+                image = [image[0]] * len(inpaint_image)
+            else:
+                raise ValueError("Number of controlnet images must be the same as inpaint images")
+        adapter_images.extend(image)
+        
     sd15_models.load_models(
         model_name, 
         inpainting_mode=inpaint_mask is not None,
@@ -405,6 +452,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         scheduler_name='EulerAncestralDiscreteScheduler',
         use_float16=True,
         controlnet_models=controlnet_models,
+        adapter_models=adapter_models
     )
     
     seed = params.get('seed', -1)
@@ -456,7 +504,9 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             input_mask=mask,
             inpaint_mode="original",
             controlnets=cnet,
-            use_float16=True
+            use_float16=True,
+            adapter_scale=params.get('ip_adapter_scale', 0.6),
+            adapter_images=adapter_images
         )
         if mask:
             for i, result in enumerate(current_results):
