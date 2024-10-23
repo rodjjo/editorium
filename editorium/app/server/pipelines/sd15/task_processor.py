@@ -393,8 +393,6 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             'image': image,
             'control_type': controlnet['control_type'],
         })
-
-    print("Controlnets: ", controlnets, ' input: ', input)
     
     sd15_models.load_models(
         model_name, 

@@ -172,7 +172,20 @@ def segment(
     for m in masks:
         inverted_mask = Image.fromarray(255 - m)
         img = Image.composite(img, white, inverted_mask)
-    return img
+    box = [image.size[0], image.size[1], 0, 0]
+    for b1 in boxes:
+        for b2 in b1:
+            if b2[0] < box[0]:
+                box[0] = b2[0]
+            if b2[1] < box[1]:
+                box[1] = b2[1]
+            if b2[2] > box[2]:
+                box[2] = b2[2]
+            if b2[3] > box[3]:
+                box[3] = b2[3]
+    if box[0] > box[2] or box[1] > box[3]:
+        box = [0, 0, 0, 0]
+    return img, box
 
 
 def grounded_segmentation(
@@ -182,8 +195,8 @@ def grounded_segmentation(
     polygon_refinement: bool = False
 ) -> Tuple[np.ndarray, List[DetectionResult]]:
     detections = detect(image, labels, threshold)
-    detections = segment(image, detections, polygon_refinement)
-    return detections
+    detections, box = segment(image, detections, polygon_refinement)
+    return detections, box
 
 
 def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: str, base_dir: str, input: dict, params: dict):
@@ -200,6 +213,7 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         raise Exception("Invalid input data expected list")
 
     masks = []
+    boxes = []
     for index, output in enumerate(input['output']):
         if (type(output) is str):
             image = Image.open(output)
@@ -209,7 +223,7 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         labels = params['prompt'].lower().replace(',', '.')
         labels = [label.strip() for label in labels.split('.')]
         
-        mask = grounded_segmentation(
+        mask, box = grounded_segmentation(
             image, 
             labels, 
             threshold=params.get('threshold', 0.3), 
@@ -219,10 +233,12 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
         mask.save(filepath)
         masks.append(mask)
+        boxes.append(box)
 
     return {
         "result": masks,
-        "filepaths": os.path.join(base_dir, f'{task_name}.png')
+        "boxes": boxes,
+        "filepaths": filepath,
     }
 
     
