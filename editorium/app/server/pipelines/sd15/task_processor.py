@@ -208,12 +208,6 @@ def run_pipeline(
     
     print("started")
 
-    print("creating the pipeline")
-    leditpp = bool(input_image) and pipeline_type == 'txt2img'
-    
-        
-    print("pipeline created")
-
     def progress_preview(step, timestep, latents):
         # TODO: Implement progress callback
         pass
@@ -292,7 +286,7 @@ def run_pipeline(
                     c['strength'] = 0
                 if c['strength'] > 2.0:
                     c['strength'] = 2.0
-                if c['mode'] == 'inpaint':
+                if c['control_type'] == 'inpaint':
                     images.append(make_inpaint_condition(image, mask))
                     has_inpaint = True
                 else:
@@ -375,6 +369,32 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     
     inpaint_image = input.get('default', {}).get('output', None)
     inpaint_mask = input.get('mask', {}).get('output', None)
+    controlnets = []
+    controlnet_models = []
+    for control_index in range(1, 5):
+        param_name = f'controlnet_{control_index}'
+        if param_name not in input:
+            continue
+        controlnet = input.get(param_name, {}).get('default', {})
+        if not controlnet:
+            raise ValueError(f"Controlnet {control_index} not found")
+        controlnet_models.append(
+            (controlnet['repo_id'], controlnet['control_type'])
+        )
+        image = controlnet['image']
+        if type(image) is str:
+            image = [Image.open(image)]
+        elif type(image) is list:
+            image = [Image.open(i) if type(i) is str else i for i in image]
+        if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
+            raise ValueError("Number of controlnet images must be the same as inpaint images")
+        controlnets.append({
+            'strength': controlnet['strength'],
+            'image': image,
+            'control_type': controlnet['control_type'],
+        })
+
+    print("Controlnets: ", controlnets, ' input: ', input)
     
     sd15_models.load_models(
         model_name, 
@@ -384,6 +404,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         use_lcm=False,
         scheduler_name='EulerAncestralDiscreteScheduler',
         use_float16=True,
+        controlnet_models=controlnet_models,
     )
     
     seed = params.get('seed', -1)
@@ -406,7 +427,15 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         inpaint_mask = [None]
 
     results = []        
-    for (image, mask) in zip(inpaint_image, inpaint_mask):
+    for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
+        cnet = []
+        for c in controlnets:
+            c = {**c}
+            c['image'] = c['image'][:]
+            cnet.append(c)
+        for c in cnet:
+            c['image'] = c['image'][index]
+            
         if type(image) is str:
             image = Image.open(image)
         if type(mask) is str:
@@ -426,7 +455,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             input_image=image,
             input_mask=mask,
             inpaint_mode="original",
-            controlnets=params.get('controlnets', []),
+            controlnets=cnet,
             use_float16=True
         )
         if mask:

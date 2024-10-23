@@ -131,7 +131,7 @@ class FlowItem:
             raise InvalidItemException("No task type found")
 
         if not CONFIG_VALIDATOR(task_type, config):
-            raise InvalidItemException("Invalid config")
+            raise InvalidItemException(f"Invalid config on task name={name} task_type={task_type}")
 
         return cls(name, task_type, input, config, flow_lazy)
 

@@ -30,6 +30,7 @@ def create_pipeline(
         face_image=False, 
         adapter_image=False, 
         use_float16=False,
+        control_model=[]
 ):
     if inpaint:
         mode = 'inpaint2img'
@@ -62,41 +63,10 @@ def create_pipeline(
             allow_inpaint_model = False
             break
 
-    controlnets = controlnets or [] if mode in ('txt2img', 'img2img', 'inpaint2img')  else []
-    control_model = []
-    have_controlnet = False
-    model_repos = {
-        'canny': 'lllyasviel/sd-controlnet-canny',
-        'pose': 'lllyasviel/sd-controlnet-openpose',
-        'scribble': 'lllyasviel/sd-controlnet-scribble',
-        'deepth': 'lllyasviel/sd-controlnet-depth',
-        'segmentation': 'lllyasviel/sd-controlnet-seg',
-        'lineart': 'lllyasviel/control_v11p_sd15s2_lineart_anime',
-        'mangaline': 'lllyasviel/control_v11p_sd15s2_lineart_anime',
-        'inpaint': 'lllyasviel/control_v11p_sd15_inpaint',
-    }
-
-    for c in controlnets:
-        have_controlnet = True
-        if not model_repos.get(c['mode']):
-            print("No controlnet for ", c['mode'])
-            continue
-        print("Controlnet: ", c['mode'])
-        if c['mode'] == 'segmentation':
-            mode_str = f"models--lllyasviel--sd-controlnet-seg"
-        elif c['mode'] == 'lineart':
-            mode_str = f"models--lllyasviel--control_v11p_sd15s2_lineart_anime"
-        elif c['mode'] == 'inpaint':
-            mode_str = f"models--lllyasviel--sd-control_v11p_sd15_inpaint"
-        else:
-            mode_str = f"models--lllyasviel--sd-controlnet-{c['mode']}"
-        control_model.append(ControlNetModel.from_pretrained(
-            model_repos[c['mode']], torch_dtype=dtype))
-
     if len(control_model) == 1:
         control_model = control_model[0]
 
-    if have_controlnet:
+    if control_model:
         params = {
             **model_params,
             'controlnet': control_model,
@@ -141,11 +111,41 @@ class Sd15Models(ManagedModel):
         self.use_lcm = False
         self.scheduler_name = 'EulerAncestralDiscreteScheduler'
         self.use_float16 = True
+        self.controlnets = []
+        self.controlnet_models = []
         
     def release_model(self):
         self.pipe = None
+        self.controlnets = []
+        self.controlnet_models = []
         gc.collect()
         torch.cuda.empty_cache()
+        
+    def _load_controlnets(self, controlnet_models):
+        self.controlnets = []
+        self.controlnet_models = controlnet_models
+        
+        model_repos = {
+            'canny': 'lllyasviel/sd-controlnet-canny',
+            'pose': 'lllyasviel/sd-controlnet-openpose',
+            'scribble': 'lllyasviel/sd-controlnet-scribble',
+            'depth': 'lllyasviel/sd-controlnet-depth',
+            'segmentation': 'lllyasviel/sd-controlnet-seg',
+            'lineart': 'lllyasviel/control_v11p_sd15s2_lineart_anime',
+            'mangaline': 'lllyasviel/control_v11p_sd15s2_lineart_anime',
+            'inpaint': 'lllyasviel/control_v11p_sd15_inpaint',
+        }
+
+        dtype = torch.float16 if self.use_float16 else torch.float32
+        for (repo_id, control_type) in controlnet_models:
+            if repo_id in ('', None):
+                repo_id = model_repos[control_type]
+            self.controlnets.append(
+                ControlNetModel.from_pretrained(repo_id, torch_dtype=dtype))
+        gc.collect()
+        torch.cuda.empty_cache()
+        
+        
         
     def load_models(self, 
                     model_name: str, 
@@ -154,7 +154,8 @@ class Sd15Models(ManagedModel):
                     lora_list: list = [],
                     use_lcm: bool = False,
                     scheduler_name: str = 'EulerAncestralDiscreteScheduler',
-                    use_float16: bool = True):
+                    use_float16: bool = True,
+                    controlnet_models: list = []):
         self.release_other_models()
         has_changes = any([
             self.pipe is None,
@@ -164,7 +165,9 @@ class Sd15Models(ManagedModel):
             self.lora_list != lora_list,
             self.use_lcm != use_lcm,
             self.scheduler_name != scheduler_name,
-            self.use_float16 != use_float16
+            self.use_float16 != use_float16,
+            len(self.controlnets) != len(controlnet_models),
+            self.controlnet_models != controlnet_models,
         ])
         if not has_changes:
             return
@@ -187,14 +190,14 @@ class Sd15Models(ManagedModel):
             scheduler_name,
             use_float16
         )
-        
+        self._load_controlnets(controlnet_models)
         self.pipe = create_pipeline(
             inpainting_mode, 
             image2image=image2image,
             components=components,
-            use_float16=use_float16
+            use_float16=use_float16,
+            control_model=self.controlnets
         )
-
         gc.collect()
         torch.cuda.empty_cache()
 

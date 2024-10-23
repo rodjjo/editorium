@@ -51,7 +51,7 @@ class WorkflowTaskManager:
         
     def validate_config(self, task_type: str, config: dict):
         if task_type not in self.tasks:
-            return False
+            raise ValueError(f'Task {task_type} not found')
         return self.tasks[task_type].validate_config(config)
     
     def process_task(self, base_dir, item: FlowItem, callback: callable):
