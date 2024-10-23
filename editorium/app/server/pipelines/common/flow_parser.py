@@ -119,6 +119,10 @@ class FlowItem:
                 if key == 'seed' and value == -1:
                     value = random.randint(0, 1000000)
                 config[key] = value
+                continue
+
+            if line.startswith("#"):
+                raise InvalidItemException("The line starts with # but it's not a valid command")
         
         if len(prompt) > 0:
             config['prompt'] = '\n'.join(prompt)
@@ -126,9 +130,8 @@ class FlowItem:
         if len(negative_prompt) > 0:
             config['negative_prompt'] = '\n'.join(negative_prompt)
         
-
         if not task_type:
-            raise InvalidItemException("No task type found")
+            raise InvalidItemException(f"task not found task_type: {task_type}")
 
         if not CONFIG_VALIDATOR(task_type, config):
             raise InvalidItemException(f"Invalid config on task name={name} task_type={task_type}")
