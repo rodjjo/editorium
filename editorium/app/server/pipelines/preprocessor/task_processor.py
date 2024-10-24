@@ -172,9 +172,9 @@ def pre_process_image(control_type: str, im):
 
 def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable):
     print("Processing preprocessor task: ", input)
-    if input.get('image', {}).get('output', None) is None:
+    images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
+    if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")
-    images = input['image']['output']
     results = []
     for index, image in enumerate(images):
         if type(image) is str:

@@ -34,4 +34,8 @@ prodigyopt==1.0
 requests==2.32.3
 huggingface-hub==0.25.2
 # flash-attn==2.6.3
-einops==0.8.0 
+einops==0.8.0
+basicsr@git+https://github.com/rodjjo/BasicSR@master#egg=basicsr
+gfpgan
+realesrgan==0.3.0
+rembg==2.0.59

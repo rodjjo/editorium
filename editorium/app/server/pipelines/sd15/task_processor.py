@@ -474,6 +474,12 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         inpaint_image = [None]
         inpaint_mask = [None]
 
+    if params.get('free_lunch', False) and not hasattr(sd15_models.pipe, 'free_lunch_applied'):
+        from pipelines.sd15.free_lunch import register_free_upblock2d, register_free_crossattn_upblock2d
+        register_free_upblock2d(sd15_models.pipe, b1=1.2, b2=1.4, s1=0.9, s2=0.2)
+        register_free_crossattn_upblock2d(sd15_models.pipe, b1=1.2, b2=1.4, s1=0.9, s2=0.2)
+        setattr(sd15_models.pipe, 'free_lunch_applied', True)
+
     results = []        
     for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
         cnet = []
