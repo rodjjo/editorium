@@ -47,6 +47,8 @@ class WorkflowTaskManager:
         pass
     
     def add_task(self, task: WorkflowTask):
+        if task.task_type in self.tasks:
+            raise ValueError(f'Task {task.task_type} already exists')
         self.tasks[task.task_type] = task
         
     def validate_config(self, task_type: str, config: dict):
@@ -56,23 +58,29 @@ class WorkflowTaskManager:
     
     def process_task(self, base_dir, item: FlowItem, callback: callable):
         if item.task_type not in self.tasks:
-            return False
+            raise ValueError(f'Task {item.task_type} is not registered')
+
         if item.name in self.results:
             return self.results[item.name]
+        
         resolved_inputs = {}
         for input, value in item.input.items():
             if value.startswith('task://'):
                 task_name = value.split('task://')[1]
                 if task_name in self.results:
+                    print(f'Using cached result of {task_name} for task {item.name}')
                     resolved = self.results[task_name]
                 else:
+                    print(f'Processing task {task_name} to resolve input for task {item.name}')
                     self.process_task(base_dir, flow_store.get_task(task_name), callback)
                     resolved = self.results[task_name]
             elif value:
+                print(f'Using literal value {value} for task {item.name}')
                 resolved = {
                     "result": [value]
                 }
             else:
+                print(f'Empty input for task {item.name}')
                 resolved = {}
             resolved_inputs[input] = resolved
 
@@ -89,8 +97,8 @@ class WorkflowTaskManager:
             if task_name not in self.results:
                 self.process_task(base_dir, flow_store.get_task(task_name), callback)
             item.config['negative_prompt'] = self.results[task_name].get('default', '')
-            
-        self.results[item.name] = self.tasks[item.task_type].process_task(
+        
+        task_result = self.tasks[item.task_type].process_task(
             base_dir,
             item.name,
             deepcopy(resolved_inputs), 
@@ -100,6 +108,8 @@ class WorkflowTaskManager:
             },
             callback
         )
+        
+        self.results[item.name] = task_result
         
     def execute(self, contents: List[str], callback = None) -> dict:
         replace_seeds = True

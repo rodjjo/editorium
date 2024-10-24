@@ -43,7 +43,7 @@ def generate_text(base_dir: str,
                 tokenizer=chatvision_model.tokenizer,
                 sampling=True, # if sampling=False, beam_search will be used by default
                 temperature=temperature,
-                # system_prompt=system_prompt
+                system_prompt=system_prompt
             )
 
             text_path = os.path.join(base_dir, f'{name}_{i}.txt')

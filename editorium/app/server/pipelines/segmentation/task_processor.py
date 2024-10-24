@@ -216,6 +216,7 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
 
     masks = []
     boxes = []
+    paths = []
     for index, output in enumerate(input['output']):
         if (type(output) is str):
             image = Image.open(output)
@@ -239,11 +240,12 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         mask.save(filepath)
         masks.append(mask)
         boxes.append(box)
+        paths.append(filepath)
 
     return {
         "result": masks,
         "boxes": boxes,
-        "filepaths": filepath,
+        "filepaths": paths,
     }
 
     

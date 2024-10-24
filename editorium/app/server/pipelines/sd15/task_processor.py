@@ -389,8 +389,8 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     
     negative_prompt = params.get('negative_prompt', None)
     
-    inpaint_image = input.get('default', {}).get('output', None)
-    inpaint_mask = input.get('mask', {}).get('output', None)
+    inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
+    inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
     controlnets = []
     controlnet_models = []
     for control_index in range(1, 5):
@@ -473,6 +473,8 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     if len(inpaint_image) == 0:
         inpaint_image = [None]
         inpaint_mask = [None]
+    elif not inpaint_mask:
+        inpaint_mask = [None] * len(inpaint_image)
 
     if params.get('free_lunch', False) and not hasattr(sd15_models.pipe, 'free_lunch_applied'):
         from pipelines.sd15.free_lunch import register_free_upblock2d, register_free_crossattn_upblock2d
@@ -523,6 +525,8 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
                 
         results.extend(current_results)
 
+    if len(results) == 0:
+        raise ValueError("No results generated for SD 1.5 task")
     filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.jpg')
     paths = []
     for i, result in enumerate(results):
