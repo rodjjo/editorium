@@ -222,8 +222,9 @@ class DockerManager:
         if host_network:
             net_params = ['--network', 'host']
 
+        # '--cpuset-cpus=0',
         command = [
-            'docker', 'run', '--cpuset-cpus=0', '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', '--init', '-it', '--rm', '--runtime=nvidia',
+            'docker', 'run',  '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', '--init', '-it', '--rm', '--runtime=nvidia',
         ] + volume_args + env_ags + net_params + [ 
             self.docker_tag, 'bash', '-c',
         ] + args

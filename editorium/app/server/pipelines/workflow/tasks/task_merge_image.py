@@ -27,7 +27,7 @@ class MergeImageTask(WorkflowTask):
         if not masks2merge:
             raise ValueError("It's required a image to flip #input.mask=value")
         if not boxes2merge:
-            raise ValueError("It's required a image to flip #input.box=value")
+            boxes2merge = [(0, 0, image.width, image.height) for image in image_list]
 
         if type(image_list) is not list:
             image_list = [image_list]

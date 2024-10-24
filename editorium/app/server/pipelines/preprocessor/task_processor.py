@@ -145,6 +145,19 @@ def image_to_mangaline(input_image):
     gc.collect()
     return result
 
+def background2mask(input_image):
+    from rembg import remove, new_session
+    result = remove(
+        input_image,
+        session=new_session('u2net_human_seg'),
+        only_mask=False,
+        # alpha_matting=True,
+        # alpha_matting_erode_size=15
+    )
+    background_image = Image.new('RGB', result.size, (255, 255, 255))
+    background_image.paste(Image.new('RGB', result.size, (0, 0, 0)), (0, 0), result)
+    return background_image
+
 
 def pre_process_image(control_type: str, im):
     if type(im) is str:
@@ -167,11 +180,12 @@ def pre_process_image(control_type: str, im):
     elif control_type == 'mangaline':
         report("extracting lineart")
         return image_to_mangaline(im)
+    elif control_type == 'background':
+        return background2mask(im)
     return None
 
 
 def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable):
-    print("Processing preprocessor task: ", input)
     images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
     if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")

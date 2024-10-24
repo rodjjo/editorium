@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, AutoModelForMaskGeneration, pipeline
 
-   
+
 class SegmentationModels(ManagedModel):
     def __init__(self):
         super().__init__("segmentation")

@@ -38,7 +38,11 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
         cache_dir: '/home/editorium/.cache',
         models_dir: '/home/editorium/models',
     }
-
+    
+    env = manager.parse_env_list(env)
+    # env['XDG_CACHE_HOME'] = '/home/editorium/models'
+    env['U2NET_HOME'] = '/home/editorium/models'
+    
     print('Running server with the following parameters:')
     print('Models dir:', models_dir)
     print('Cache dir:', cache_dir)
@@ -46,7 +50,7 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
 
     manager.shell(
         host_network=True, 
-        env=manager.parse_env_list(env), 
+        env=env, 
         args=[entry_point] + args, 
         volumes=volumes,
         workdir='/app/output_dir'
