@@ -30,6 +30,8 @@ class ModelManager:
         self.models = {}
     
     def register_model(self, name: str, model: ManagedModel):
+        if name in self.models:
+            raise ValueError(f"Model {name} already registered")
         self.models[name] = model
     
     def release_all_models(self, except_model: ManagedModel = None):
