@@ -1,6 +1,6 @@
 import click
 import os
-
+import re
 import urllib
 
 from .docker_management import full_path
@@ -14,7 +14,7 @@ def workflow_group():
     pass
 
 
-def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: str):
+def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: dict):
     if include_dir == '':
         path = full_path(path)
         include_dir = os.path.dirname(path)
@@ -26,29 +26,38 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         raise Exception(f"File {path} already included")
     already_included.add(path)
     parsed_lines = []
+    capture_inputs1 = re.compile('#input=([^ $]+)[ $]*')
+    capture_inputs2 = re.compile('#input\\.([^=]+)=([^ $]+)[ $]*')
+    capture_path = re.compile('#path=([^$]+)$')
     with open(path, 'r') as f:
         file_content = f.readlines()
-        if replace_input != '':
-            for index, line in enumerate(file_content):
-                if "task://<input>" in line:
-                    file_content[index] = line.replace("task://<input>", f'task://{replace_input}')
-                if "from://<input>" in line:
-                    file_content[index] = line.replace("from://<input>", f'from://{replace_input}')
+        if replace_input:
+            for key in replace_input:
+                for index, line in enumerate(file_content):
+                    if f"task://<{key}>" in line:
+                        file_content[index] = line.replace(f"task://<{key}>", f'task://{replace_input[key]}')
+                    if f"from://<{key}>" in line:
+                        file_content[index] = line.replace(f"from://<{key}>", f'from://{replace_input[key]}')
+
         for line in file_content:
             line = line.strip()  # #include #input=bla #path=bla
             if line.startswith("#comment"):
                 continue
             if line.startswith("#include "):
-                line = line.replace("#include ", "").strip()
-                if line.startswith("#input="):
-                    line = line.replace("#input=", "").strip()
-                    if not " #path=" in line:
-                        raise Exception(f"Invalid input line {line}")
-                    left = line.split(" #path=", maxsplit=1)[0]
-                    right = line.split(" #path=", maxsplit=1)[1]
-                    parsed_lines += read_worflow_file(include_dir, right, already_included, left.strip())
+                inputs1 = re.search(capture_inputs1, line)
+                inputs2 = re.findall(capture_inputs2, line)
+                parsed_inputs = {}
+                if inputs1:
+                    parsed_inputs["input"] = inputs1.group(1).strip()
+                if inputs2:
+                    for key, value in inputs2:
+                        parsed_inputs[f'input.{key}'] = value
+                parsed_path = re.search(capture_path, line)
+                if parsed_path:
+                    path = parsed_path.group(1).strip()
                 else:
-                    parsed_lines += read_worflow_file(include_dir, line, already_included, '')
+                    raise Exception(f"Invalid include line: {line} it does not have #path=value")
+                parsed_lines += read_worflow_file(include_dir, path, already_included, parsed_inputs)
             else:
                 parsed_lines.append(line)
     return parsed_lines
@@ -58,7 +67,7 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
 @click.option('--path', type=str, required=True, help="The path to the workflow file")
 def run(path):
     parameters = {
-        "workflow": read_worflow_file('', path, set(), '')
+        "workflow": read_worflow_file('', path, set(), {})
     }
     payload = {
         "task_type": "workflow",
