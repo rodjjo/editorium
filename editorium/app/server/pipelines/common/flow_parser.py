@@ -40,21 +40,28 @@ def convert_value(value: str):
             return [float(v.strip()) for v in value.split(',')]
         except ValueError:
             pass
+    if value.startswith('"') and value.endswith('"'):
+        return value[1:-1]
+    if value.startswith("'") and value.endswith("'"):
+        return value[1:-1]
     return value
     
+
 class FlowItem:
     name: str = ""
     config: dict = {}
     task_type: str = ""
     input: dict = {}
     flow_lazy: bool = False
+    decision: bool = False
     
-    def __init__(self, name: str, task_type: str, input: dict, config: dict, flow_lazy: bool) -> None:
+    def __init__(self, name: str, task_type: str, input: dict, config: dict, flow_lazy: bool, decision: bool=False) -> None:
         self.name = name
         self.config = config
         self.input = input
         self.task_type = task_type
         self.flow_lazy = flow_lazy
+        self.decision = decision
     
     @classmethod
     def from_lines(cls, lines: List[str], globals: dict, flow_lazy: bool):
@@ -66,9 +73,14 @@ class FlowItem:
         negative_prompt = []
         prompt_started = False
         negative_started = False
+        is_decision = False
         for line in lines:
             if line.startswith("#ignore"):
                 raise IgnoredItemException("Item is ignored")
+            
+            if line.startswith("#decision"):
+                is_decision = True
+                continue
 
             if line.strip() == "#prompt":
                 if prompt_started:
@@ -136,7 +148,7 @@ class FlowItem:
         if not CONFIG_VALIDATOR(task_type, config):
             raise InvalidItemException(f"Invalid config on task name={name} task_type={task_type}")
 
-        return cls(name, task_type, input, config, flow_lazy)
+        return cls(name, task_type, input, config, flow_lazy, is_decision)
 
 
 class FlowStore:
@@ -187,14 +199,17 @@ class FlowStore:
         flow_started = False
         flow_lazy = False
         flow_lines = []
+        in_header = True
+        
         for line in lines:
             line = line.strip()
             if line.startswith('#comment'):
                 continue
             
             if line.startswith('#global.'):
-                if flow_started:
-                    raise InvalidItemException("Global definition inside flow")
+                if not in_header:
+                    raise InvalidItemException("Global definition should be on the top of the file")
+                
                 key, value = line.split('#global.')[1].split('=')
                 key = key.strip()
                 value = convert_value(value)
@@ -205,12 +220,14 @@ class FlowStore:
 
             if line.startswith('#start'):
                 flow_started = True
+                in_header = False
                 continue
 
             if line.startswith('#end'):
                 if not flow_started:
                     raise InvalidItemException("#End outside a task")
                 self.parse_flow(flow_lines, flow_lazy)
+                in_header = False
                 flow_started = False
                 flow_lazy = False
                 flow_lines = []

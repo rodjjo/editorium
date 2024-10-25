@@ -1,4 +1,5 @@
 import os
+import random
 from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -110,37 +111,70 @@ class WorkflowTaskManager:
         )
         
         self.results[item.name] = task_result
+
+        if item.decision:
+            if type(task_result) is not dict:
+                raise ValueError(f'Decision Task {item.name} did not return a dictionary')
+            if 'default' not in task_result:
+                raise ValueError(f'Decision Task {item.name} did not return a default value')
+            default = task_result['default']
+            if type(default) is not list:
+                raise ValueError(f'Decision Task {item.name} default value is not a list')
+            for i, value in enumerate(default):
+                if type(value) is not str:
+                    raise ValueError(f'Decision Task {item.name} default value at index {i} is not a string')
+            for value in default:
+                if value.strip() != '':
+                    self.process_task(base_dir, flow_store.get_task(value.strip()), callback)
+                else:
+                    print(f'Empty task name in decision task {item.name}')
+
         
     def execute(self, contents: List[str], callback = None) -> dict:
         replace_seeds = True
         should_repeat = True
+        found_global_seed = False
         for line in contents:
             if line.startswith('#global.repeat='):
                 should_repeat = line.split('#global.repeat=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
                 break
+            if line.startswith('#global.seed='):
+                found_global_seed = True
+        if not found_global_seed:
+            contents = [f'#global.seed={random.randint(0, 1000000)}'] + contents
+
+        task_run_count = 0
         while True:
             self.results = {}
             # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
             dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
             dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
             os.makedirs(dirpath, exist_ok=True)
-            with open(os.path.join(dirpath, 'workflow.txt'), 'w') as f:
-                for line in contents:
-                    f.write(line + '\n')
+            
             flow_store.load(contents)
+            
             for item in flow_store.iterate():
                 if item.flow_lazy:
                     continue
                 self.process_task(dirpath, item, callback)
+                task_run_count += 1
             if not should_repeat:
                 break
+
             if replace_seeds:
                 replace_seeds = False
                 for i, l in enumerate(contents):
                     if l.startswith('#config.seed=') and not l.startswith('#config.seed=global://seed'):
-                        contents[i] = f'#config.seed=-1'
+                        contents[i] = f'#config.seed={random.randint(0, 1000000)}'
                     elif l.startswith('#global.seed='):
-                        contents[i] = f'#global.seed=-1'
+                        contents[i] = f'#global.seed={random.randint(0, 1000000)}'
+
+            if task_run_count == 0:
+                raise ValueError("No tasks were executed")
+
+            with open(os.path.join(dirpath, 'workflow.txt'), 'w') as f:
+                for line in contents:
+                    f.write(line + '\n')
         return { 
             "success": True 
         }
@@ -153,6 +187,7 @@ class WorkflowTaskManager:
                 "description": task.description
             })
         return registered_tasks
+
 
 task_manager = WorkflowTaskManager()
 
