@@ -10,8 +10,8 @@ class FluxPayloadSchema(Schema):
     guidance_scale = fields.Float(required=False)
     height = fields.Int(required=False)
     width = fields.Int(required=False)
-    num_inference_steps = fields.Int(required=False)
-    max_sequence_length = fields.Int(required=False)
+    num_inference_steps = fields.Int(required=False, load_default=4)
+    max_sequence_length = fields.Int(required=False, load_default=256)
     seed = fields.Int(required=False, load_default=-1)
     globals = fields.Dict(required=False, load_default={})
 

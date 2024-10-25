@@ -235,7 +235,19 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
 
         if len(box) == 4 and box_margin > 0:
             box = [box[0] - box_margin, box[1] - box_margin, box[2] + box_margin, box[3] + box_margin]
-            
+
+        if params.get('selection_type', 'detected') == 'detected-square':
+            width = box[2] - box[0]
+            height = box[3] - box[1]
+            if width > height:
+                box[1] = box[1] - (width - height) // 2
+                box[3] = box[1] + width
+            elif height > width:
+                box[0] = box[0] - (height - width) // 2
+                box[2] = box[0] + height
+        elif params.get('selection_type', 'detected') == 'entire-image':
+            box = [0, 0, image.size[0], image.size[1]]
+                
         filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
         mask.save(filepath)
         masks.append(mask)

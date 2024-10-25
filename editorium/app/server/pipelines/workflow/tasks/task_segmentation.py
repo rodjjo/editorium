@@ -1,7 +1,7 @@
 from .task import WorkflowTask
 from pipelines.segmentation.task_processor import process_workflow_task
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 
 
 class SegmentationPayloadSchema(Schema):
@@ -9,6 +9,7 @@ class SegmentationPayloadSchema(Schema):
     model_name_segmentation = fields.Str(required=False, load_default='facebook/sam-vit-base')
     model_name_detection = fields.Str(required=False, load_default='IDEA-Research/grounding-dino-tiny')
     margin = fields.Int(required=False, load_default=5)
+    selection_type = fields.Str(required=False, load_default='detected', validate=validate.OneOf(['detected', 'detected-square', 'entire-image']))
     globals = fields.Dict(required=False, load_default={})
 
 
