@@ -225,7 +225,9 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         
         labels = params['prompt'].lower().replace(',', '.')
         labels = [label.strip() for label in labels.split('.')]
-        
+        labels = [label for label in labels if label != '']
+        if len(labels) == 0:
+            raise Exception("No labels provided")
         mask, box = grounded_segmentation(
             image, 
             labels, 

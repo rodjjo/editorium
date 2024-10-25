@@ -13,18 +13,52 @@ from .docker_management import full_path
 def workflow_group():
     pass
 
+
+def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: str):
+    if include_dir == '':
+        path = full_path(path)
+        include_dir = os.path.dirname(path)
+    else:
+        path = full_path(os.path.join(include_dir, path))
+    if os.path.exists(path) is False:
+        raise Exception(f"File {path} not found")
+    if path in already_included:
+        raise Exception(f"File {path} already included")
+    already_included.add(path)
+    parsed_lines = []
+    with open(path, 'r') as f:
+        file_content = f.readlines()
+        if replace_input != '':
+            for index, line in enumerate(file_content):
+                if "task://<input>" in line:
+                    file_content[index] = line.replace("task://<input>", f'task://{replace_input}')
+                if "from://<input>" in line:
+                    file_content[index] = line.replace("from://<input>", f'from://{replace_input}')
+        for line in file_content:
+            line = line.strip()  # #include #input=bla #path=bla
+            if line.startswith("#comment"):
+                continue
+            if line.startswith("#include "):
+                line = line.replace("#include ", "").strip()
+                if line.startswith("#input="):
+                    line = line.replace("#input=", "").strip()
+                    if not " #path=" in line:
+                        raise Exception(f"Invalid input line {line}")
+                    left = line.split(" #path=", maxsplit=1)[0]
+                    right = line.split(" #path=", maxsplit=1)[1]
+                    parsed_lines += read_worflow_file(include_dir, right, already_included, left.strip())
+                else:
+                    parsed_lines += read_worflow_file(include_dir, line, already_included, '')
+            else:
+                parsed_lines.append(line)
+    return parsed_lines
+                
         
 @workflow_group.command(help='Processes a workflow file line by line and generate photo and videos following the instructions')
 @click.option('--path', type=str, required=True, help="The path to the workflow file")
 def run(path):
-    path = full_path(path)
-    if os.path.exists(path) is False:
-        print(f"File {path} not found")
-        return
-    with open(path, 'r') as f:
-        file_content = f.readlines()
     parameters = {
-        "workflow": [l.strip() for l in file_content]
+        "workflow": read_worflow_file('', path, set(), '')
     }
     payload = {
         "task_type": "workflow",

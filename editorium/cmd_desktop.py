@@ -77,7 +77,7 @@ def run(path):
             )
         print("Command executed successfully")
     except Exception as e:
-        print(f"Error executing command {str(e)}")
+        raise
 
 
 @desktop_group.command(
