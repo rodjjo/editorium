@@ -213,7 +213,7 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         raise Exception("Invalid input data expected list")
     
     box_margin = params.get('margin', 5)
-
+    debug_enabled = params.get('globals', {}).get('debug', False)
     masks = []
     boxes = []
     paths = []
@@ -249,9 +249,13 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
                 box[2] = box[0] + height
         elif params.get('selection_type', 'detected') == 'entire-image':
             box = [0, 0, image.size[0], image.size[1]]
-                
-        filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
-        mask.save(filepath)
+        
+        if debug_enabled:                
+            filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
+            mask.save(filepath)
+        else:
+            filepath = ''
+        
         masks.append(mask)
         boxes.append(box)
         paths.append(filepath)

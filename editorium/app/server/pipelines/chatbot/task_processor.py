@@ -30,7 +30,8 @@ def generate_text(base_dir: str,
                   top_k: int = 0,
                   repetition_penalty: float = 1,
                   response_after: str = '',
-                  callback: callable = None) -> dict:
+                  callback: callable = None,
+                  globals: dict = {}) -> dict:
     chatbot_models.load_models(repo_id=repo_id, model_name=model_name)
     template = template.replace('\\n', '\n')
     if not '{context}' in template or not '{input}' in template:
@@ -62,10 +63,14 @@ def generate_text(base_dir: str,
             v = v.split(response_after, maxsplit=1)
             response[i] = v[0] if len(v) < 2 else v[1]
         response = '\n'.join(response)
-
-    text_path = os.path.join(base_dir, f'{name}.txt')
-    with open(text_path, 'w') as f:
-        f.write(response)
+    
+    debug_enabled = globals.get('debug', False)
+    if debug_enabled:
+        text_path = os.path.join(base_dir, f'{name}.txt')
+        with open(text_path, 'w') as f:
+            f.write(response)
+    else:
+        text_path = ''
 
     return {
         "default": response,
@@ -93,6 +98,7 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
         top_k=config.get('top_k', 0),
         repetition_penalty=config.get('repetition_penalty', 1),
         response_after=config.get('response_after', ''),
-        callback=callback
+        callback=callback,
+        globals=config.get('globals', {})
     )
     

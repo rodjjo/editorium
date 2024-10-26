@@ -41,6 +41,8 @@ class MergeImageTask(WorkflowTask):
         if len(image_list) != len(images2merge) or len(image_list) != len(masks2merge) or len(image_list) != len(boxes2merge):
             raise ValueError("The number of images and boxes must be the same")
         
+        debug_enabled = config.get('globals', {}).get('debug', False)
+        
         filepaths = []
         for image_index, image in enumerate(image_list):
             image = image if type(image) is not str else Image.open(image)
@@ -59,9 +61,13 @@ class MergeImageTask(WorkflowTask):
             mask.putalpha(mask.split()[0])
             image.paste(merge, box, mask)
             image_list[image_index] = image
-            filepath = f"{base_dir}/{name}_merge_{image_index}.jpg"
-            image.save(filepath)
-            filepaths.append(filepath)
+
+            if debug_enabled:
+                filepath = f"{base_dir}/{name}_merge_{image_index}.jpg"
+                image.save(filepath)
+                filepaths.append(filepath)
+            else:
+                filepaths.append('')
             
         return TaskResult(image_list, filepath).to_dict()
 

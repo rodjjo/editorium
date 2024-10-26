@@ -57,11 +57,17 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         generator=generator,
     ).images
 
-    for i, img in enumerate(result):
-        filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}_{i}.jpg')
-        img.save(filepath)
+    debug_enabled = params.get('globals', {}).get('debug', False)
+    if debug_enabled:
+        paths = []
+        for i, img in enumerate(result):
+            filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}_{i}.jpg')
+            img.save(filepath)
+            paths.append(filepath)
+    else:
+        paths = [''] * len(result)
  
-    return TaskResult(result, filepath).to_dict()
+    return TaskResult(result, paths).to_dict()
 
     
 

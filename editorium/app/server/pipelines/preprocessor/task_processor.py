@@ -189,16 +189,25 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
     images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
     if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")
+    
     results = []
+    paths = []
+    
+    debug_enabled = config.get('globals', {}).get('debug', False)
+    
     for index, image in enumerate(images):
         if type(image) is str:
             image = Image.open(image)
         image = pre_process_image(config['control_type'], image)
         if not image:
             raise ValueError("The image pre-processing failed: Invalid control type")
-    
-        path2save = f'{base_dir}/{name}_{config["control_type"]}_{index}.png'
-        image.save(path2save)
         results.append(image)
+        if debug_enabled:
+            path2save = f'{base_dir}/{name}_{config["control_type"]}_{index}.png'
+            image.save(path2save)
+        else:
+            path2save = ''
+        paths.append(path2save)
+            
         
-    return TaskResult(image, path2save).to_dict()
+    return TaskResult(results, paths).to_dict()

@@ -1,10 +1,9 @@
 from typing import List
 
 import os
-import re
 import torch
 from tqdm import tqdm
-from PIL import Image
+from PIL import Image, ImageFilter
 import numpy as np
 import random
 
@@ -170,7 +169,8 @@ def run_pipeline(
         controlnets: list = [],
         adapter_scale: float = 0.6,
         adapter_images: list = [],
-        use_float16: bool = True):
+        use_float16: bool = True,
+    ):
 
     pipeline_type = "txt2img"
     if input_image is not None:
@@ -482,8 +482,28 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         register_free_crossattn_upblock2d(sd15_models.pipe, b1=1.2, b2=1.4, s1=0.9, s2=0.2)
         setattr(sd15_models.pipe, 'free_lunch_applied', True)
 
+    mask_dilate_size = params.get('mask_dilate_size', 0)
+    mask_blur_size = params.get('mask_blur_size', 0)
+    kernel_size_dilate = 3
+    kernel_size_blur = 3
+    if mask_dilate_size > 3:
+        kernel_size_dilate = 5
+    if mask_blur_size > 3:
+        kernel_size_blur = 5
+            
     results = []        
     for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
+        if mask is not None and mask_dilate_size > 0:
+            index = 0
+            while index < mask_dilate_size:
+                image = image.filter(ImageFilter.MaxFilter(kernel_size_dilate))
+                index += kernel_size_dilate
+        if mask is not None and mask_blur_size > 0:
+            index = 0
+            while index < mask_blur_size:
+                image = image.filter(ImageFilter.GaussianBlur(kernel_size_blur))
+                index += kernel_size_blur
+            
         cnet = []
         for c in controlnets:
             c = {**c}
@@ -531,12 +551,17 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
 
     if len(results) == 0:
         raise ValueError("No results generated for SD 1.5 task")
-    filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.jpg')
-    paths = []
-    for i, result in enumerate(results):
-        path2save = filepath.replace('.jpg', f'_{i}.jpg')
-        result.save(path2save)
-        paths.append(path2save)
+
+    debug_enabled = params.get('globals', {}).get('debug', False)
+    if debug_enabled:
+        filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.jpg')
+        paths = []
+        for i, result in enumerate(results):
+            path2save = filepath.replace('.jpg', f'_{i}.jpg')
+            result.save(path2save)
+            paths.append(path2save)
+    else:
+        paths = [''] * len(results)
  
     return TaskResult(results, paths).to_dict()
 

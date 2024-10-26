@@ -21,7 +21,8 @@ def generate_text(base_dir: str,
                   prompt: str,
                   system_prompt: str = '',
                   temperature: float = 0.7,
-                  callback: callable = None) -> dict:
+                  callback: callable = None,
+                  globals: dict = {}) -> dict:
     if not image:
         raise ValueError('Image is required')
     if type(image) is str:
@@ -45,16 +46,20 @@ def generate_text(base_dir: str,
                 temperature=temperature,
                 system_prompt=system_prompt
             )
-
-            text_path = os.path.join(base_dir, f'{name}_{i}.txt')
-            with open(text_path, 'w') as f:
-                f.write("# system_prompt: \n")
-                f.write(system_prompt)
-                f.write("\n\n# prompt: \n")
-                f.write(prompt)
-                f.write("\n\n# response: \n")
-                f.write(response)
-            paths.append(text_path)
+            
+            debug_enabled = globals.get('debug', False)
+            if debug_enabled:
+                text_path = os.path.join(base_dir, f'{name}_{i}.txt')
+                with open(text_path, 'w') as f:
+                    f.write("# system_prompt: \n")
+                    f.write(system_prompt)
+                    f.write("\n\n# prompt: \n")
+                    f.write(prompt)
+                    f.write("\n\n# response: \n")
+                    f.write(response)
+                paths.append(text_path)
+            else:
+                paths.append('')
             responses.append(response)
 
     return {
@@ -79,6 +84,7 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
         prompt=config['prompt'],
         system_prompt=config.get('system_prompt', ''),
         temperature=config.get('temperature', 0.7),
-        callback=callback
+        callback=callback,
+        globals=config.get('globals', {})
     )
     

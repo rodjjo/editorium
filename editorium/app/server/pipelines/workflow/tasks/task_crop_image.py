@@ -31,6 +31,9 @@ class CropImageTask(WorkflowTask):
 
         if len(image_list) != len(boxes):
             raise ValueError("The number of images and boxes must be the same")
+        
+        debug_enabled = config.get('globals', {}).get('debug', False)
+        
         paths = []
         for image_index, output in enumerate(image_list):
             box = boxes[image_index]
@@ -38,9 +41,13 @@ class CropImageTask(WorkflowTask):
                 continue
             image = output.crop(box)
             image_list[image_index] = image
-            image_path = f"{base_dir}/{name}_crop_{image_index}.jpg"
-            image.save(image_path)
-            paths.append(image_path)
+
+            if debug_enabled:
+                image_path = f"{base_dir}/{name}_crop_{image_index}.jpg"
+                image.save(image_path)
+                paths.append(image_path)
+            else:
+                paths.append('')
 
         return TaskResult(image_list, paths).to_dict()
 

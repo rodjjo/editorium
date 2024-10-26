@@ -21,6 +21,9 @@ class Sd15PayloadSchema(Schema):
     batch_size = fields.Int(required=False, load_default=1)
     inpaint_mode = fields.Str(required=False, load_default="original")
     ip_adapter_scale = fields.Float(required=False, load_default=0.6)
+    mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+
     globals = fields.Dict(required=False, load_default={})
 
 class Sd15Task(WorkflowTask):

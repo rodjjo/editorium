@@ -58,6 +58,7 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
         raise ValueError("It's required a image pre-process the image #config.input=value")
     results = []
     paths = []
+    debug_enabled = config.get('globals', {}).get('debug', False)
     with gfpgan_upscale(config['scale'], config['restore_background']) as restorer:
         for index, image in enumerate(images):
             if type(image) is str:
@@ -71,8 +72,13 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
                     weight=config['face_weight'],
             )
             restored_img = Image.fromarray(cv2.cvtColor(restored_img, cv2.COLOR_BGR2RGB))
-            path = os.path.join(base_dir, f"{name}_{index}.jpg")
-            restored_img.save(path)
+            
+            if debug_enabled:
+                path = os.path.join(base_dir, f"{name}_{index}.jpg")
+                restored_img.save(path)
+            else:
+                path = ''
+            
             results.append(restored_img)
             paths.append(path)
     

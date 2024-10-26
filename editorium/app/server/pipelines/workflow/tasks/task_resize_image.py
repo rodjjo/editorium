@@ -39,7 +39,8 @@ class ResizeImageTask(WorkflowTask):
             raise ValueError("It's required a image to resize #input=value")
         if type(image_list) is not list:
             image_list = [image_list]
-            
+        
+        debug_enabled = params.get('globals', {}).get('debug', False)
         file_paths = []
         for image_index, image in enumerate(image_list):
             if dimension:
@@ -60,9 +61,12 @@ class ResizeImageTask(WorkflowTask):
                 image = image.resize((target_width, height))
 
             image_list[image_index] = image
-            filepath = f"{base_dir}/{name}_resize_{image_index}.jpg"
-            image.save(filepath)
-            file_paths.append(filepath)
+            if debug_enabled:
+                filepath = f"{base_dir}/{name}_resize_{image_index}.jpg"
+                image.save(filepath)
+                file_paths.append(filepath)
+            else:
+                file_paths.append('')
             
         return TaskResult(image_list, file_paths).to_dict()
 
