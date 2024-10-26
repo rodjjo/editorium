@@ -14,7 +14,7 @@ def workflow_group():
     pass
 
 
-def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: dict):
+def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: dict, sufix: str):
     if include_dir == '':
         path = full_path(path)
         include_dir = os.path.dirname(path)
@@ -26,17 +26,31 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         raise Exception(f"File {path} already included")
     already_included.add(path)
     parsed_lines = []
-    capture_inputs1 = re.compile('#input=([^ $]+)[ $]*')
-    capture_inputs2 = re.compile('#input\\.([^=]+)=([^ $]+)[ $]*')
-    capture_path = re.compile('#path=([^$]+)$')
+    capture_inputs1 = re.compile('#input=([^#]+)')
+    capture_inputs2 = re.compile('#input\\.([^=]+)=([^#]+)')
+    capture_path = re.compile('.*#path=([^$#]+).*')
+    capture_sufix = re.compile('.*#suffix=([0-9]+).*')
+    
     with open(path, 'r') as f:
         file_content = f.readlines()
+        
+        if sufix:
+            for index, line in enumerate(file_content):
+                if line.startswith("#name="):
+                    file_content[index] = f'{line.strip()}-{sufix}'
+                    continue
+                if 'from://<' in line or 'task://<' in line:
+                    continue
+                if 'from://' in line or 'task://' in line:
+                    file_content[index] = f'{line.strip()}-{sufix}'
+
         if replace_input:
+            print("Replacing inputs of file ", path, " with ", replace_input)
             for key in replace_input:
                 for index, line in enumerate(file_content):
                     if f"task://<{key}>" in line:
                         file_content[index] = line.replace(f"task://<{key}>", f'task://{replace_input[key]}')
-                    if f"from://<{key}>" in line:
+                    elif f"from://<{key}>" in line:
                         file_content[index] = line.replace(f"from://<{key}>", f'from://{replace_input[key]}')
 
         for line in file_content:
@@ -50,14 +64,20 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
                 if inputs1:
                     parsed_inputs["input"] = inputs1.group(1).strip()
                 if inputs2:
-                    for key, value in inputs2:
-                        parsed_inputs[f'input.{key}'] = value
-                parsed_path = re.search(capture_path, line)
-                if parsed_path:
-                    path = parsed_path.group(1).strip()
-                else:
+                    for input in inputs2:
+                        parsed_inputs[f'input.{input[0].strip()}'] = input[1].strip()
+                print(parsed_inputs)
+                parsed_path = re.match(capture_path, line)
+                parsed_sufix = re.match(capture_sufix, line)
+                if not parsed_sufix:
+                    raise Exception(f"Invalid include line: {line} it does not have #suffix=value")
+                if not parsed_path:
                     raise Exception(f"Invalid include line: {line} it does not have #path=value")
-                parsed_lines += read_worflow_file(include_dir, path, already_included, parsed_inputs)
+                
+                path = parsed_path.group(1).strip()
+                sufix = parsed_sufix.group(1).strip()
+                
+                parsed_lines += read_worflow_file(include_dir, path, already_included, parsed_inputs, sufix)
             else:
                 parsed_lines.append(line)
     return parsed_lines
@@ -67,7 +87,7 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
 @click.option('--path', type=str, required=True, help="The path to the workflow file")
 def run(path):
     parameters = {
-        "workflow": read_worflow_file('', path, set(), {})
+        "workflow": read_worflow_file('', path, set(), {}, '')
     }
     payload = {
         "task_type": "workflow",

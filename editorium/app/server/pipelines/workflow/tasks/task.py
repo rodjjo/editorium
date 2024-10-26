@@ -132,6 +132,11 @@ class WorkflowTaskManager:
                 else:
                     print(f'Empty task name in decision task {item.name}')
 
+    def save_workflow(self, contents: List[str], filepath: str):
+        with open(filepath, 'w') as f:
+            for line in contents:
+                f.write(line + '\n')
+
         
     def execute(self, contents: List[str], callback = None) -> dict:
         should_repeat = True
@@ -147,34 +152,36 @@ class WorkflowTaskManager:
 
         task_run_count = 0
         while True:
-            self.results = {}
-            # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
-            dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
-            dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
-            os.makedirs(dirpath, exist_ok=True)
-            
-            flow_store.load(contents)
-            
-            for item in flow_store.iterate():
-                if item.flow_lazy:
-                    continue
-                self.process_task(dirpath, item, callback)
-                task_run_count += 1
-            if not should_repeat:
-                break
+            try:
+                self.results = {}
+                # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
+                dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
+                dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
+                os.makedirs(dirpath, exist_ok=True)
+                
+                flow_store.load(contents)
+                
+                for item in flow_store.iterate():
+                    if item.flow_lazy:
+                        continue
+                    self.process_task(dirpath, item, callback)
+                    task_run_count += 1
+                if not should_repeat:
+                    break
 
-            for i, l in enumerate(contents):
-                if l.startswith('#config.seed=') and not l.startswith('#config.seed=global://seed'):
-                    contents[i] = f'#config.seed={random.randint(0, 1000000)}'
-                elif l.startswith('#global.seed='):
-                    contents[i] = f'#global.seed={random.randint(0, 1000000)}'
+                for i, l in enumerate(contents):
+                    if l.startswith('#config.seed=') and not l.startswith('#config.seed=global://seed'):
+                        contents[i] = f'#config.seed={random.randint(0, 1000000)}'
+                    elif l.startswith('#global.seed='):
+                        contents[i] = f'#global.seed={random.randint(0, 1000000)}'
 
-            if task_run_count == 0:
-                raise ValueError("No tasks were executed")
-
-            with open(os.path.join(dirpath, 'workflow.txt'), 'w') as f:
-                for line in contents:
-                    f.write(line + '\n')
+                if task_run_count == 0:
+                    raise ValueError("No tasks were executed")
+                
+                self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
+            except:
+                self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
+                raise 
         return { 
             "success": True 
         }

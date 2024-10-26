@@ -37,12 +37,12 @@ class DecisionTextTask(WorkflowTask):
         if not prompt and not negative_prompt:
             raise ValueError("It's required a prompt or negative prompt to make a decision")
         if config['contains'].lower() in input_text.lower():
-            print("Decision of Returning positive prompt")
+            print("Decision of returning tasks from positive prompt")
             return {
                 "default": prompt.split("\n")
             }
         else:
-            print(f"Decision of Returning negative prompt")
+            print(f"Decision of returning tasks from negative prompt")
             return {
                 "default": negative_prompt.split("\n")
             }

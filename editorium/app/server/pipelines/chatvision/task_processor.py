@@ -48,6 +48,11 @@ def generate_text(base_dir: str,
 
             text_path = os.path.join(base_dir, f'{name}_{i}.txt')
             with open(text_path, 'w') as f:
+                f.write("# system_prompt: \n")
+                f.write(system_prompt)
+                f.write("\n\n# prompt: \n")
+                f.write(prompt)
+                f.write("\n\n# response: \n")
                 f.write(response)
             paths.append(text_path)
             responses.append(response)

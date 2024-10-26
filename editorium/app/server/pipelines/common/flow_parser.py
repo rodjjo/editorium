@@ -127,8 +127,14 @@ class FlowItem:
                 value = convert_value(value.strip())
                 if type(value) is str and value.startswith("global://"):
                     global_key = value.split("global://")[1]
-                    value = globals.get(global_key, '')
-                if key == 'seed' and value == -1:
+                    if ':' in global_key:
+                        global_key, default = global_key.split(':', maxsplit=1)
+                        value = globals.get(global_key, default)
+                    else:
+                        value = globals.get(global_key, None)
+                        if value is None:
+                            raise InvalidItemException(f"Global not found {global_key} on task name={name} task_type={task_type} config key={key}")
+                elif key == 'seed' and value == -1:
                     value = random.randint(0, 1000000)
                 config[key] = value
                 continue
