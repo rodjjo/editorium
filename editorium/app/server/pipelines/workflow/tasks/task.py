@@ -131,7 +131,6 @@ class WorkflowTaskManager:
 
         
     def execute(self, contents: List[str], callback = None) -> dict:
-        replace_seeds = True
         should_repeat = True
         found_global_seed = False
         for line in contents:
@@ -161,13 +160,11 @@ class WorkflowTaskManager:
             if not should_repeat:
                 break
 
-            if replace_seeds:
-                replace_seeds = False
-                for i, l in enumerate(contents):
-                    if l.startswith('#config.seed=') and not l.startswith('#config.seed=global://seed'):
-                        contents[i] = f'#config.seed={random.randint(0, 1000000)}'
-                    elif l.startswith('#global.seed='):
-                        contents[i] = f'#global.seed={random.randint(0, 1000000)}'
+            for i, l in enumerate(contents):
+                if l.startswith('#config.seed=') and not l.startswith('#config.seed=global://seed'):
+                    contents[i] = f'#config.seed={random.randint(0, 1000000)}'
+                elif l.startswith('#global.seed='):
+                    contents[i] = f'#global.seed={random.randint(0, 1000000)}'
 
             if task_run_count == 0:
                 raise ValueError("No tasks were executed")

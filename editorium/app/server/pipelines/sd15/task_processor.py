@@ -521,7 +521,11 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
                 mask = mask.convert("RGBA")
                 mask.putalpha(mask.split()[0])
                 result = result.resize(image.size)
-                current_results[i] = Image.composite(result, image, mask)
+                try:
+                    current_results[i] = Image.composite(result, image, mask)
+                except:
+                    print(f"\n\n!!!\n\n {input} - image: {image} - mask: {mask} - result: {result}")
+                    raise
                 
         results.extend(current_results)
 
