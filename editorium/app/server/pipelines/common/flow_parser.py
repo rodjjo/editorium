@@ -157,6 +157,8 @@ class FlowStore:
         self.globals = {}
         
     def add_flow(self, flow: FlowItem):
+        if flow.name in self.flows:
+            raise InvalidItemException(f"Repeated name detected {flow.name}")
         self.flows[flow.name] = flow
         
     def parse_flow(self, lines: List[str], flow_lazy: bool):

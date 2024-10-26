@@ -124,8 +124,11 @@ class WorkflowTaskManager:
                 if type(value) is not str:
                     raise ValueError(f'Decision Task {item.name} default value at index {i} is not a string')
             for value in default:
-                if value.strip() != '':
-                    self.process_task(base_dir, flow_store.get_task(value.strip()), callback)
+                value = value.strip()
+                if value != '':
+                    if value == item.name:
+                        raise ValueError(f'Decision Task {item.name} cannot reference itself')
+                    self.process_task(base_dir, flow_store.get_task(value), callback)
                 else:
                     print(f'Empty task name in decision task {item.name}')
 
