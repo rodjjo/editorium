@@ -1,3 +1,4 @@
+import re
 from .task import WorkflowTask
 from marshmallow import Schema, fields
 
@@ -8,6 +9,14 @@ class DecisionTextSchema(Schema):
     contains = fields.Str(required=True)
     globals = fields.Dict(required=False, load_default={})
 
+
+def check_text_in_text(search, text):
+    '''
+    use a regular expression to search for the text in the text
+    the seach is case insensitive and need to check if is a entire word
+    '''
+    expression = re.compile(rf'([^A-Z0-9]+|^){search}([^A-Z0-9]+|$)', re.IGNORECASE)
+    return expression.search(text) is not None
 
 class DecisionTextTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
@@ -36,7 +45,7 @@ class DecisionTextTask(WorkflowTask):
         negative_prompt = config['negative_prompt'].strip()
         if not prompt and not negative_prompt:
             raise ValueError("It's required a prompt or negative prompt to make a decision")
-        if config['contains'].lower() in input_text.lower():
+        if check_text_in_text(config['contains'], input_text.lower()):
             print("Decision of returning tasks from positive prompt")
             return {
                 "default": prompt.split("\n")

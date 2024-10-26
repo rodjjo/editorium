@@ -22,9 +22,10 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         path = full_path(os.path.join(include_dir, path))
     if os.path.exists(path) is False:
         raise Exception(f"File {path} not found")
-    if path in already_included:
+    included_track = f'{path}-{sufix}'
+    if included_track in already_included:
         raise Exception(f"File {path} already included")
-    already_included.add(path)
+    already_included.add(included_track)
     parsed_lines = []
     capture_inputs1 = re.compile('#input=([^#]+)')
     capture_inputs2 = re.compile('#input\\.([^=]+)=([^#]+)')
