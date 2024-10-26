@@ -69,7 +69,7 @@ class MergeImageTask(WorkflowTask):
             else:
                 filepaths.append('')
             
-        return TaskResult(image_list, filepath).to_dict()
+        return TaskResult(image_list, filepaths).to_dict()
 
 
 def register():

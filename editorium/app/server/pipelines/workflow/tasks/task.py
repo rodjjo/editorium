@@ -141,12 +141,15 @@ class WorkflowTaskManager:
     def execute(self, contents: List[str], callback = None) -> dict:
         should_repeat = True
         found_global_seed = False
+        found_global_debug = False
         for line in contents:
             if line.startswith('#global.repeat='):
                 should_repeat = line.split('#global.repeat=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
                 break
             if line.startswith('#global.seed='):
                 found_global_seed = True
+            if line.startswith('#global.debug='):
+                found_global_debug = line.split('#global.debug=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
         if not found_global_seed:
             contents = [f'#global.seed={random.randint(0, 1000000)}'] + contents
 
@@ -177,8 +180,9 @@ class WorkflowTaskManager:
 
                 if task_run_count == 0:
                     raise ValueError("No tasks were executed")
-                
-                self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
+
+                if found_global_debug:
+                    self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
             except:
                 self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
                 raise 
