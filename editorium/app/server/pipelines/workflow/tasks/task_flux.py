@@ -13,6 +13,9 @@ class FluxPayloadSchema(Schema):
     num_inference_steps = fields.Int(required=False, load_default=4)
     max_sequence_length = fields.Int(required=False, load_default=256)
     seed = fields.Int(required=False, load_default=-1)
+    inpaint_mode = fields.Str(required=False, load_default="original")
+    mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
     globals = fields.Dict(required=False, load_default={})
 
 class FluxTask(WorkflowTask):

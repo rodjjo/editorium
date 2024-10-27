@@ -5,6 +5,8 @@ import torch
 import random
 from tqdm import tqdm
 
+from PIL import Image, ImageFilter
+
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
 from pipelines.common.task_result import TaskResult
@@ -39,15 +41,44 @@ class TqdmUpTo(tqdm):
 
 
 def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
-    flux_models.load_models(model_name)
+    inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
+    inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
+    strength = params.get('strength', 0.75)
+    if inpaint_mask is not None and inpaint_image is None:
+        raise ValueError("It's required a image to inpaint")
+    
+    if inpaint_mask is not None:
+        mode = 'inpaint'
+    elif inpaint_image is not None:
+        mode = 'img2img'
+    else:
+        mode = 'txt2img'
+        
+    inpaint_image = inpaint_image or []
+    inpaint_mask = inpaint_mask or []
+    if type(inpaint_image) is not list:
+        inpaint_image = [inpaint_image]
+    
+    if type(inpaint_mask) is not list:
+        inpaint_mask = [inpaint_mask]
+        
+    if len(inpaint_mask) > 0 and len(inpaint_image) != len(inpaint_mask):
+        raise ValueError("Number of inpaint images and masks must be the same")
+    
+    if len(inpaint_image) == 0:
+        inpaint_image = [None]
+        inpaint_mask = [None]
+    elif not inpaint_mask:
+        inpaint_mask = [None] * len(inpaint_image)
+
+    flux_models.load_models(model_name, mode)
     
     seed = params.get('seed', -1)
     if seed == -1:
         seed = random.randint(0, 1000000)
         
     generator = torch.Generator(device='cuda').manual_seed(seed)
-        
-    result = flux_models.pipe(
+    additional_args = dict(
         prompt=params['prompt'],
         guidance_scale=params.get('guidance_scale', 0.0),
         height=params.get('height', 768),
@@ -55,7 +86,51 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         num_inference_steps=params.get('num_inference_steps', 4),
         max_sequence_length=params.get('max_sequence_length', 256),
         generator=generator,
-    ).images
+    )
+    if mode == 'txt2img':
+        result = flux_models.pipe(
+           **additional_args
+        ).images
+    elif mode == 'img2img':
+        additional_args = {
+            **additional_args,
+            'image': inpaint_image,
+            'strength': strength,
+        }
+        result = flux_models.pipe(
+           **additional_args
+        ).images
+    else: # mode == 'inpaint'
+        mask_dilate_size = params.get('mask_dilate_size', 0)
+        mask_blur_size = params.get('mask_blur_size', 0)
+        kernel_size_dilate = 3
+        kernel_size_blur = 3
+        if mask_dilate_size > 3:
+            kernel_size_dilate = 5
+        if mask_blur_size > 3:
+            kernel_size_blur = 5
+       
+        for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
+            if mask is not None and mask_dilate_size > 0:
+                index = 0
+                while index < mask_dilate_size:
+                    image = image.filter(ImageFilter.MaxFilter(kernel_size_dilate))
+                    index += kernel_size_dilate
+            if mask is not None and mask_blur_size > 0:
+                index = 0
+                while index < mask_blur_size:
+                    image = image.filter(ImageFilter.GaussianBlur(kernel_size_blur))
+                    index += kernel_size_blur
+
+        additional_args = {
+            **additional_args,
+            'image': image,
+            'mask_image': mask,
+            'strength': strength,
+        }
+        result = flux_models.pipe(
+           **additional_args
+        ).images
 
     debug_enabled = params.get('globals', {}).get('debug', False)
     if debug_enabled:

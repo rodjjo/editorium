@@ -30,7 +30,7 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
     capture_inputs1 = re.compile('#input=([^#]+)')
     capture_inputs2 = re.compile('#input\\.([^=]+)=([^#]+)')
     capture_path = re.compile('.*#path=([^$#]+).*')
-    capture_sufix = re.compile('.*#suffix=([0-9]+).*')
+    capture_sufix = re.compile('.*#suffix=([0-9a-zA-Z_\-]+).*')
     
     with open(path, 'r') as f:
         file_content = f.readlines()
