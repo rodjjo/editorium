@@ -43,6 +43,7 @@ class TqdmUpTo(tqdm):
 def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
     inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
+    control_image = input.get('control_image', {}).get('output', None) or input.get('control_image', {}).get('result', None)
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:
         raise ValueError("It's required a image to inpaint")
@@ -70,8 +71,24 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         inpaint_mask = [None]
     elif not inpaint_mask:
         inpaint_mask = [None] * len(inpaint_image)
+        
+    if control_image is not None:
+        controlnet_type = params.get('controlnet_type', 'pose')
+    else:
+        controlnet_type = ''
 
-    flux_models.load_models(model_name, mode)
+    flux_models.load_models(model_name, mode, controlnet_type)
+    
+    if control_image is not None:
+        control_args = dict(
+            control_image=control_image,
+            control_mode=flux_models.control_mode,
+            # control_guidance_start=params.get('control_guidance_start', 0.2),
+            # control_guidance_end=params.get('control_guidance_end', 0.8),
+            controlnet_conditioning_scale=params.get('controlnet_conditioning_scale', 1.0),
+        )
+    else:
+        control_args = dict()
     
     seed = params.get('seed', -1)
     if seed == -1:
@@ -86,6 +103,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         num_inference_steps=params.get('num_inference_steps', 4),
         max_sequence_length=params.get('max_sequence_length', 256),
         generator=generator,
+        **control_args,
     )
     if mode == 'txt2img':
         result = flux_models.pipe(

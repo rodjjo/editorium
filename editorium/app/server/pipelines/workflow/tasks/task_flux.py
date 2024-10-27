@@ -1,7 +1,7 @@
 from .task import WorkflowTask
 from pipelines.flux.task_processor import process_workflow_task
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 
 
 class FluxPayloadSchema(Schema):
@@ -16,6 +16,10 @@ class FluxPayloadSchema(Schema):
     inpaint_mode = fields.Str(required=False, load_default="original")
     mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
     mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    # control_guidance_start = fields.Float(required=False, load_default=0.2)
+    # control_guidance_end = fields.Float(required=False, load_default=0.8)
+    controlnet_type = fields.Str(required=False, load_default="pose", validate=validate.OneOf(["pose", "canny", "depth"]))
+    controlnet_conditioning_scale = fields.Float(required=False, load_default=1.0)
     globals = fields.Dict(required=False, load_default={})
 
 class FluxTask(WorkflowTask):

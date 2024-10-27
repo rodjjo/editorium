@@ -1,4 +1,6 @@
 import random
+import os
+
 from .task import WorkflowTask
 from PIL import Image, ImageFilter, ImageOps
 
@@ -30,6 +32,9 @@ class OpenImagesTask(WorkflowTask):
         randomize = params.get('randomize', False)
         paths = params['prompt'].split('\n')
         paths = [p.strip() for p in paths if p.strip() != '']
+        for p in paths:
+            if not os.path.exists(p):
+                raise ValueError(f"File {p} does not exists")
         if randomize:
             random_index = random.randint(0, len(paths) - 1)
             paths = [paths[random_index]]

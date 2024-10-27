@@ -1,0 +1,2 @@
+[ ] - Include lora for flux
+[ ] - Cache chatbot result for the same prompt
