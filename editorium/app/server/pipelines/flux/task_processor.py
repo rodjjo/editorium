@@ -100,7 +100,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
     generator = torch.Generator(device='cuda').manual_seed(seed)
     additional_args = dict(
         prompt=params['prompt'],
-        guidance_scale=params.get('guidance_scale', 0.0),
+        guidance_scale=params.get('guidance_scale', 3.5),
         height=params.get('height', 768),
         width=params.get('width', 1360),
         num_inference_steps=params.get('num_inference_steps', 4),
