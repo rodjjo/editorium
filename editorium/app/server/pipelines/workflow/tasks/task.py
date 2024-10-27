@@ -78,7 +78,7 @@ class WorkflowTaskManager:
                     resolved = self.results[task_name]
                 else:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
-                    self.process_task(base_dir, flow_store.get_task(task_name), callback)
+                    self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
                     resolved = self.results[task_name]
             elif value:
                 print(f'Using literal value {value} for task {item.name}')

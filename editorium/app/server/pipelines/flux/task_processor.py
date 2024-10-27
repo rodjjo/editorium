@@ -76,8 +76,11 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         controlnet_type = params.get('controlnet_type', 'pose')
     else:
         controlnet_type = ''
+        
+    lora_repo_id = params.get('lora_repo_id', '')
+    lora_scale = params.get('lora_scale', 1.0)
 
-    flux_models.load_models(model_name, mode, controlnet_type)
+    flux_models.load_models(model_name, mode, controlnet_type, lora_repo_id, lora_scale)
     
     if control_image is not None:
         control_args = dict(

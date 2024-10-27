@@ -536,6 +536,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             adapter_scale=params.get('ip_adapter_scale', 0.6),
             adapter_images=adapter_images
         )
+
         if mask:
             for i, result in enumerate(current_results):
                 mask = mask.convert("RGBA")

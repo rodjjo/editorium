@@ -17,22 +17,28 @@ class FluxModels(ManagedModel):
         self.model_name = None
         self.controlnet_type = None
         self.control_mode = 0
+        self.lora_repo_id = ""
+        self.lora_scale = 1.0
         
     def release_model(self):
         self.pipe = None
         self.pipeline_type = None
         self.controlnet_type = None
         self.control_mode = 0
+        self.lora_repo_id = ""
+        self.lora_scale = 1.0
         gc.collect()
         torch.cuda.empty_cache()
         
-    def load_models(self, model_name, pipeline_type : str, controlnet_type: str):
+    def load_models(self, model_name, pipeline_type : str, controlnet_type: str, lora_repo_id: str, lora_scale: float):
         self.release_other_models()
         has_changes = any([
             self.pipe is None,
             self.pipeline_type != pipeline_type,
             self.controlnet_type != controlnet_type,
-            self.model_name != model_name
+            self.model_name != model_name,
+            self.lora_repo_id != lora_repo_id,
+            self.lora_scale != lora_scale,
         ])
         if not has_changes:
             return
@@ -40,6 +46,8 @@ class FluxModels(ManagedModel):
         self.pipeline_type = pipeline_type
         self.controlnet_type = controlnet_type
         self.model_name = model_name
+        self.lora_repo_id = lora_repo_id
+        self.lora_scale = lora_scale
         if controlnet_type:
             # https://huggingface.co/InstantX/FLUX.1-dev-Controlnet-Union
             if controlnet_type == "pose":
@@ -64,6 +72,8 @@ class FluxModels(ManagedModel):
                 self.pipe = FluxInpaintPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
             else:
                 self.pipe = FluxPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+        self.pipe.load_lora_weights(self.lora_repo_id)
+        self.pipe.fuse_lora(lora_scale=self.lora_scale)
         self.pipe.vae.enable_slicing()
         self.pipe.vae.enable_tiling()
         self.pipe.enable_sequential_cpu_offload()
