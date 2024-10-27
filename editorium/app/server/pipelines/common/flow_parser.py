@@ -13,7 +13,7 @@ class InvalidItemException(Exception):
 
 CONFIG_VALIDATOR = lambda task_type, config: True
 
-def convert_value(value: str):
+def parse_task_value(value: str):
     value = value.strip()
     try:
         return int(value)
@@ -124,7 +124,7 @@ class FlowItem:
             if line.startswith("#config."):
                 key, value = line.split("#config.")[1].split("=")
                 key = key.strip()
-                value = convert_value(value.strip())
+                value = parse_task_value(value.strip())
                 if type(value) is str and value.startswith("global://"):
                     global_key = value.split("global://")[1]
                     if ':' in global_key:
@@ -220,7 +220,7 @@ class FlowStore:
                 
                 key, value = line.split('#global.')[1].split('=')
                 key = key.strip()
-                value = convert_value(value)
+                value = parse_task_value(value)
                 if key == 'seed' and value == -1:
                     value = random.randint(0, 1000000)
                 self.globals[key] = value
@@ -270,4 +270,4 @@ def register_validator(func: callable):
 
 flow_store = FlowStore()
 
-__all__ = ["flow_store", "FlowItem", "register_validator", "InvalidItemException", "IgnoredItemException"]
+__all__ = ["flow_store", "FlowItem", "register_validator", "InvalidItemException", "IgnoredItemException", 'parse_task_value']

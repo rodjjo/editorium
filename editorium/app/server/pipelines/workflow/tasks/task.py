@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from typing import List
 from copy import deepcopy
-from pipelines.common.flow_parser import register_validator, flow_store, FlowItem
+from pipelines.common.flow_parser import register_validator, flow_store, FlowItem, parse_task_value
 
 BASE_DIR = '/app/output_dir'
 
@@ -57,13 +57,18 @@ class WorkflowTaskManager:
             raise ValueError(f'Task {task_type} not found')
         return self.tasks[task_type].validate_config(config)
     
-    def process_task(self, base_dir, item: FlowItem, callback: callable):
+    def process_task(self, base_dir, item: FlowItem, callback: callable, task_stack: set):
         if item.task_type not in self.tasks:
             raise ValueError(f'Task {item.task_type} is not registered')
 
         if item.name in self.results:
             return self.results[item.name]
         
+        if item.name in task_stack:
+            raise ValueError(f'Circular dependency detected in task {item.name}')
+      
+        task_stack.add(item.name)
+
         resolved_inputs = {}
         for input, value in item.input.items():
             if value.startswith('task://'):
@@ -89,16 +94,46 @@ class WorkflowTaskManager:
             prompt = item.config.get('prompt', '')
             task_name = prompt.split('from://')[1]
             if task_name not in self.results:
-                self.process_task(base_dir, flow_store.get_task(task_name), callback)
+                self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
             item.config['prompt'] = self.results[task_name].get('default', '')
 
         if item.config.get('negative_prompt', '').startswith('from://'):
             negative_prompt = item.config.get('negative_prompt', '')
             task_name = negative_prompt.split('from://')[1]
             if task_name not in self.results:
-                self.process_task(base_dir, flow_store.get_task(task_name), callback)
+                self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
             item.config['negative_prompt'] = self.results[task_name].get('default', '')
-        
+            
+        for key, value in item.config.items():
+            if key in ['prompt', 'negative_prompt', 'globals']:
+                while '<insert_from:' in value:
+                    start = value.find('<insert_from:')
+                    end = value.find('>', start)
+                    if end == -1:
+                        raise ValueError(f'Invalid insert_from tag in task {item.name}')
+                    task_name = value[start + 13:end]
+                    if task_name not in self.results:
+                        self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                    task_value = self.results[task_name].get('default', '') or self.results[task_name].get('result', '')
+                    if type(task_value) is list:
+                        task_value = task_value[0]
+                    if type(task_value) is not str:
+                        raise ValueError(f'Task {task_name} did not return a string')
+                    value = value[:start] + task_value + value[end + 1:]
+                item.config[key] = value
+                continue
+
+            if type(value) is str and value.startswith('from://'):
+                task_name = value.split('from://')[1]
+                if task_name not in self.results:
+                    self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                task_value = self.results[task_name].get('default', '') or self.results[task_name].get('result', '')
+                if type(task_value) is list:
+                    task_value = task_value[0]
+                if type(task_value) is not str:
+                    raise ValueError(f'Task {task_name} did not return a string')
+                item.config[key] = parse_task_value(task_value)
+
         task_result = self.tasks[item.task_type].process_task(
             base_dir,
             item.name,
@@ -128,7 +163,7 @@ class WorkflowTaskManager:
                 if value != '':
                     if value == item.name:
                         raise ValueError(f'Decision Task {item.name} cannot reference itself')
-                    self.process_task(base_dir, flow_store.get_task(value), callback)
+                    self.process_task(base_dir, flow_store.get_task(value), callback, task_stack)
                 else:
                     print(f'Empty task name in decision task {item.name}')
 
@@ -167,7 +202,7 @@ class WorkflowTaskManager:
                 for item in flow_store.iterate():
                     if item.flow_lazy:
                         continue
-                    self.process_task(dirpath, item, callback)
+                    self.process_task(dirpath, item, callback, set())
                     task_run_count += 1
                 if not should_repeat:
                     break
