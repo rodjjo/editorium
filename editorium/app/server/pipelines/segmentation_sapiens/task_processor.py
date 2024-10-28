@@ -21,30 +21,56 @@ def pil_to_cv2(image: Image) -> np.array:
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
 
-def pre_process_images(image_list, shape=None, mean=None, std=None):
-        image_list = [pil_to_cv2(i) for i in image_list]
-        if shape:
-            assert len(shape) == 2
-        if mean or std:
-            assert len(mean) == 3
-            assert len(std) == 3
-        shape = shape
-        mean = torch.tensor(mean) if mean else None
-        std = torch.tensor(std) if std else None
+def pre_process_images(image_list, shape, mean, std):
+    image_list = image_list[:]
+    max_width = shape[0]
+    max_height = shape[1]
+    scales = []
+    for index, img in enumerate(image_list):
+        orig_width = img.size[0]
+        orig_height = img.size[1]
+        new_width = orig_width
+        new_height = orig_height
+        scale = 1.0
+        if new_width > max_width:
+            scale = max_width / new_width
+        if new_height * scale > max_height:
+            scale = scale * ((max_height * scale) / new_height)
+        if new_width * scale > new_width:
+            scale = scale * ((max_width * scale) / new_width)
+        scales.append(scale)
+        new_width = int(new_width * scale)
+        new_height = int(new_height * scale)
+        image = img.resize((new_width, new_height))
+        img = Image.new('RGB', (max_width, max_height), (0, 0, 0))
+        img.paste(image, (0, 0))
+        image_list[index] = img
+            
+            
         
-        for index, img in enumerate(image_list):        
-            if shape:
-                img = cv2.resize(img, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)    
-            img = img.transpose(2, 0, 1)
-            img = torch.from_numpy(img)
-            img = img[[2, 1, 0], ...].float()
-            if mean is not None and std is not None:
-                mean=mean.view(-1, 1, 1)
-                std=std.view(-1, 1, 1)
-                img = (img - mean) / std
-            image_list[index] = img
+    image_list = [pil_to_cv2(i) for i in image_list]
+    if shape:
+        assert len(shape) == 2
+    if mean or std:
+        assert len(mean) == 3
+        assert len(std) == 3
+    shape = shape
+    mean = torch.tensor(mean) if mean else None
+    std = torch.tensor(std) if std else None
+    
+    for index, img in enumerate(image_list):        
+        if shape:
+            img = cv2.resize(img, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)    
+        img = img.transpose(2, 0, 1)
+        img = torch.from_numpy(img)
+        img = img[[2, 1, 0], ...].float()
+        if mean is not None and std is not None:
+            mean=mean.view(-1, 1, 1)
+            std=std.view(-1, 1, 1)
+            img = (img - mean) / std
+        image_list[index] = img
 
-        return image_list
+    return image_list, scales
 
 def set_title(title):
     global CURRENT_TITLE
@@ -59,8 +85,11 @@ def call_callback(title):
 
 
 def create_mask(
-    image_size, result, classes: Tuple[int], threshold: float=0.3
+    image_size, result, classes: Tuple[int], threshold: float=0.3, scale: float=1.0, original_size = (1024, 768)
 ):
+    if scale != 0.0:
+        scale = 1.0 / scale
+
     seg_logits = F.interpolate(
         result.unsqueeze(0), size=image_size, mode="bilinear"
     ).squeeze(0)
@@ -87,8 +116,10 @@ def create_mask(
 
     mask = mask.astype(np.uint8) * 255
     mask = Image.fromarray(mask)
-    
-    box = [coord1[1], coord1[0], coord2[1], coord2[0]]
+    mask = mask.resize((int(image_size[0] * scale), int(image_size[1] * scale)))
+    mask = mask.crop((0, 0, original_size[0], original_size[1]))
+    box = [int(coord1[1] * scale), int(coord1[0] * scale), int(coord2[1] * scale), int(coord2[0] * scale)]
+
     return mask, box
     
 
@@ -117,8 +148,9 @@ def generate_segmentation(task_name: str, base_dir: str, input: dict, params: di
     
     images = [Image.open(img) if type(img) is str else img for img in images]
     orig_sizes = [img.size for img in images]
+    shape = (1024, 768)
     
-    images = pre_process_images(images, shape=(1024, 768), mean=[123.5, 116.5, 103.5], std=[58.5, 57.0, 57.5])
+    images, scales = pre_process_images(images, shape=shape, mean=[123.5, 116.5, 103.5], std=[58.5, 57.0, 57.5])
     images = torch.stack(images)
     valid_images_len = len(orig_sizes)
     images = fake_pad_images_to_batchsize(images, batch_size=1)    
@@ -141,8 +173,8 @@ def generate_segmentation(task_name: str, base_dir: str, input: dict, params: di
         SEGMENTATION_CLASSES_NUMBERS[c] for c in classes
     ]
     
-    for i, result in enumerate(results):
-        mask, box = create_mask(orig_sizes[i], result, classes=classes)
+    for i, (result, scale) in enumerate(zip(results, scales)):
+        mask, box = create_mask(shape, result, classes=classes, scale=scale, original_size=orig_sizes[i])
         masks.append(mask)
 
         if box_margin > 0:
