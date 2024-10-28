@@ -87,6 +87,37 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
 @workflow_group.command(help='Processes a workflow file line by line and generate photo and videos following the instructions')
 @click.option('--path', type=str, required=True, help="The path to the workflow file")
 def run(path):
+    if '*' in path:
+        if path.startswith('*'):
+            preffix, suffix = '', path[1:]
+        else:
+            preffix, suffix = path.split('*', maxsplit=1)
+        preffix = full_path(preffix)
+        if os.path.exists(preffix) is False:
+            raise Exception(f"Path {preffix} not found")
+        
+        choices = {}
+        index = 0 
+        dir_contents = os.listdir(preffix)
+        dir_contents.sort()
+        for file in dir_contents:
+            if not file.endswith(suffix):
+                continue
+            index += 1
+            choices[f'{index}'] = file
+
+        print("Select the file to process: ")
+        for k, v in choices.items():
+            print(f'{k}: {v}')
+
+        selected = input("\nEnter the number of the file to process: ")
+        if selected not in choices:
+            raise Exception(f"Invalid selection {selected}")
+        
+        path = os.path.join(preffix, choices[selected])
+    else:
+        path = full_path(path)
+    
     parameters = {
         "workflow": read_worflow_file('', path, set(), {}, '')
     }
