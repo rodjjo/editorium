@@ -12,6 +12,7 @@ import numpy as np
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
 from pipelines.segmentation_sapiens.managed_model import segmentation_models, SEGMENTATION_CLASSES_NUMBERS
+from pipelines.segmentation_gsam.task_processor import refine_mask_uint8
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
@@ -106,15 +107,18 @@ def create_mask(
     for c in classes:
         filters.append(pred_sem_seg == c)
         
-    mask = pred_sem_seg * 0
+    mask = pred_sem_seg & False
     for f in filters:
         mask = mask | f
-
+    
     active_pixels = np.stack(np.where(mask))
     coord1 = np.min(active_pixels, axis=1).astype(np.int32)
     coord2 = np.max(active_pixels, axis=1).astype(np.int32)
 
     mask = mask.astype(np.uint8) * 255
+    mask = refine_mask_uint8([mask], polygon_refinement=True)
+    mask = mask[0]
+
     mask = Image.fromarray(mask)
     mask = mask.resize((int(image_size[0] * scale), int(image_size[1] * scale)))
     mask = mask.crop((0, 0, original_size[0], original_size[1]))

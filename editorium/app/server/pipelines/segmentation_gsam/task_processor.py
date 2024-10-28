@@ -102,6 +102,16 @@ def polygon_to_mask(polygon: List[Tuple[int, int]], image_shape: Tuple[int, int]
     cv2.fillPoly(mask, [pts], color=(255,))
 
     return mask
+
+
+def refine_mask_uint8(masks: List[np.ndarray], polygon_refinement: bool = False) -> np.ndarray:
+    if polygon_refinement:
+        for idx, mask in enumerate(masks):
+            shape = mask.shape
+            polygon = mask_to_polygon(mask)
+            mask = polygon_to_mask(polygon, shape)
+            masks[idx] = mask
+    return masks
         
 def refine_masks(masks: torch.BoolTensor, polygon_refinement: bool = False) -> List[np.ndarray]:
     masks = masks.cpu().float()
@@ -109,16 +119,7 @@ def refine_masks(masks: torch.BoolTensor, polygon_refinement: bool = False) -> L
     masks = masks.mean(axis=-1)
     masks = (masks > 0).int()
     masks = masks.numpy().astype(np.uint8)
-    masks = list(masks)
-
-    if polygon_refinement:
-        for idx, mask in enumerate(masks):
-            shape = mask.shape
-            polygon = mask_to_polygon(mask)
-            mask = polygon_to_mask(polygon, shape)
-            masks[idx] = mask
-
-    return masks
+    return refine_mask_uint8(list(masks), polygon_refinement)
 
 def get_boxes(results: DetectionResult) -> List[List[List[float]]]:
     boxes = []
