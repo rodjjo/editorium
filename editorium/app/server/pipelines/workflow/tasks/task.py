@@ -57,6 +57,24 @@ class WorkflowTaskManager:
             raise ValueError(f'Task {task_type} not found')
         return self.tasks[task_type].validate_config(config)
     
+    def accept_resolved_value(self, item, value):
+        if item.decision:
+            item_result = self.results[item.name]
+            if type(item_result) is not dict:
+                raise ValueError(f'Decision Task {item.name} did not return a dictionary')
+            if 'default' not in item_result:
+                raise ValueError(f'Decision Task {item.name} did not return a default value')
+            default = item_result['default']
+            if type(default) is not list:
+                raise ValueError(f'Decision Task {item.name} default value is not a list')
+            if len(default) == 0:
+                raise ValueError(f'Decision Task {item.name} default value is empty')
+            result_task_name = default[0]
+            if result_task_name not in self.results:
+                raise ValueError(f'Decision Task {item.name} default value {result_task_name} not found')
+            return self.accept_resolved_value(self.results[result_task_name]['_item'], self.results[result_task_name])
+        return value
+    
     def process_task(self, base_dir, item: FlowItem, callback: callable, task_stack: set):
         if item.task_type not in self.tasks:
             raise ValueError(f'Task {item.task_type} is not registered')
@@ -79,7 +97,7 @@ class WorkflowTaskManager:
                 else:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
                     self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
-                    resolved = self.results[task_name]
+                    resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
             elif value:
                 print(f'Using literal value {value} for task {item.name}')
                 resolved = {
@@ -95,14 +113,14 @@ class WorkflowTaskManager:
             task_name = prompt.split('from://')[1]
             if task_name not in self.results:
                 self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
-            item.config['prompt'] = self.results[task_name].get('default', '')
+            item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
 
         if item.config.get('negative_prompt', '').startswith('from://'):
             negative_prompt = item.config.get('negative_prompt', '')
             task_name = negative_prompt.split('from://')[1]
             if task_name not in self.results:
                 self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
-            item.config['negative_prompt'] = self.results[task_name].get('default', '')
+            item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
             
         for key, value in item.config.items():
             if key in ['prompt', 'negative_prompt', 'globals']:
@@ -114,7 +132,7 @@ class WorkflowTaskManager:
                     task_name = value[start + 13:end]
                     if task_name not in self.results:
                         self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
-                    task_value = self.results[task_name].get('default', '') or self.results[task_name].get('result', '')
+                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
                     if type(task_value) is list:
                         task_value = task_value[0]
                     if type(task_value) is not str:
@@ -127,7 +145,7 @@ class WorkflowTaskManager:
                 task_name = value.split('from://')[1]
                 if task_name not in self.results:
                     self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
-                task_value = self.results[task_name].get('default', '') or self.results[task_name].get('result', '')
+                task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
                 if type(task_value) is list:
                     task_value = task_value[0]
                 if type(task_value) is not str:
@@ -145,6 +163,7 @@ class WorkflowTaskManager:
             callback
         )
         
+        task_result['_item'] = item
         self.results[item.name] = task_result
 
         if item.decision:
