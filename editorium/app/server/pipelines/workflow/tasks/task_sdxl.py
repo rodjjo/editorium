@@ -6,6 +6,7 @@ from marshmallow import Schema, fields, validate
 
 class SDXLSchema(Schema):
     prompt = fields.Str(required=True)
+    negative_prompt = fields.Str(required=False, load_default=None)
     model_name = fields.Str(required=True)
     guidance_scale = fields.Float(required=False, load_default=5.0)
     height = fields.Int(required=False)

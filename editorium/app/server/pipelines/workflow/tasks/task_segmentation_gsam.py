@@ -1,5 +1,5 @@
 from .task import WorkflowTask
-from pipelines.segmentation.task_processor import process_workflow_task
+from pipelines.segmentation_gsam.task_processor import process_workflow_task
 
 from marshmallow import Schema, fields, validate
 

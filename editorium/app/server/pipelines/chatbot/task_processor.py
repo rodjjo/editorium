@@ -3,6 +3,7 @@ from typing import List
 import os
 import torch
 import random
+import json
 from tqdm import tqdm
 import transformers
 
@@ -15,6 +16,27 @@ from pipelines.chatbot.managed_model import chatbot_models
 class CanceledChecker:
     def __call__(self, *args, **kwargs) -> bool:
         return False # TODO return True if the task should be canceled
+
+def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> str:
+    from hashlib import sha1
+    buffer = f'{repo_id}{system_prompt}{prompt}'.encode('utf-8')
+    sha1_value = sha1(buffer).hexdigest()
+    cache_dir = '/app/output_dir/cache'
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = f'chatbot_cache.json'
+    if os.path.exists(os.path.join(cache_dir, cache_file)):
+        with open(os.path.join(cache_dir, cache_file), 'r') as f:
+            cache = json.load(f)
+        if sha1_value in cache:
+            return cache[sha1_value]
+    if len(cache.keys()) > 20:
+        cache = {}
+    if response:
+        cache[sha1_value] = response
+        with open(os.path.join(cache_dir, cache_file), 'w') as f:
+            json.dump(cache, f, indent=2)
+    return response
+        
 
 
 def generate_text(base_dir: str,
@@ -32,6 +54,20 @@ def generate_text(base_dir: str,
                   response_after: str = '',
                   callback: callable = None,
                   globals: dict = {}) -> dict:
+    debug_enabled = globals.get('debug', False)
+    response = use_cache(repo_id, context, prompt, '')
+    if response:
+        if debug_enabled:
+            text_path = os.path.join(base_dir, f'{name}.txt')
+            with open(text_path, 'w') as f:
+                f.write(response)
+        else:
+            text_path = ''
+        return {
+            "default": response,
+            "filepath": text_path,
+        }
+
     chatbot_models.load_models(repo_id=repo_id, model_name=model_name)
     template = template.replace('\\n', '\n')
     if not '{context}' in template or not '{input}' in template:

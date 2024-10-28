@@ -10,7 +10,7 @@ import numpy as np
 
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
-from pipelines.segmentation.managed_model import segmentation_models
+from pipelines.segmentation_gsam.managed_model import segmentation_models
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)

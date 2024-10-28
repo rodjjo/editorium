@@ -1,10 +1,54 @@
 import gc
 import torch
 import os
+import json
 
 from pipelines.common.model_manager import ManagedModel
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLInpaintPipeline
+from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLInpaintPipeline, EulerDiscreteScheduler, EulerAncestralDiscreteScheduler
 
+SCHEDULER_EULER_CONFIG_JSON = '''
+{
+  "_class_name": "EulerDiscreteScheduler",
+  "_diffusers_version": "0.27.2",
+  "beta_end": 0.012,
+  "beta_schedule": "scaled_linear",
+  "beta_start": 0.00085,
+  "interpolation_type": "linear",
+  "num_train_timesteps": 1000,
+  "prediction_type": "epsilon",
+  "rescale_betas_zero_snr": false,
+  "sample_max_value": 1.0,
+  "set_alpha_to_one": false,
+  "sigma_max": null,
+  "sigma_min": null,
+  "skip_prk_steps": true,
+  "steps_offset": 1,
+  "timestep_spacing": "leading",
+  "timestep_type": "discrete",
+  "trained_betas": null,
+  "use_karras_sigmas": false
+}
+'''
+
+SCHEDULER_EULERA_CONFIG_JSON = '''
+{
+  "_class_name": "EulerAncestralDiscreteScheduler",
+  "_diffusers_version": "0.24.0.dev0",
+  "beta_end": 0.012,
+  "beta_schedule": "scaled_linear",
+  "beta_start": 0.00085,
+  "clip_sample": false,
+  "interpolation_type": "linear",
+  "num_train_timesteps": 1000,
+  "prediction_type": "epsilon",
+  "sample_max_value": 1.0,
+  "set_alpha_to_one": false,
+  "skip_prk_steps": true,
+  "steps_offset": 1,
+  "timestep_spacing": "trailing",
+  "trained_betas": null
+}
+'''
 
 class SdxlModels(ManagedModel):
     def __init__(self):
@@ -40,24 +84,23 @@ class SdxlModels(ManagedModel):
         self.lora_repo_id = lora_repo_id
         self.lora_scale = lora_scale
         self.pipeline_type = pipeline_type
+        scheduler = EulerAncestralDiscreteScheduler.from_config(json.loads(SCHEDULER_EULERA_CONFIG_JSON))
         if pipeline_type == "img2img":
             self.pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
                 model_name, 
-                use_safetensors=True,
-                torch_dtype=torch.float16
+                use_safetensors=True
             )
         elif pipeline_type == "inpaint":
             self.pipe = StableDiffusionXLInpaintPipeline.from_pretrained(
                 model_name, 
-                use_safetensors=True,
-                torch_dtype=torch.float16
+                use_safetensors=True
             )
         else:        
             self.pipe = StableDiffusionXLPipeline.from_pretrained(
                 model_name, 
-                use_safetensors=True,
-                torch_dtype=torch.float16
+                use_safetensors=True
             )
+        self.pipe.scheduler = scheduler
         if self.lora_repo_id:
             print(f"Loading lora weights from {self.lora_repo_id}")
             self.pipe.load_lora_weights(self.lora_repo_id)

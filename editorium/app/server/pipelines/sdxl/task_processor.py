@@ -119,7 +119,9 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
     
     result = sdxl_models.pipe(
         prompt=params['prompt'],
+        prompt_2=params['prompt'],
         negative_prompt=params.get('negative_prompt', None),
+        negative_prompt_2=params.get('negative_prompt', None),
         guidance_scale=params.get('guidance_scale', 5.0),
         height=params.get('height', None),
         width=params.get('width', None),

@@ -32,12 +32,12 @@ def parse_task_value(value: str):
         pass
     if ',' in value:
         try:
-            return [int(v.strip()) for v in value.split(',')]
+            return [int(v.strip()) for v in value.split(',') if v.strip()]
         except ValueError:
             pass
     if ',' in value:
         try:
-            return [float(v.strip()) for v in value.split(',')]
+            return [float(v.strip()) for v in value.split(',') if v.strip()]
         except ValueError:
             pass
     if value.startswith('"') and value.endswith('"'):

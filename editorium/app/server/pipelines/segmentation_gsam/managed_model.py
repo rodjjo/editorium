@@ -8,7 +8,7 @@ from transformers import AutoProcessor, AutoModelForMaskGeneration, pipeline
 
 class SegmentationModels(ManagedModel):
     def __init__(self):
-        super().__init__("segmentation")
+        super().__init__("segmentation-gsam")
         # self.processor = None
         self.processor_seg = None
         self.model = None
