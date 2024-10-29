@@ -148,11 +148,13 @@ def segment(
     image: Image.Image,
     detection_results: List[Dict[str, Any]],
     polygon_refinement: bool = False
-) -> List[DetectionResult]:
+):
     """
     Use Segment Anything (SAM) to generate masks given an image + a set of bounding boxes.
     """
     boxes = get_boxes(detection_results)
+    if len(boxes) < 1 or len(boxes[0]) < 1:
+        return Image.new("RGB", image.size, "black"), [0, 0, image.size[0], image.size[1]]
     inputs = segmentation_models.processor_seg(images=image, input_boxes=boxes, return_tensors="pt").to('cuda')
     
     print("Segmenting objects...")

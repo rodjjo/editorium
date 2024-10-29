@@ -3,8 +3,12 @@ import torch
 import os
 import json
 
-from pipelines.common.model_manager import ManagedModel
+import safetensors
+import safetensors.torch
 from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLInpaintPipeline, EulerDiscreteScheduler, EulerAncestralDiscreteScheduler
+
+from pipelines.common.model_manager import ManagedModel
+
 
 SCHEDULER_EULER_CONFIG_JSON = '''
 {
@@ -49,6 +53,11 @@ SCHEDULER_EULERA_CONFIG_JSON = '''
   "trained_betas": null
 }
 '''
+
+def load_lora_state_dict(path):
+    state_dict = safetensors.torch.load_file(path, device="cpu") 
+    return state_dict
+
 
 class SdxlModels(ManagedModel):
     def __init__(self):
@@ -102,9 +111,17 @@ class SdxlModels(ManagedModel):
             )
         self.pipe.scheduler = scheduler
         if self.lora_repo_id:
-            print(f"Loading lora weights from {self.lora_repo_id}")
-            self.pipe.load_lora_weights(self.lora_repo_id)
-            self.pipe.fuse_lora_weights(lora_scale=self.lora_scale)
+            if self.lora_repo_id.endswith('.safetensors'):
+                dir_path = self.model_dir('images', 'sdxl', 'loras')
+                lora_path = os.path.join(dir_path, self.lora_repo_id)
+                print(f"Loading lora weights from local path {self.lora_repo_id}")
+                state_dict = load_lora_state_dict(lora_path)
+                self.pipe.load_lora_weights(state_dict)    
+            else:
+                print(f"Loading lora weights from {self.lora_repo_id}")
+                self.pipe.load_lora_weights(self.lora_repo_id)
+            self.pipe.fuse_lora(lora_scale=self.lora_scale)
+        
         self.pipe.vae.enable_slicing()
         self.pipe.vae.enable_tiling()
         self.pipe.enable_model_cpu_offload()

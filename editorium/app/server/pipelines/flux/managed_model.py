@@ -2,11 +2,18 @@ import gc
 import torch
 import os
 
+import safetensors.torch
+
 from pipelines.common.model_manager import ManagedModel
 from diffusers import (
     FluxPipeline, FluxImg2ImgPipeline, FluxInpaintPipeline, 
     FluxControlNetModel, FluxControlNetImg2ImgPipeline, FluxControlNetInpaintPipeline, FluxControlNetPipeline
 )
+
+def load_lora_state_dict(path):
+    state_dict = safetensors.torch.load_file(path, device="cpu") 
+    return state_dict
+
    
 class FluxModels(ManagedModel):
     def __init__(self):
@@ -72,8 +79,19 @@ class FluxModels(ManagedModel):
                 self.pipe = FluxInpaintPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
             else:
                 self.pipe = FluxPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
-        self.pipe.load_lora_weights(self.lora_repo_id)
-        self.pipe.fuse_lora(lora_scale=self.lora_scale)
+                
+        if self.lora_repo_id:
+            if self.lora_repo_id.endswith('.safetensors'):
+                dir_path = self.model_dir('images', 'flux', 'loras')
+                lora_path = os.path.join(dir_path, self.lora_repo_id)
+                print(f"Loading lora weights from local path {self.lora_repo_id}")
+                state_dict = load_lora_state_dict(lora_path)
+                self.pipe.load_lora_weights(state_dict)    
+            else:
+                print(f"Loading lora weights from {self.lora_repo_id}")
+                self.pipe.load_lora_weights(self.lora_repo_id)
+            self.pipe.fuse_lora(lora_scale=self.lora_scale)
+
         self.pipe.vae.enable_slicing()
         self.pipe.vae.enable_tiling()
         self.pipe.enable_sequential_cpu_offload()
