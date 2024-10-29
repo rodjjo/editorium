@@ -150,8 +150,16 @@ class FlowItem:
         
         if not task_type:
             raise InvalidItemException(f"task not found task_type: {task_type}")
-
-        if not CONFIG_VALIDATOR(task_type, config):
+        
+        should_validate = True
+        for value in config.values():
+            if type(value) is str and value.startswith("from://"):
+                should_validate = False # there is no way to validate a dynamic config beforehand
+                dependency = value.split("from://")[1]  
+                if dependency not in flow_store.flows:
+                    raise InvalidItemException(f"Dependency not found {dependency}")    
+                
+        if should_validate and not CONFIG_VALIDATOR(task_type, config):
             raise InvalidItemException(f"Invalid config on task name={name} task_type={task_type}")
 
         return cls(name, task_type, input, config, flow_lazy, is_decision)
