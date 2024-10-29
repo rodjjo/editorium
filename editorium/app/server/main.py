@@ -45,6 +45,7 @@ class TaskType:
     FLUX = 'flux'
     PREPROCESSOR = 'image_preprocessor'
     WORKFLOW = 'workflow'
+    UTILS = 'utils'
 
 
 class Task:
@@ -147,6 +148,10 @@ def work_on_task(task: Task) -> CompletedTask:
         elif task.task_type == TaskType.WORKFLOW:
             from pipelines.workflow.task_processor import process_workflow_task
             result = process_workflow_task(task.parameters, progress_callback)
+        elif task.task_type == TaskType.UTILS:
+            from pipelines.utils.task_processor import process_workflow_task
+            result = process_workflow_task(task.parameters, progress_callback)
+                
     except Exception as e:
         # print stack
         traceback.print_exc()
