@@ -18,6 +18,7 @@ class SDXLSchema(Schema):
     mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
     lora_repo_id = fields.Str(required=False)
     lora_scale = fields.Float(required=False, default=1.0)
+    strength = fields.Float(required=False, load_default=0.8)
     globals = fields.Dict(required=False, load_default={})
 
 class SDXLTask(WorkflowTask):

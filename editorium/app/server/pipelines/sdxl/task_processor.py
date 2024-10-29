@@ -102,6 +102,7 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
         add_args = {
             'image': image, 
             'mask_image': mask,
+            'strength': strength,
             **add_args,
         }
     elif mode == 'img2img':

@@ -17,6 +17,7 @@ class CanceledChecker:
     def __call__(self, *args, **kwargs) -> bool:
         return False # TODO return True if the task should be canceled
 
+
 def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> str:
     from hashlib import sha1
     buffer = f'{repo_id}{system_prompt}{prompt}'.encode('utf-8')
@@ -24,8 +25,9 @@ def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> s
     cache_dir = '/app/output_dir/cache'
     os.makedirs(cache_dir, exist_ok=True)
     cache_file = f'chatbot_cache.json'
-    if os.path.exists(os.path.join(cache_dir, cache_file)):
-        with open(os.path.join(cache_dir, cache_file), 'r') as f:
+    cache_path = os.path.join(cache_dir, cache_file)
+    if os.path.exists(cache_path):
+        with open(cache_path, 'r') as f:
             cache = json.load(f)
         if sha1_value in cache:
             return cache[sha1_value]
@@ -33,7 +35,7 @@ def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> s
         cache = {}
     if response:
         cache[sha1_value] = response
-        with open(os.path.join(cache_dir, cache_file), 'w') as f:
+        with open(cache_path, 'w') as f:
             json.dump(cache, f, indent=2)
     return response
         
@@ -107,6 +109,8 @@ def generate_text(base_dir: str,
             f.write(response)
     else:
         text_path = ''
+    
+    use_cache(repo_id, context, prompt, response)
 
     return {
         "default": response,

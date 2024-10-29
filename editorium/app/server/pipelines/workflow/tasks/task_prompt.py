@@ -1,9 +1,11 @@
+import random
 from .task import WorkflowTask
 from marshmallow import Schema, fields
 
 
 class PromptTaskSchema(Schema):
     prompt = fields.Str(required=True)
+    randomize = fields.Bool(required=False, load_default=False)
     globals = fields.Dict(required=False, load_default={})
 
 
@@ -22,8 +24,14 @@ class PromptTask(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing prompt task")
+        params = PromptTaskSchema().load(config)
+        prompt = params['prompt']
+        if params['randomize']:
+            prompt = prompt.split('\n')
+            prompt = [x.strip() for x in prompt if x.strip()]
+            prompt = random.choice(prompt)
         return {
-            "default": config['prompt']
+            "default": prompt
         }
 
 
