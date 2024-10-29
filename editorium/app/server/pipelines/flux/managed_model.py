@@ -5,9 +5,12 @@ import os
 import safetensors.torch
 
 from pipelines.common.model_manager import ManagedModel
+from transformers import CLIPTextModel, CLIPTokenizer, T5EncoderModel, T5TokenizerFast
+from diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler
 from diffusers import (
     FluxPipeline, FluxImg2ImgPipeline, FluxInpaintPipeline, 
-    FluxControlNetModel, FluxControlNetImg2ImgPipeline, FluxControlNetInpaintPipeline, FluxControlNetPipeline
+    FluxControlNetModel, FluxControlNetImg2ImgPipeline, FluxControlNetInpaintPipeline, FluxControlNetPipeline,
+    FluxTransformer2DModel
 )
 
 def load_lora_state_dict(path):
@@ -26,6 +29,7 @@ class FluxModels(ManagedModel):
         self.control_mode = 0
         self.lora_repo_id = ""
         self.lora_scale = 1.0
+        self.transformer2d_model = None
         
     def release_model(self):
         self.pipe = None
@@ -34,10 +38,12 @@ class FluxModels(ManagedModel):
         self.control_mode = 0
         self.lora_repo_id = ""
         self.lora_scale = 1.0
+        self.transformer2d_model = None
         gc.collect()
         torch.cuda.empty_cache()
         
-    def load_models(self, model_name, pipeline_type : str, controlnet_type: str, lora_repo_id: str, lora_scale: float):
+    def load_models(self, model_name: str, pipeline_type : str, controlnet_type: str, 
+                    lora_repo_id: str, lora_scale: float, transformer2d_model: str = None):
         self.release_other_models()
         has_changes = any([
             self.pipe is None,
@@ -46,6 +52,7 @@ class FluxModels(ManagedModel):
             self.model_name != model_name,
             self.lora_repo_id != lora_repo_id,
             self.lora_scale != lora_scale,
+            self.transformer2d_model != transformer2d_model
         ])
         if not has_changes:
             return
@@ -55,6 +62,32 @@ class FluxModels(ManagedModel):
         self.model_name = model_name
         self.lora_repo_id = lora_repo_id
         self.lora_scale = lora_scale
+        self.transformer2d_model = transformer2d_model
+        if transformer2d_model:
+            transformer  = FluxTransformer2DModel.from_single_file(transformer2d_model, torch_dtype=torch.float16)
+        else:
+            transformer = FluxTransformer2DModel.from_pretrained(model_name, torch_dtype=torch.float16)
+
+        scheduler = FlowMatchEulerDiscreteScheduler(
+            base_image_seq_len=256,
+            base_shift=0.5,
+            max_image_seq_len=4096,
+            max_shift=1.15,
+            num_train_timesteps=1000,
+            shift=1.0, # 1.0 for schnell, 3.0 for flux-dev
+            use_dynamic_shifting=True,
+        )
+
+        vae = AutoencoderKL.from_pretrained(
+            model_name, 
+            subfolder='vae',
+            torch_dtype=torch.float16
+        )
+        text_encoder = CLIPTextModel.from_pretrained(model_name, subfolder='text_encoder', torch_dtype=torch.float16)
+        tokenizer  = CLIPTokenizer.from_pretrained(model_name, subfolder='tokenizer', torch_dtype=torch.float16)
+        text_encoder_2  =  T5EncoderModel.from_pretrained(model_name, subfolder='text_encoder_2', torch_dtype=torch.float16)
+        tokenizer_2  =  T5TokenizerFast.from_pretrained(model_name, subfolder='tokenizer_2', torch_dtype=torch.float16)
+
         if controlnet_type:
             # https://huggingface.co/InstantX/FLUX.1-dev-Controlnet-Union
             if controlnet_type == "pose":
@@ -64,21 +97,71 @@ class FluxModels(ManagedModel):
             else:
                 self.control_mode = 2
 
-            controlnet = FluxControlNetModel.from_pretrained('InstantX/FLUX.1-dev-Controlnet-Union', torch_dtype=torch.bfloat16)
+            controlnet = FluxControlNetModel.from_pretrained('InstantX/FLUX.1-dev-Controlnet-Union', torch_dtype=torch.float16)
 
             if pipeline_type == "img2img":
-                self.pipe = FluxControlNetImg2ImgPipeline.from_pretrained(model_name, controlnet=controlnet, torch_dtype=torch.bfloat16)
+                self.pipe = FluxControlNetImg2ImgPipeline(
+                    controlnet=controlnet,
+                    transformer=transformer,
+                    vae=vae,
+                    text_encoder=text_encoder,
+                    text_encoder_2=text_encoder_2,
+                    tokenizer=tokenizer,
+                    tokenizer_2=tokenizer_2,
+                    scheduler=scheduler
+                )
             elif pipeline_type == "inpaint":
-                self.pipe = FluxControlNetInpaintPipeline.from_pretrained(model_name, controlnet=controlnet, torch_dtype=torch.bfloat16)
+                self.pipe = FluxControlNetInpaintPipeline(
+                    controlnet=controlnet,
+                    transformer=transformer,
+                    vae=vae,
+                    text_encoder=text_encoder,
+                    text_encoder_2=text_encoder_2,
+                    tokenizer=tokenizer,
+                    tokenizer_2=tokenizer_2,
+                    scheduler=scheduler
+                )
             else:
-                self.pipe = FluxControlNetPipeline.from_pretrained(model_name, controlnet=controlnet, torch_dtype=torch.bfloat16)
+                self.pipe = FluxControlNetPipeline(
+                    controlnet=controlnet,
+                    transformer=transformer,
+                    vae=vae,
+                    text_encoder=text_encoder,
+                    text_encoder_2=text_encoder_2,
+                    tokenizer=tokenizer,
+                    tokenizer_2=tokenizer_2,
+                    scheduler=scheduler
+                )
         else:
             if pipeline_type == "img2img":
-                self.pipe = FluxImg2ImgPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+                self.pipe = FluxImg2ImgPipeline(
+                    transformer=transformer,
+                    vae=vae,
+                    text_encoder=text_encoder,
+                    text_encoder_2=text_encoder_2,
+                    tokenizer=tokenizer,
+                    tokenizer_2=tokenizer_2,
+                    scheduler=scheduler
+                )
             elif pipeline_type == "inpaint":
-                self.pipe = FluxInpaintPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+                self.pipe = FluxInpaintPipeline(
+                    transformer=transformer,
+                    vae=vae,
+                    text_encoder=text_encoder,
+                    text_encoder_2=text_encoder_2,
+                    tokenizer=tokenizer,
+                    tokenizer_2=tokenizer_2,
+                    scheduler=scheduler
+                )
             else:
-                self.pipe = FluxPipeline.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+                self.pipe = FluxPipeline(   transformer=transformer,
+                    vae=vae,
+                    text_encoder=text_encoder,
+                    text_encoder_2=text_encoder_2,
+                    tokenizer=tokenizer,
+                    tokenizer_2=tokenizer_2,
+                    scheduler=scheduler
+                )
                 
         if self.lora_repo_id:
             if self.lora_repo_id.endswith('.safetensors'):

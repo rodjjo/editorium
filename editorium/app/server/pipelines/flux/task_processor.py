@@ -76,11 +76,13 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         controlnet_type = params.get('controlnet_type', 'pose')
     else:
         controlnet_type = ''
-        
+    
+    num_inference_steps = params.get('num_inference_steps', 4)
     lora_repo_id = params.get('lora_repo_id', '')
     lora_scale = params.get('lora_scale', 1.0)
-
-    flux_models.load_models(model_name, mode, controlnet_type, lora_repo_id, lora_scale)
+    transformer2d_model = params.get('transformer2d_model', None)
+    flux_models.load_models(model_name, mode, controlnet_type, lora_repo_id, lora_scale, transformer2d_model)
+    flux_models.pipe.scheduler.shift = 3.0 if num_inference_steps >= 7 else 1.0
     
     if control_image is not None:
         control_args = dict(
@@ -104,7 +106,7 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
         guidance_scale=params.get('guidance_scale', 3.5),
         height=params.get('height', 768),
         width=params.get('width', 1360),
-        num_inference_steps=params.get('num_inference_steps', 4),
+        num_inference_steps=num_inference_steps,
         max_sequence_length=params.get('max_sequence_length', 256),
         generator=generator,
         **control_args,

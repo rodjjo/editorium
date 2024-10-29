@@ -10,12 +10,13 @@ class FluxPayloadSchema(Schema):
     guidance_scale = fields.Float(required=False, load_default=3.5)
     height = fields.Int(required=False)
     width = fields.Int(required=False)
-    num_inference_steps = fields.Int(required=False, load_default=4)
-    max_sequence_length = fields.Int(required=False, load_default=256)
+    num_inference_steps = fields.Int(required=False, load_default=8)
+    max_sequence_length = fields.Int(required=False, load_default=512)
     seed = fields.Int(required=False, load_default=-1)
     inpaint_mode = fields.Str(required=False, load_default="original")
     mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
     mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    transformer2d_model = fields.Str(required=False)
     lora_repo_id = fields.Str(required=False)
     lora_scale = fields.Float(required=False, default=1.0)
     # control_guidance_start = fields.Float(required=False, load_default=0.2)
@@ -23,6 +24,7 @@ class FluxPayloadSchema(Schema):
     controlnet_type = fields.Str(required=False, load_default="pose", validate=validate.OneOf(["pose", "canny", "depth"]))
     controlnet_conditioning_scale = fields.Float(required=False, load_default=1.0)
     globals = fields.Dict(required=False, load_default={})
+
 
 class FluxTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
