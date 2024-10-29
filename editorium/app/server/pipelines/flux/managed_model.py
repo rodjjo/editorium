@@ -1,10 +1,10 @@
 import gc
 import torch
 import os
+import json
 
 import safetensors.torch
 
-from pipelines.common.model_manager import ManagedModel
 from transformers import CLIPTextModel, CLIPTokenizer, T5EncoderModel, T5TokenizerFast
 from diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler
 from diffusers import (
@@ -13,10 +13,10 @@ from diffusers import (
     FluxTransformer2DModel
 )
 
-def load_lora_state_dict(path):
-    state_dict = safetensors.torch.load_file(path, device="cpu") 
-    return state_dict
+from pipelines.common.model_manager import ManagedModel
 
+
+# https://github.com/huggingface/diffusers/blob/main/docs/source/en/api/pipelines/flux.md
    
 class FluxModels(ManagedModel):
     def __init__(self):
@@ -64,7 +64,32 @@ class FluxModels(ManagedModel):
         self.lora_scale = lora_scale
         self.transformer2d_model = transformer2d_model
         if transformer2d_model:
-            transformer  = FluxTransformer2DModel.from_single_file(transformer2d_model, torch_dtype=torch.float16)
+            if transformer2d_model.endswith('.safetensors') and not transformer2d_model.startswith('http'):
+                model_path = self.model_dir('images', 'flux')
+                transformer2d_model = os.path.join(model_path, transformer2d_model)
+                config_path = os.path.join(model_path, 'transformer_config.json')
+                transformer_config = {
+                    "attention_head_dim": 128,
+                    "guidance_embeds": True,
+                    "in_channels": 64,
+                    "joint_attention_dim": 4096,
+                    "num_attention_heads": 24,
+                    "num_layers": 19,
+                    "num_single_layers": 38,
+                    "patch_size": 1,
+                    "pooled_projection_dim": 768,
+                }
+                if not os.path.exists(config_path):
+                    # save the json config
+                    with open(config_path, 'w') as f:
+                        json.dump(transformer_config, f)
+                print("Loading state dict from local path...")                
+                transformer  = FluxTransformer2DModel.from_single_file(transformer2d_model, config=config_path, torch_dtype=torch.float16)
+                print("transformer created ...")
+                gc.collect()
+                torch.cuda.empty_cache()
+            else:
+                transformer  = FluxTransformer2DModel.from_single_file(transformer2d_model, torch_dtype=torch.float16)
         else:
             transformer = FluxTransformer2DModel.from_pretrained(model_name, torch_dtype=torch.float16)
 
@@ -168,7 +193,7 @@ class FluxModels(ManagedModel):
                 dir_path = self.model_dir('images', 'flux', 'loras')
                 lora_path = os.path.join(dir_path, self.lora_repo_id)
                 print(f"Loading lora weights from local path {self.lora_repo_id}")
-                state_dict = load_lora_state_dict(lora_path)
+                state_dict = safetensors.torch.load_file(lora_path, device="cpu")
                 self.pipe.load_lora_weights(state_dict)    
             else:
                 print(f"Loading lora weights from {self.lora_repo_id}")
