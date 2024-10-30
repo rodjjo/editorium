@@ -42,11 +42,11 @@ class Sd15Task(WorkflowTask):
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing SD 1.5 task")
         config = Sd15PayloadSchema().load(config)
-        model = input.get('default', {}).get('default', None)
+        model = input.get('model', {}).get('default', None)
         if model is not None:
+            print("Model found in input ", model)
             for key in model.keys():
-                if key not in config:
-                    config[key] = model[key]
+                config[key] = model[key]
         if not config.get('model_name', None):
             raise ValueError("Model name is required")
         return process_workflow_task(base_dir, name, input, config, callback)

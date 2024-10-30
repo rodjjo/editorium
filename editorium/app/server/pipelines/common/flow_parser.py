@@ -140,7 +140,7 @@ class FlowItem:
                 continue
 
             if line.startswith("#"):
-                raise InvalidItemException("The line starts with # but it's not a valid command")
+                raise InvalidItemException(f"The line starts with # but it's not a valid command", line)
         
         if len(prompt) > 0:
             config['prompt'] = '\n'.join(prompt)
@@ -213,7 +213,7 @@ class FlowStore:
         self.flows = {}
         self.globals = {}
         flow_started = False
-        flow_lazy = False
+        flow_lazy = True
         flow_lines = []
         in_header = True
         
@@ -245,14 +245,14 @@ class FlowStore:
                 self.parse_flow(flow_lines, flow_lazy)
                 in_header = False
                 flow_started = False
-                flow_lazy = False
+                flow_lazy = True
                 flow_lines = []
                 continue
             
-            if line.strip() == "#lazy":
+            if line.strip() == "#run":
                 if not flow_started:
-                    raise InvalidItemException("#Lazy outside a task")
-                flow_lazy = True
+                    raise InvalidItemException("#run outside a task")
+                flow_lazy = False
                 continue
 
             if flow_started:

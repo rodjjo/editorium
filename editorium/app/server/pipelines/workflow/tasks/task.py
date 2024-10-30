@@ -80,7 +80,7 @@ class WorkflowTaskManager:
             raise ValueError(f'Task {item.task_type} is not registered')
 
         if item.name in self.results:
-            return self.results[item.name]
+            return self.accept_resolved_value(self.results[item.name]['_item'], self.results[item.name])
         
         if item.name in task_stack:
             raise ValueError(f'Circular dependency detected in task {item.name}')
@@ -93,7 +93,7 @@ class WorkflowTaskManager:
                 task_name = value.split('task://')[1]
                 if task_name in self.results:
                     print(f'Using cached result of {task_name} for task {item.name}')
-                    resolved = self.results[task_name]
+                    resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
                 else:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
                     self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)

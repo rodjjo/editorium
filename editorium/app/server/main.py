@@ -5,6 +5,7 @@ from uuid import uuid4
 from datetime import datetime
 from datetime import timedelta
 from flask import Flask, jsonify, redirect, request
+from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from queue import Queue, Empty
 from threading import Thread, Lock
@@ -195,15 +196,17 @@ def keep_worinking(queue: Queue, completion_queue: Queue):
 
 def create_app():
     app = Flask(__name__)
+    app.config['SECRET_KEY'] = 'secret!'
+    socketio = SocketIO(app)
     CORS(app)
     # disable logging
     log = logging.getLogger('werkzeug')
     log.disabled  = True
-    return app
+    return app, socketio
 
 
 def register_server(queue: Queue, completion_queue: Queue):
-    app = create_app()
+    app, socketio = create_app()
     app.service_queue = queue
     app.completion_queue = completion_queue
     app.completed_tasks = {}
@@ -317,12 +320,12 @@ def register_server(queue: Queue, completion_queue: Queue):
         from pipelines.workflow.tasks.task import get_workflow_manager
         return jsonify(get_workflow_manager().get_registered_tasks())
     
-    return app
+    return app, socketio
 
 
 def run_server(queue: Queue, completion_queue: Queue):
-    app = register_server(queue, completion_queue)
-    app.run(host='0.0.0.0', port=os.environ.get('PORT', 5000))
+    app, socketio = register_server(queue, completion_queue)
+    socketio.run(app, host='0.0.0.0', port=os.environ.get('PORT', 5000))
 
 
 def create_server_thread(queue: Queue, completion_queue: Queue):

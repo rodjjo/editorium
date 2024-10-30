@@ -8,7 +8,7 @@ class BlurImageTaskSchema(Schema):
     dilate_size = fields.Int(required=False, load_default=3)
     blur_size = fields.Int(required=False, load_default=3)
     globals = fields.Dict(required=False, load_default={})
-    
+
 
 class BlurImageTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):

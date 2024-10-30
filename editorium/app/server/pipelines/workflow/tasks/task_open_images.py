@@ -30,14 +30,19 @@ class OpenImagesTask(WorkflowTask):
         params = OpenImageSchema().load(config)
         paths = params['prompt'].split('\n')
         paths = [p.strip() for p in paths if p.strip() != '']
-        for p in paths:
-            if not os.path.exists(p):
-                raise ValueError(f"File {p} does not exists")
+
         selected = None
         for p in paths:
             if p.startswith('>'):
                 selected = p.replace('>', '').strip()
+                if not os.path.exists(selected):
+                    raise ValueError(f"File {p} does not exists")
                 break
+            if not os.path.exists(p):
+                    raise ValueError(f"File {p} does not exists")
+        if len(paths) == 0:
+            raise ValueError("It's required a prompt listing the images")
+
         if not selected:
             selected = random.choice(paths)
 

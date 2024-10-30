@@ -45,7 +45,7 @@ class ModelSelectorTask(WorkflowTask):
             raise ValueError("Model selector failed to select a model: empty model name")
         print("Model selected: ", selection)
         return {
-            "default": selection
+            "default": [selection]
         }
     
 

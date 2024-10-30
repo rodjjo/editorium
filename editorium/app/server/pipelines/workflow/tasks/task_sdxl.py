@@ -40,11 +40,10 @@ class SDXLTask(WorkflowTask):
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing SDXL task")
         config = SDXLSchema().load(config)
-        model = input.get('default', {}).get('default', None)
+        model = input.get('model', {}).get('default', None)
         if model is not None:
             for key in model.keys():
-                if key not in config:
-                    config[key] = model[key]
+                config[key] = model[key]
         if not config.get('model_name', None):
             raise ValueError("Model name is required")
         return process_workflow_task(base_dir, name, input, config, callback)
