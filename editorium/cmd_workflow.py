@@ -35,6 +35,8 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
     with open(path, 'r') as f:
         file_content = f.readlines()
         
+        replace_include_from = re.compile('<insert_from:([^<>]+)>')
+        
         if sufix:
             for index, line in enumerate(file_content):
                 if line.startswith("#name="):
@@ -44,7 +46,10 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
                     continue
                 if 'from://' in line or 'task://' in line:
                     file_content[index] = f'{line.strip()}-{sufix}'
-
+                    continue
+                if '<insert_from:' in line:
+                    file_content[index] = re.sub(replace_include_from, rf'<insert_from:\g<1>{sufix}>', line)
+                
         if replace_input:
             print("Replacing inputs of file ", path, " with ", replace_input)
             for key in replace_input:
@@ -53,6 +58,13 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
                         file_content[index] = line.replace(f"task://<{key}>", f'task://{replace_input[key]}')
                     elif f"from://<{key}>" in line:
                         file_content[index] = line.replace(f"from://<{key}>", f'from://{replace_input[key]}')
+                    while f"<insert_from:<{key}>>" in line:
+                        line = line.replace(f"<insert_from:<{key}>>", f'<insert_from:{replace_input[key]}>')
+                        file_content[index] = line
+                        
+        for index, line in enumerate(file_content):
+            if "<insert_from:<" in line or "from://<" in line or "task://<" in line:
+                print(f"[WARNING] Invalid include line: {line} it does not have #suffix=value")
 
         for line in file_content:
             line = line.strip()  # #include #input=bla #path=bla
