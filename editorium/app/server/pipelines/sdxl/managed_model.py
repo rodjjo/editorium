@@ -142,77 +142,6 @@ SDXL_UNET_CONFIG = '''
 }
 '''
 
-SDXL_UNET_INPAINT_CONFIG = '''
-{
-  "_class_name": "UNet2DConditionModel",
-  "_diffusers_version": "0.19.3",
-  "act_fn": "silu",
-  "addition_embed_type": "text_time",
-  "addition_embed_type_num_heads": 64,
-  "addition_time_embed_dim": 256,
-  "attention_head_dim": [
-    5,
-    10,
-    20
-  ],
-  "block_out_channels": [
-    320,
-    640,
-    1280
-  ],
-  "center_input_sample": false,
-  "class_embed_type": null,
-  "class_embeddings_concat": false,
-  "conv_in_kernel": 3,
-  "conv_out_kernel": 3,
-  "cross_attention_dim": 2048,
-  "cross_attention_norm": null,
-  "down_block_types": [
-    "DownBlock2D",
-    "CrossAttnDownBlock2D",
-    "CrossAttnDownBlock2D"
-  ],
-  "downsample_padding": 1,
-  "dual_cross_attention": false,
-  "encoder_hid_dim": null,
-  "encoder_hid_dim_type": null,
-  "flip_sin_to_cos": true,
-  "freq_shift": 0,
-  "in_channels": 4,
-  "layers_per_block": 2,
-  "mid_block_only_cross_attention": null,
-  "mid_block_scale_factor": 1,
-  "mid_block_type": "UNetMidBlock2DCrossAttn",
-  "norm_eps": 1e-05,
-  "norm_num_groups": 32,
-  "num_attention_heads": null,
-  "num_class_embeds": null,
-  "only_cross_attention": false,
-  "out_channels": 4,
-  "projection_class_embeddings_input_dim": 2816,
-  "resnet_out_scale_factor": 1.0,
-  "resnet_skip_time_act": false,
-  "resnet_time_scale_shift": "default",
-  "sample_size": 128,
-  "time_cond_proj_dim": null,
-  "time_embedding_act_fn": null,
-  "time_embedding_dim": null,
-  "time_embedding_type": "positional",
-  "timestep_post_act": null,
-  "transformer_layers_per_block": [
-    1,
-    2,
-    10
-  ],
-  "up_block_types": [
-    "CrossAttnUpBlock2D",
-    "CrossAttnUpBlock2D",
-    "UpBlock2D"
-  ],
-  "upcast_attention": null,
-  "use_linear_projection": true
-}
-'''
 
 def load_lora_state_dict(path):
     state_dict = safetensors.torch.load_file(path, device="cpu") 
@@ -276,10 +205,10 @@ class SdxlModels(ManagedModel):
         scheduler = EulerAncestralDiscreteScheduler.from_config(json.loads(SCHEDULER_EULERA_CONFIG_JSON))
         
         if unet_model:
-            config_path = os.path.join(model_dir, 'unet_config.json' if pipeline_type != 'inpaint' else 'unet_inpaint_config.json')
+            config_path = os.path.join(model_dir, 'unet_config.json')
             if not os.path.exists(config_path):
                 with open(config_path, 'w') as f:
-                    f.write(SDXL_UNET_CONFIG if pipeline_type != 'inpaint' else SDXL_UNET_INPAINT_CONFIG)
+                    f.write(SDXL_UNET_CONFIG)
             if unet_model.endswith('.safetensors') and not unet_model.startswith('http'):
                 print(f"Loading unet weights from local path {unet_model}")
                 unet_model = os.path.join(model_dir, unet_model)

@@ -152,17 +152,21 @@ class WorkflowTaskManager:
                     raise ValueError(f'Task {task_name} did not return a string')
                 item.config[key] = parse_task_value(task_value)
 
-        task_result = self.tasks[item.task_type].process_task(
-            base_dir,
-            item.name,
-            deepcopy(resolved_inputs), 
-            {
-                **deepcopy(item.config),
-                'globals': deepcopy(flow_store.globals),
-            },
-            callback
-        )
-        
+        try:
+            task_result = self.tasks[item.task_type].process_task(
+                base_dir,
+                item.name,
+                deepcopy(resolved_inputs), 
+                {
+                    **deepcopy(item.config),
+                    'globals': deepcopy(flow_store.globals),
+                },
+                callback
+            )
+        except Exception as e:
+            print(f"Error processing task {item.name}: {str(e)}")
+            raise
+            
         task_result['_item'] = item
         self.results[item.name] = task_result
 
