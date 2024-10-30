@@ -20,7 +20,12 @@ class Sd15PayloadSchema(Schema):
     strength = fields.Float(required=False, load_default=0.75)
     batch_size = fields.Int(required=False, load_default=1)
     inpaint_mode = fields.Str(required=False, load_default="original")
-    ip_adapter_scale = fields.Float(required=False, load_default=0.6)
+    ip_adapter_scale_1 = fields.Float(required=False, load_default=0.6)
+    ip_adapter_scale_2 = fields.Float(required=False, load_default=0.6)
+    ip_adapter_scale_3 = fields.Float(required=False, load_default=0.6)
+    ip_adapter_scale_4 = fields.Float(required=False, load_default=0.6)
+    ip_adapter_scale_5 = fields.Float(required=False, load_default=0.6)
+    ip_adapter_scale_6 = fields.Float(required=False, load_default=0.6)
     mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
     mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
 
@@ -44,7 +49,6 @@ class Sd15Task(WorkflowTask):
         config = Sd15PayloadSchema().load(config)
         model = input.get('model', {}).get('default', None)
         if model is not None:
-            print("Model found in input ", model)
             for key in model.keys():
                 config[key] = model[key]
         if not config.get('model_name', None):

@@ -421,6 +421,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     
     adapter_images = []
     adapter_models = []
+    adapter_scale  = []
     for adapter_index in range(1, 7):
         param_name = f'adapter_{adapter_index}'
         if param_name not in input:
@@ -431,6 +432,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         adapter_models.append(
             adapter['adapter_model']
         )
+        adapter_scale.append(params.get(f'ip_adapter_scale_{adapter_index}', 0.6))
         image = adapter['image']
         if type(image) is str:
             image = [Image.open(image)]
@@ -442,7 +444,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             else:
                 raise ValueError("Number of controlnet images must be the same as inpaint images")
         adapter_images.extend(image)
-        
+
     sd15_models.load_models(
         model_name, 
         inpainting_mode=inpaint_mask is not None,
@@ -533,7 +535,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
             inpaint_mode="original",
             controlnets=cnet,
             use_float16=True,
-            adapter_scale=params.get('ip_adapter_scale', 0.6),
+            adapter_scale=adapter_scale,
             adapter_images=adapter_images
         )
 
