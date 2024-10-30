@@ -6,11 +6,10 @@ import json
 import safetensors.torch
 
 from transformers import CLIPTextModel, CLIPTokenizer, T5EncoderModel, T5TokenizerFast
-from diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler
 from diffusers import (
     FluxPipeline, FluxImg2ImgPipeline, FluxInpaintPipeline, 
     FluxControlNetModel, FluxControlNetImg2ImgPipeline, FluxControlNetInpaintPipeline, FluxControlNetPipeline,
-    FluxTransformer2DModel
+    FluxTransformer2DModel, AutoencoderKL, FlowMatchEulerDiscreteScheduler
 )
 
 from pipelines.common.model_manager import ManagedModel

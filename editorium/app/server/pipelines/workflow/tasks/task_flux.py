@@ -5,12 +5,12 @@ from marshmallow import Schema, fields, validate
 
 
 class FluxPayloadSchema(Schema):
-    prompt = fields.Str(required=True)
-    model_name = fields.Str(required=True)
-    guidance_scale = fields.Float(required=False, load_default=3.5)
+    prompt = fields.Str(required=False, load_default="")
+    model_name = fields.Str(required=False)
+    cfg = fields.Float(required=False, load_default=3.5)
     height = fields.Int(required=False)
     width = fields.Int(required=False)
-    num_inference_steps = fields.Int(required=False, load_default=8)
+    steps = fields.Int(required=False, load_default=8)
     max_sequence_length = fields.Int(required=False, load_default=512)
     seed = fields.Int(required=False, load_default=-1)
     inpaint_mode = fields.Str(required=False, load_default="original")
@@ -41,7 +41,15 @@ class FluxTask(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing flux task")
-        return process_workflow_task(base_dir, name, input, FluxPayloadSchema().load(config), callback)
+        config = FluxPayloadSchema().load(config)
+        model = input.get('default', {}).get('default', None)
+        if model is not None:
+            for key in model.keys():
+                if key not in config:
+                    config[key] = model[key]
+        if not config.get('model_name', None):
+            raise ValueError("Model name is required")
+        return process_workflow_task(base_dir, name, input, config, callback)
 
 
 def register():

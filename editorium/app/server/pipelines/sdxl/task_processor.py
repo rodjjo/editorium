@@ -42,7 +42,7 @@ class TqdmUpTo(tqdm):
 def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
     inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
-    # control_image = input.get('control_image', {}).get('output', None) or input.get('control_image', {}).get('result', None)
+    control_image = input.get('control_image', {}).get('output', None) or input.get('control_image', {}).get('result', None)
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:
         raise ValueError("It's required a image to inpaint")
@@ -73,9 +73,24 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
     
     lora_repo_id = params.get('lora_repo_id', '')
     lora_scale = params.get('lora_scale', 1.0)
-    sdxl_models.load_models(model_name, mode, lora_repo_id, lora_scale)
+    unet_model = params.get('unet_model', None)
+    
+    if control_image is None:
+        controlnet_type = ''
+    else:
+        controlnet_type = params.get('controlnet_type', 'pose')
+
+    sdxl_models.load_models(model_name, mode, lora_repo_id, lora_scale, unet_model, controlnet_type)
     
     add_args = {}
+    
+    if control_image is not None:
+        # control_mode=sdxl_models.control_mode,
+        add_args['controlnet_conditioning_scale'] = params.get('controlnet_conditioning_scale', 1.0)
+        if mode == 'txt2img':
+            add_args['image'] = control_image
+        else:
+            add_args['control_image'] = control_image
     
     if mode == 'inpaint':
         mask_dilate_size = params.get('mask_dilate_size', 0)
@@ -123,10 +138,10 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
         prompt_2=params['prompt'],
         negative_prompt=params.get('negative_prompt', None),
         negative_prompt_2=params.get('negative_prompt', None),
-        guidance_scale=params.get('guidance_scale', 5.0),
+        guidance_scale=params.get('cfg', 5.0),
         height=params.get('height', None),
         width=params.get('width', None),
-        num_inference_steps=params.get('num_inference_steps', 50),
+        num_inference_steps=params.get('steps', 50),
         generator=generator,
         **add_args,
     ).images 

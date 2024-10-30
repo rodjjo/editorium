@@ -5,7 +5,7 @@ from marshmallow import Schema, fields
 
 
 class Sd15PayloadSchema(Schema):
-    model_name = fields.Str(required=True)
+    model_name = fields.Str(required=False, load_default="")
     prompt = fields.Str(required=True)
     negative_prompt = fields.Str(required=False, load_default=None)
     use_lcm = fields.Bool(required=False, load_default=False)
@@ -41,7 +41,15 @@ class Sd15Task(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing SD 1.5 task")
-        return process_workflow_task(base_dir, name, input, Sd15PayloadSchema().load(config), callback)
+        config = Sd15PayloadSchema().load(config)
+        model = input.get('default', {}).get('default', None)
+        if model is not None:
+            for key in model.keys():
+                if key not in config:
+                    config[key] = model[key]
+        if not config.get('model_name', None):
+            raise ValueError("Model name is required")
+        return process_workflow_task(base_dir, name, input, config, callback)
 
 
 def register():

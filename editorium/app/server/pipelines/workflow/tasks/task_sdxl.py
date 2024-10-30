@@ -5,19 +5,22 @@ from marshmallow import Schema, fields, validate
 
 
 class SDXLSchema(Schema):
-    prompt = fields.Str(required=True)
+    prompt = fields.Str(required=False, load_default="")
     negative_prompt = fields.Str(required=False, load_default=None)
     model_name = fields.Str(required=True)
-    guidance_scale = fields.Float(required=False, load_default=5.0)
+    cfg = fields.Float(required=False, load_default=5.0)
     height = fields.Int(required=False)
     width = fields.Int(required=False)
-    num_inference_steps = fields.Int(required=False, load_default=50)
+    steps = fields.Int(required=False, load_default=50)
     seed = fields.Int(required=False, load_default=-1)
     inpaint_mode = fields.Str(required=False, load_default="original")
     mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
     mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    unet_model = fields.Str(required=False)
     lora_repo_id = fields.Str(required=False)
     lora_scale = fields.Float(required=False, default=1.0)
+    controlnet_conditioning_scale = fields.Float(required=False, load_default=1.0)
+    controlnet_type = fields.Str(required=False, load_default="pose", validate=validate.OneOf(["pose", "canny", "depth"]))
     strength = fields.Float(required=False, load_default=0.8)
     globals = fields.Dict(required=False, load_default={})
 
@@ -36,7 +39,15 @@ class SDXLTask(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
         print("Processing SDXL task")
-        return process_workflow_task(base_dir, name, input, SDXLSchema().load(config), callback)
+        config = SDXLSchema().load(config)
+        model = input.get('default', {}).get('default', None)
+        if model is not None:
+            for key in model.keys():
+                if key not in config:
+                    config[key] = model[key]
+        if not config.get('model_name', None):
+            raise ValueError("Model name is required")
+        return process_workflow_task(base_dir, name, input, config, callback)
 
 
 def register():
