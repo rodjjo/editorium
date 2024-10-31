@@ -5,7 +5,7 @@ from marshmallow import Schema, fields, validate
 
 class FluxModelSchema(Schema):
     model_name = fields.Str(required=True)
-    guidance_scale = fields.Float(required=False, load_default=3.5)
+    cfg = fields.Float(required=False, load_default=3.5)
     steps = fields.Int(required=False, load_default=8)
     seed = fields.Int(required=False, load_default=-1)
     transformer2d_model = fields.Str(required=False)

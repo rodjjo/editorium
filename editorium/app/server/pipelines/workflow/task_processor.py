@@ -18,7 +18,7 @@ def process_workflow_task(task: dict, callback: callable = None) -> dict:
     PROGRESS_CALLBACK = callback
     SHOULD_STOP = False
     
-    return  get_workflow_manager().execute(task['workflow'], workflow_callback)
+    return  get_workflow_manager(task.get('collection', {})).execute(task['workflow'], callback=workflow_callback)
 
 
 def cancel_workflow_task():

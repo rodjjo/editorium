@@ -11,8 +11,6 @@ class InvalidItemException(Exception):
     pass
 
 
-CONFIG_VALIDATOR = lambda task_type, config: True
-
 def parse_task_value(value: str):
     value = value.strip()
     try:
@@ -55,16 +53,17 @@ class FlowItem:
     flow_lazy: bool = False
     decision: bool = False
     
-    def __init__(self, name: str, task_type: str, input: dict, config: dict, flow_lazy: bool, decision: bool=False) -> None:
+    def __init__(self, validator, name: str, task_type: str, input: dict, config: dict, flow_lazy: bool, decision: bool=False) -> None:
         self.name = name
         self.config = config
         self.input = input
         self.task_type = task_type
         self.flow_lazy = flow_lazy
         self.decision = decision
+        self.validator = validator
     
     @classmethod
-    def from_lines(cls, lines: List[str], globals: dict, flow_lazy: bool):
+    def from_lines(cls, validator, lines: List[str], globals: dict, flow_lazy: bool):
         config = {}
         name = str(uuid4())
         input = {}
@@ -160,19 +159,20 @@ class FlowItem:
             if type(value) is str and value.startswith("task://"):
                 should_validate = False # there is no way to validate a dynamic config beforehand
                 dependency = value.split("task://")[1]  
-                if dependency not in flow_store.flows and ':' not in dependency:
-                    print(f"ALERT: Dependency not found {dependency}")    
+                #if dependency not in flow_store.flows and ':' not in dependency:
+                #    print(f"ALERT: Dependency not found {dependency}")    
                 
-        if should_validate and not CONFIG_VALIDATOR(task_type, config):
+        if should_validate and not validator.validate_config(task_type, config):
             raise InvalidItemException(f"Invalid config on task name={name} task_type={task_type}")
 
-        return cls(name, task_type, input, config, flow_lazy, is_decision)
+        return cls(validator, name, task_type, input, config, flow_lazy, is_decision)
 
 
 class FlowStore:
-    def __init__(self) -> None:
+    def __init__(self, validator) -> None:
         self.flows = {}
         self.globals = {}
+        self.validator = validator
         
     def add_flow(self, flow: FlowItem):
         if flow.name in self.flows:
@@ -181,7 +181,7 @@ class FlowStore:
         
     def parse_flow(self, lines: List[str], flow_lazy: bool):
         try:
-            flow = FlowItem.from_lines(lines, self.globals, flow_lazy)
+            flow = FlowItem.from_lines(self.validator, lines, self.globals, flow_lazy)
             self.add_flow(flow)
         except IgnoredItemException:
             pass
@@ -285,13 +285,6 @@ class FlowStore:
     def iterate(self):
         for flow in self.flows.values():
             yield flow
-        
 
-def register_validator(func: callable):
-    global CONFIG_VALIDATOR
-    CONFIG_VALIDATOR = func
-        
 
-flow_store = FlowStore()
-
-__all__ = ["flow_store", "FlowItem", "register_validator", "InvalidItemException", "IgnoredItemException", 'parse_task_value']
+__all__ = ["FlowItem",  "InvalidItemException", "IgnoredItemException", 'parse_task_value', 'FlowStore']

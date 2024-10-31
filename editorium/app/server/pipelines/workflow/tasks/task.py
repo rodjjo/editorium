@@ -1,11 +1,12 @@
 import os
 import random
 from zoneinfo import ZoneInfo
+import time
 from datetime import datetime, timedelta
 from importlib import import_module
 from typing import List
 from copy import deepcopy
-from pipelines.common.flow_parser import register_validator, flow_store, FlowItem, parse_task_value
+from pipelines.common.flow_parser import FlowStore, FlowItem, parse_task_value
 
 BASE_DIR = '/app/output_dir'
 
@@ -37,20 +38,26 @@ class WorkflowTask:
     @classmethod
     def register(cls,task_type: str, description: str):
         instance = cls(task_type, description)
-        task_manager.add_task(instance)
+        WorkflowTaskManager.add_task(instance)
 
 
 class WorkflowTaskManager:
-    tasks: dict = {}
+    _tasks: dict = {}
     results = {}
-
-    def __init__(self):
-        pass
     
-    def add_task(self, task: WorkflowTask):
-        if task.task_type in self.tasks:
+    @property
+    def tasks(self) -> dict:
+        return WorkflowTaskManager._tasks
+    
+    def __init__(self, workflow_collection: dict):
+        self.flow_store = FlowStore(self)
+        self.workflow_collection = workflow_collection
+    
+    @classmethod
+    def add_task(cls, task: WorkflowTask):
+        if task.task_type in cls._tasks:
             raise ValueError(f'Task {task.task_type} already exists')
-        self.tasks[task.task_type] = task
+        cls._tasks[task.task_type] = task
         
     def validate_config(self, task_type: str, config: dict):
         if task_type not in self.tasks:
@@ -96,7 +103,7 @@ class WorkflowTaskManager:
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
                 else:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
-                    self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                    self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
             elif value:
                 print(f'Using literal value {value} for task {item.name}')
@@ -112,14 +119,14 @@ class WorkflowTaskManager:
             prompt = item.config.get('prompt', '')
             task_name = prompt.split('task://')[1]
             if task_name not in self.results:
-                self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
             item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
 
         if item.config.get('negative_prompt', '').startswith('task://'):
             negative_prompt = item.config.get('negative_prompt', '')
             task_name = negative_prompt.split('task://')[1]
             if task_name not in self.results:
-                self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
             item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
             
         for key, value in item.config.items():
@@ -131,7 +138,7 @@ class WorkflowTaskManager:
                         raise ValueError(f'Invalid insert_task tag in task {item.name}')
                     task_name = value[start + 13:end]
                     if task_name not in self.results:
-                        self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                        self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
                     task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
                     if type(task_value) is list:
                         task_value = task_value[0]
@@ -146,11 +153,11 @@ class WorkflowTaskManager:
                 default_value = None
                 if ':' in task_name:
                     task_name, default_value = task_name.split(':', maxsplit=1)
-                    if task_name in flow_store.flows:
+                    if task_name in self.flow_store.flows:
                         default_value = None
                 if task_name not in self.results:
                     if default_value is None:
-                        self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                        self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
                 if default_value is None:
                     task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
                 else:
@@ -162,13 +169,25 @@ class WorkflowTaskManager:
                 item.config[key] = parse_task_value(task_value)
 
         try:
+            def execute_manager(path, result_task_name, parent_dir):
+                global_seed = self.flow_store.globals.get('seed', -1)
+                new_manager = WorkflowTaskManager(self.workflow_collection)
+                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, callback=callback, parent_dir=parent_dir)
+                if result_task_name in new_manager.results:
+                    return new_manager.results[result_task_name]
+                else:
+                    raise ValueError(f'Task {result_task_name} not found in {path}')
+            
             task_result = self.tasks[item.task_type].process_task(
                 base_dir,
                 item.name,
                 deepcopy(resolved_inputs), 
                 {
                     **deepcopy(item.config),
-                    'globals': deepcopy(flow_store.globals),
+                    'globals': {
+                        **deepcopy(self.flow_store.globals),
+                        'execute_manager': execute_manager, # contents: List[str], use_global_seed=None, disable_repeat=False, callback=None
+                    },
                 },
                 callback
             )
@@ -195,7 +214,7 @@ class WorkflowTaskManager:
                 if value != '':
                     if value == item.name:
                         raise ValueError(f'Decision Task {item.name} cannot reference itself')
-                    self.process_task(base_dir, flow_store.get_task(value), callback, task_stack)
+                    self.process_task(base_dir, self.flow_store.get_task(value), callback, task_stack)
                 else:
                     print(f'Empty task name in decision task {item.name}')
 
@@ -205,37 +224,47 @@ class WorkflowTaskManager:
                 f.write(line + '\n')
 
         
-    def execute(self, contents: List[str], callback = None) -> dict:
-        should_repeat = True
+    def execute(self, contents: List[str], use_global_seed=None, disable_repeat=False, callback=None, parent_dir='') -> dict:
+        should_repeat = False
         found_global_seed = False
         found_global_debug = False
-        for line in contents:
-            if line.startswith('#global.repeat='):
+        for index, line in enumerate(contents):
+            if disable_repeat is False and line.startswith('#global.repeat='):
                 should_repeat = line.split('#global.repeat=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
                 break
+
             if line.startswith('#global.seed='):
+                if use_global_seed is not None:
+                    contents[index] = f'#global.seed={use_global_seed}'
                 found_global_seed = True
+
             if line.startswith('#global.debug='):
                 found_global_debug = line.split('#global.debug=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
+
         if not found_global_seed:
-            contents = [f'#global.seed={random.randint(0, 1000000)}'] + contents
+            contents = [f'#global.seed={use_global_seed or random.randint(0, 1000000)}'] + contents
 
         task_run_count = 0
         while True:
             try:
                 self.results = {}
-                # dirname = current date and time in format YYYYMMDD-HH-MM-SS in local time
-                dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S')
-                dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
+                # dirname = current date and time in format YYYYMMDD-HH-MM-SS.00 in local time
+                time.sleep(0.5)
+                dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S.%f')[:-2]
+                if parent_dir:
+                    dirpath = os.path.join(BASE_DIR, "workflow-outputs", parent_dir, dirname)
+                else:
+                    dirpath = os.path.join(BASE_DIR, "workflow-outputs", dirname)
                 os.makedirs(dirpath, exist_ok=True)
                 
-                flow_store.load(contents)
+                self.flow_store.load(contents)
                 
-                for item in flow_store.iterate():
+                for item in self.flow_store.iterate():
                     if item.flow_lazy:
                         continue
                     self.process_task(dirpath, item, callback, set())
                     task_run_count += 1
+
                 if not should_repeat:
                     break
 
@@ -267,13 +296,6 @@ class WorkflowTaskManager:
         return registered_tasks
 
 
-task_manager = WorkflowTaskManager()
-
-
-def validate_config(task_type: str, config: dict):
-    return task_manager.validate_config(task_type, config)
-
-
 def register_workflow_tasks():
     for file in os.listdir(os.path.dirname(__file__)):
         if file.startswith('task_') and file.endswith('.py'):
@@ -283,13 +305,11 @@ def register_workflow_tasks():
             else:
                 print(f'Warning: {file} does not have a register function')
 
-
-def get_workflow_manager():
-    return task_manager
-
-
 register_workflow_tasks()
-register_validator(validate_config)
 
 
-__all__ = ['get_workflow_manager', 'WorkflowTask']
+def get_workflow_manager(workflow_collection: dict):
+    return WorkflowTaskManager(workflow_collection)
+
+
+__all__ = ['get_workflow_manager', 'WorkflowTask', 'WorkflowTaskManager']

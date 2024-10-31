@@ -2,6 +2,7 @@ import click
 import os
 import re
 import urllib
+from typing import List
 
 from .docker_management import full_path
 from .help_formater import call_command
@@ -90,6 +91,42 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         else:
             parsed_lines.append(line)
     return parsed_lines
+
+
+def extract_workflow_collections(include_dir: str, content: List[str], collections: dict) -> dict:
+    in_task = False
+    task_type = ''
+    config_path = ''
+    for line in content:
+        line = line.strip()
+        if line.startswith('#start'):
+            in_task = True
+            continue
+        if line.startswith('#end'):
+            if task_type == 'execute':
+                if not config_path:
+                    raise Exception(f"Invalid execute task configuration missing path: {line}")
+                config_path_complete = full_path(os.path.join(include_dir, config_path))
+                if os.path.exists(config_path_complete) is False:
+                    raise Exception(f"Invalid execute task configuration path not found: {config_path_complete}")
+                if config_path not in collections:
+                    collections[config_path] = read_worflow_file(include_dir, config_path, set(), {}, '')
+                    collections = extract_workflow_collections(os.path.dirname(config_path_complete), collections[config_path], collections)
+            in_task = False
+            task_type = ''
+            config_path = ''
+            continue
+        if in_task:
+            if line.startswith('#type='):
+                task_type = line[6:].strip()
+            elif line.startswith('#task_type='):
+                task_type = line[11:].strip()
+            elif line.startswith('#config.path='):
+                config_path = line[13:].strip()
+            if task_type and task_type != 'execute':
+                config_path = ''            
+                
+    return collections
                 
         
 @workflow_group.command(help='Processes a workflow file line by line and generate photo and videos following the instructions')
@@ -125,9 +162,10 @@ def run(path):
         path = os.path.join(preffix, choices[selected])
     else:
         path = full_path(path)
-    
+    contents = read_worflow_file('', path, set(), {}, '')
     parameters = {
-        "workflow": read_worflow_file('', path, set(), {}, '')
+        "workflow": contents,
+        "collection": extract_workflow_collections(preffix, contents, {})
     }
     payload = {
         "task_type": "workflow",
