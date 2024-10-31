@@ -11,6 +11,7 @@ from pipelines.common.exceptions import StopException
 from pipelines.sdxl.managed_model import sdxl_models
 from pipelines.common.task_result import TaskResult
 
+
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
 CURRENT_TITLE = ""

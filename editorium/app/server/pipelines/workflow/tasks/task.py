@@ -108,27 +108,27 @@ class WorkflowTaskManager:
                 resolved = {}
             resolved_inputs[input] = resolved
 
-        if item.config.get('prompt', '').startswith('from://'):
+        if item.config.get('prompt', '').startswith('task://'):
             prompt = item.config.get('prompt', '')
-            task_name = prompt.split('from://')[1]
+            task_name = prompt.split('task://')[1]
             if task_name not in self.results:
                 self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
             item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
 
-        if item.config.get('negative_prompt', '').startswith('from://'):
+        if item.config.get('negative_prompt', '').startswith('task://'):
             negative_prompt = item.config.get('negative_prompt', '')
-            task_name = negative_prompt.split('from://')[1]
+            task_name = negative_prompt.split('task://')[1]
             if task_name not in self.results:
                 self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
             item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
             
         for key, value in item.config.items():
             if key in ['prompt', 'negative_prompt', 'globals']:
-                while '<insert_from:' in value:
-                    start = value.find('<insert_from:')
+                while '<insert_task:' in value:
+                    start = value.find('<insert_task:')
                     end = value.find('>', start)
                     if end == -1:
-                        raise ValueError(f'Invalid insert_from tag in task {item.name}')
+                        raise ValueError(f'Invalid insert_task tag in task {item.name}')
                     task_name = value[start + 13:end]
                     if task_name not in self.results:
                         self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
@@ -141,11 +141,20 @@ class WorkflowTaskManager:
                 item.config[key] = value
                 continue
 
-            if type(value) is str and value.startswith('from://'):
-                task_name = value.split('from://')[1]
+            if type(value) is str and value.startswith('task://'):
+                task_name = value.split('task://')[1]
+                default_value = None
+                if ':' in task_name:
+                    task_name, default_value = task_name.split(':', maxsplit=1)
+                    if task_name in flow_store.flows:
+                        default_value = None
                 if task_name not in self.results:
-                    self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
-                task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
+                    if default_value is None:
+                        self.process_task(base_dir, flow_store.get_task(task_name), callback, task_stack)
+                if default_value is None:
+                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
+                else:
+                    task_value = default_value
                 if type(task_value) is list:
                     task_value = task_value[0]
                 if type(task_value) is not str:

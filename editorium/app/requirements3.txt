@@ -8,3 +8,5 @@ ctransformers==0.2.27
 auto-gptq==0.7.1
 basicsr@git+https://github.com/XPixelGroup/BasicSR.git@033cd6896d898fdd3dcda32e3102a792efa1b8f4
 flask-socketio==5.4.1
+scikit-image==0.24.0
+blendmodes==2024.1.1

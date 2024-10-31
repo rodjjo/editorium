@@ -3,7 +3,7 @@ from marshmallow import Schema, fields, validate
 
 
 class SdxlIpAdapterSchema(Schema):
-    adapter_model = fields.Str(required=True, validate=validate.OneOf(['plus-face', 'plus']))
+    adapter_model = fields.Str(required=True, validate=validate.OneOf(['plus-face', 'plus', 'common']))
     globals = fields.Dict(required=False, load_default={})
 
 

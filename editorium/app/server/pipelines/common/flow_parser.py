@@ -121,6 +121,10 @@ class FlowItem:
                 task_type = line.split("#task_type=")[1]
                 continue
             
+            if line.startswith("#type="):
+                task_type = line.split("#type=")[1]
+                continue
+            
             if line.startswith("#config."):
                 key, value = line.split("#config.")[1].split("=")
                 key = key.strip()
@@ -153,11 +157,11 @@ class FlowItem:
         
         should_validate = True
         for value in config.values():
-            if type(value) is str and value.startswith("from://"):
+            if type(value) is str and value.startswith("task://"):
                 should_validate = False # there is no way to validate a dynamic config beforehand
-                dependency = value.split("from://")[1]  
-                if dependency not in flow_store.flows:
-                    raise InvalidItemException(f"Dependency not found {dependency}")    
+                dependency = value.split("task://")[1]  
+                if dependency not in flow_store.flows and ':' not in dependency:
+                    print(f"ALERT: Dependency not found {dependency}")    
                 
         if should_validate and not CONFIG_VALIDATOR(task_type, config):
             raise InvalidItemException(f"Invalid config on task name={name} task_type={task_type}")
@@ -192,7 +196,8 @@ class FlowStore:
                     return True
                 names.add(dependency)
                 if dependency not in self.flows:
-                    raise InvalidItemException(f"Dependency not found {dependency}")
+                    print(f"ALERT: Dependency not found {dependency}")
+                    return False
                 return self.find_circular_deps(self.flows[dependency], names)
         return False
         
@@ -233,7 +238,18 @@ class FlowStore:
                     value = random.randint(0, 1000000)
                 self.globals[key] = value
                 continue
-
+            
+            if line.startswith('#value.'):
+                if flow_started:
+                    raise InvalidItemException("Value is reserved for to create short prompt tasks. It can't be used inside other task")
+                key, value = line.split('#value.')[1].split('=')
+                self.parse_flow([
+                    f"#name={key}",
+                    f"#task_type=prompt",
+                    f"#prompt",
+                    value,
+                ], True)
+                continue    
             if line.startswith('#start'):
                 flow_started = True
                 in_header = False

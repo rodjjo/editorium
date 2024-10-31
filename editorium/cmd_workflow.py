@@ -14,7 +14,7 @@ def workflow_group():
     pass
 
 
-def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: dict, sufix: str):
+def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: dict, suffix: str):
     if include_dir == '':
         path = full_path(path)
         include_dir = os.path.dirname(path)
@@ -22,7 +22,7 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         path = full_path(os.path.join(include_dir, path))
     if os.path.exists(path) is False:
         raise Exception(f"File {path} not found")
-    included_track = f'{path}-{sufix}'
+    included_track = f'{path}-{suffix}'
     if included_track in already_included:
         raise Exception(f"File {path} already included")
     already_included.add(included_track)
@@ -30,69 +30,65 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
     capture_inputs1 = re.compile('#input=([^#]+)')
     capture_inputs2 = re.compile('#input\\.([^=]+)=([^#]+)')
     capture_path = re.compile('.*#path=([^$#]+).*')
-    capture_sufix = re.compile('.*#suffix=([0-9a-zA-Z_\-]+).*')
+    capture_suffix = re.compile('.*#suffix=([0-9a-zA-Z_\-]+).*')
     
     with open(path, 'r') as f:
         file_content = f.readlines()
         
-        replace_include_from = re.compile('<insert_from:([^<>]+)>')
-        
-        if sufix:
-            for index, line in enumerate(file_content):
-                if line.startswith("#name="):
-                    file_content[index] = f'{line.strip()}-{sufix}'
-                    continue
-                if 'from://<' in line or 'task://<' in line:
-                    continue
-                if 'from://' in line or 'task://' in line:
-                    file_content[index] = f'{line.strip()}-{sufix}'
-                    continue
-                if '<insert_from:' in line:
-                    file_content[index] = re.sub(replace_include_from, rf'<insert_from:\g<1>{sufix}>', line)
-                
-        if replace_input:
-            print("Replacing inputs of file ", path, " with ", replace_input)
-            for key in replace_input:
-                for index, line in enumerate(file_content):
-                    if f"task://<{key}>" in line:
-                        file_content[index] = line.replace(f"task://<{key}>", f'task://{replace_input[key]}')
-                    elif f"from://<{key}>" in line:
-                        file_content[index] = line.replace(f"from://<{key}>", f'from://{replace_input[key]}')
-                    while f"<insert_from:<{key}>>" in line:
-                        line = line.replace(f"<insert_from:<{key}>>", f'<insert_from:{replace_input[key]}>')
-                        file_content[index] = line
-                        
+    if suffix:
+        replace_include_from = re.compile('<insert_task:([^<>]+)>')
+        replace_suffix = re.compile('task:\/\/([^<>:]+)(:|$)')
         for index, line in enumerate(file_content):
-            if "<insert_from:<" in line or "from://<" in line or "task://<" in line:
-                print(f"[WARNING] Invalid include line: {line} it does not have #suffix=value")
-
-        for line in file_content:
-            line = line.strip()  # #include #input=bla #path=bla
-            if line.startswith("#comment"):
+            line = line.strip()
+            if line.startswith("#name="):
+                file_content[index] = f'{line.strip()}-{suffix}'
                 continue
-            if line.startswith("#include "):
-                inputs1 = re.search(capture_inputs1, line)
-                inputs2 = re.findall(capture_inputs2, line)
-                parsed_inputs = {}
-                if inputs1:
-                    parsed_inputs["input"] = inputs1.group(1).strip()
-                if inputs2:
-                    for input in inputs2:
-                        parsed_inputs[f'input.{input[0].strip()}'] = input[1].strip()
-                print(parsed_inputs)
-                parsed_path = re.match(capture_path, line)
-                parsed_sufix = re.match(capture_sufix, line)
-                if not parsed_sufix:
-                    raise Exception(f"Invalid include line: {line} it does not have #suffix=value")
-                if not parsed_path:
-                    raise Exception(f"Invalid include line: {line} it does not have #path=value")
-                
-                path = parsed_path.group(1).strip()
-                sufix = parsed_sufix.group(1).strip()
-                
-                parsed_lines += read_worflow_file(include_dir, path, already_included, parsed_inputs, sufix)
-            else:
-                parsed_lines.append(line)
+            file_content[index] = re.sub(replace_include_from, rf'<insert_task:\g<1>-{suffix}>', line)
+            file_content[index] = re.sub(replace_suffix, rf'task://\g<1>-{suffix}\g<2>', line)    
+            
+    if replace_input:
+        print("Replacing inputs of file ", path, " with ", replace_input)
+        for key in replace_input:
+            for index, line in enumerate(file_content):
+                line = line.strip()
+                if f"task://<{key}>" in line:
+                    file_content[index] = line.replace(f"task://<{key}>", f'task://{replace_input[key]}')
+                while f"<insert_task:<{key}>>" in line:
+                    line = line.replace(f"<insert_task:<{key}>>", f'<insert_task:{replace_input[key]}>')
+                    file_content[index] = line
+                    
+    for index, line in enumerate(file_content):
+        line = line.strip()
+        if "<insert_task:<" in line or "from://<" in line or "task://<" in line:
+            print(f"[WARNING] Invalid include line: {line} it does not have #suffix=value")
+
+    for line in file_content:
+        line = line.strip()  # #include #input=bla #path=bla
+        if line.startswith("#comment"):
+            continue
+        if line.startswith("#include "):
+            inputs1 = re.search(capture_inputs1, line)
+            inputs2 = re.findall(capture_inputs2, line)
+            parsed_inputs = {}
+            if inputs1:
+                parsed_inputs["input"] = inputs1.group(1).strip()
+            if inputs2:
+                for input in inputs2:
+                    parsed_inputs[f'input.{input[0].strip()}'] = input[1].strip()
+            print(parsed_inputs)
+            parsed_path = re.match(capture_path, line)
+            parsed_suffix = re.match(capture_suffix, line)
+            if not parsed_suffix:
+                raise Exception(f"Invalid include line: {line} it does not have #suffix=value")
+            if not parsed_path:
+                raise Exception(f"Invalid include line: {line} it does not have #path=value")
+            
+            path = parsed_path.group(1).strip()
+            suffix = parsed_suffix.group(1).strip()
+            
+            parsed_lines += read_worflow_file(include_dir, path, already_included, parsed_inputs, suffix)
+        else:
+            parsed_lines.append(line)
     return parsed_lines
                 
         
