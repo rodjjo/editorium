@@ -83,6 +83,10 @@ class WorkflowTaskManager:
         return value
     
     def process_task(self, base_dir, item: FlowItem, callback: callable, task_stack: set):
+        if item.name in self.results:
+            if self.results[item.name]['_injected']:
+                return self.results[item.name]
+
         if item.task_type not in self.tasks:
             raise ValueError(f'Task {item.task_type} is not registered')
 
@@ -169,9 +173,16 @@ class WorkflowTaskManager:
                 item.config[key] = parse_task_value(task_value)
 
         try:
-            def execute_manager(path, result_task_name, parent_dir):
+            def execute_manager(path, inject_result, result_task_name, parent_dir):
                 global_seed = self.flow_store.globals.get('seed', -1)
                 new_manager = WorkflowTaskManager(self.workflow_collection)
+                for k, v in inject_result.items():
+                    v = {
+                        **v,
+                        '_injected': True,
+                    }
+                    new_manager.results[k] = v
+                    
                 new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, callback=callback, parent_dir=parent_dir)
                 if result_task_name in new_manager.results:
                     return new_manager.results[result_task_name]

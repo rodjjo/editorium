@@ -27,8 +27,8 @@ class ExecuteFlowTask(WorkflowTask):
         path = params['path']
         output_task = params['output_task']
         globals = params.get('globals', {})
-        return globals['execute_manager'](path, output_task, base_dir)
-
+        inject = input.get("default", {})
+        return globals['execute_manager'](path, inject, output_task, base_dir)
 
 
 def register():
