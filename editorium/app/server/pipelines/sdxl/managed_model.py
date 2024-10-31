@@ -22,7 +22,11 @@ from diffusers import (
         StableDiffusionXLControlNetInpaintPipeline,
 )
 
+from huggingface_hub import hf_hub_download
+
 from pipelines.common.model_manager import ManagedModel
+from pipelines.sdxl.custom_pipelines import StableDiffusionXLCustomPipeline
+from pipelines.sdxl.ip_adapter import IPAdapterPlusXL
 
 
 SCHEDULER_EULER_CONFIG_JSON = '''
@@ -158,6 +162,7 @@ class SdxlModels(ManagedModel):
         self.lora_scale = 1.0
         self.unet_model = None
         self.controlnet_type = None
+        self.adapter_model = None
         
     def release_model(self):
         self.pipe = None
@@ -167,6 +172,7 @@ class SdxlModels(ManagedModel):
         self.lora_scale = 1.0
         self.unet_model = None
         self.controlnet_type = None
+        self.adapter_model = None
         gc.collect()
         torch.cuda.empty_cache()
         
@@ -177,7 +183,8 @@ class SdxlModels(ManagedModel):
     def get_sdxl_model_dir(self):
         return os.path.join(self.model_dir('images', 'sdxl'))
     
-    def load_models(self, model_name: str, pipeline_type : str, lora_repo_id: str, lora_scale: str, unet_model: str = None, controlnet_type: str = None):
+    def load_models(self, model_name: str, pipeline_type : str, lora_repo_id: str, lora_scale: str, 
+                    unet_model: str = None, controlnet_type: str = None, adapter_model = None):
         model_dir = self.get_sdxl_model_dir()
         self.release_other_models()
         if model_name.startswith('./'):
@@ -190,7 +197,8 @@ class SdxlModels(ManagedModel):
             self.lora_repo_id != lora_repo_id,
             self.lora_scale != lora_scale,
             self.unet_model != unet_model,
-            self.controlnet_type != controlnet_type
+            self.controlnet_type != controlnet_type,
+            self.adapter_model != adapter_model,
         ])
         if not has_changes:
             return
@@ -201,6 +209,44 @@ class SdxlModels(ManagedModel):
         self.pipeline_type = pipeline_type
         self.unet_model = unet_model
         self.controlnet_type = controlnet_type
+        self.adapter_model = adapter_model
+        
+        adapter_dir = self.model_dir('images', 'sdxl', 'adapters')
+        
+        if adapter_model == 'plus-face':
+            # adapter_url = 'https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter-plus-face_sdxl_vit-h.safetensors?download=true'
+            adapter_checkpoint = 'ip-adapter-plus-face_sdxl_vit-h.bin'
+            hf_hub_download(repo_id="h94/IP-Adapter", filename=f"sdxl_models/{adapter_checkpoint}", local_dir=adapter_dir)
+        elif adapter_model == 'plus':
+            # adapter_url = 'https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors?download=true'
+            adapter_checkpoint = 'ip-adapter-plus_sdxl_vit-h.bin'
+            hf_hub_download(repo_id="h94/IP-Adapter", filename=f"sdxl_models/{adapter_checkpoint}", local_dir=adapter_dir)
+        else:
+            adapter_checkpoint = None
+        
+        if adapter_checkpoint:
+            if 'plus' in adapter_checkpoint:
+                prefix = 'models'
+            else:
+                prefix = 'sdxl_models'
+            img_encoders_dir = self.model_dir('images', 'sdxl', 'adapters', prefix, 'image_encoder')
+
+            if not os.path.exists(os.path.join(img_encoders_dir, 'config.json')):
+                hf_hub_download(repo_id="h94/IP-Adapter", filename=f"{prefix}/image_encoder/config.json", local_dir=adapter_dir)
+            if not os.path.exists(os.path.join(img_encoders_dir, 'model.safetensors')):
+                hf_hub_download(repo_id="h94/IP-Adapter", filename=f"{prefix}/image_encoder/model.safetensors", local_dir=adapter_dir)
+            def attach_adpater(pipe):
+                pipe.vae.enable_slicing()
+                pipe.vae.enable_tiling()
+                pipe.enable_model_cpu_offload()
+                print(f"Loading IPAdapterPlusXL img_encoders_dir from {img_encoders_dir}")
+                return IPAdapterPlusXL(pipe, img_encoders_dir, os.path.join(adapter_dir, 'sdxl_models', adapter_checkpoint), 'cuda', num_tokens=16)
+        else:
+            def attach_adpater(pipe):
+                pipe.vae.enable_slicing()
+                pipe.vae.enable_tiling()
+                pipe.enable_model_cpu_offload()
+                return pipe
         
         scheduler = EulerAncestralDiscreteScheduler.from_config(json.loads(SCHEDULER_EULERA_CONFIG_JSON))
         
@@ -251,19 +297,22 @@ class SdxlModels(ManagedModel):
 
         if pipeline_type == "img2img":
             if controlnet_type:
-                self.pipe = StableDiffusionXLControlNetImg2ImgPipeline(**args)
+                self.pipe = attach_adpater(StableDiffusionXLControlNetImg2ImgPipeline(**args))
             else:
-                self.pipe = StableDiffusionXLImg2ImgPipeline(**args)
+                self.pipe = attach_adpater(StableDiffusionXLImg2ImgPipeline(**args))
         elif pipeline_type == "inpaint":
             if controlnet_type:
-                self.pipe = StableDiffusionXLControlNetInpaintPipeline(**args)
+                self.pipe = attach_adpater(StableDiffusionXLControlNetInpaintPipeline(**args))
             else:
-                self.pipe = StableDiffusionXLInpaintPipeline(**args)
+                self.pipe = attach_adpater(StableDiffusionXLInpaintPipeline(**args))
         else:   
             if controlnet_type:
-                self.pipe = StableDiffusionXLControlNetPipeline(**args)
+                self.pipe = attach_adpater(StableDiffusionXLControlNetPipeline(**args))
             else:     
-                self.pipe = StableDiffusionXLPipeline(**args)
+                if adapter_model == 'plus-face':
+                    self.pipe = attach_adpater(StableDiffusionXLCustomPipeline(**args))
+                else:
+                    self.pipe = attach_adpater(StableDiffusionXLPipeline(**args))
 
         self.pipe.scheduler = scheduler
         if self.lora_repo_id:
@@ -278,9 +327,9 @@ class SdxlModels(ManagedModel):
                 self.pipe.load_lora_weights(self.lora_repo_id)
             self.pipe.fuse_lora(lora_scale=self.lora_scale)
         
-        self.pipe.vae.enable_slicing()
-        self.pipe.vae.enable_tiling()
-        self.pipe.enable_model_cpu_offload()
+        # self.pipe.vae.enable_slicing()
+        # self.pipe.vae.enable_tiling()
+        # self.pipe.enable_model_cpu_offload()
 
         del args
         del unet

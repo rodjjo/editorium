@@ -79,10 +79,44 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
         controlnet_type = ''
     else:
         controlnet_type = params.get('controlnet_type', 'pose')
+        
+    adapter_images = []
+    adapter_models = []
+    adapter_scale  = []
+    for adapter_index in range(1, 2):
+        param_name = f'adapter_{adapter_index}'
+        if param_name not in input:
+            continue
+        adapter = input.get(param_name, {}).get('default', {})
+        if not adapter:
+            raise ValueError(f"Adapter {adapter_index} not found")
+        adapter_models.append(
+            adapter['adapter_model']
+        )
+        adapter_scale.append(params.get(f'ip_adapter_scale_{adapter_index}', 0.6))
+        image = adapter['image']
+        if type(image) is str:
+            image = [Image.open(image)]
+        elif type(image) is list:
+            image = [Image.open(i) if type(i) is str else i for i in image]
+        if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
+            if len(inpaint_image) == 1:
+                image = [image[0]] * len(inpaint_image)
+            else:
+                raise ValueError("Number of controlnet images must be the same as inpaint images")
+        image = [i.resize((224, 224)) for i in image]
+        adapter_images.extend(image)
 
-    sdxl_models.load_models(model_name, mode, lora_repo_id, lora_scale, unet_model, controlnet_type)
+    if len(adapter_models) == 0:
+        adapter_models = [None]
+        
+    sdxl_models.load_models(model_name, mode, lora_repo_id, lora_scale, unet_model, controlnet_type, adapter_models[0])
     
     add_args = {}
+    
+    if adapter_images:
+        add_args['pil_image'] = adapter_images[0]
+        add_args['scale'] = adapter_scale[0]
     
     if control_image is not None:
         # control_mode=sdxl_models.control_mode,
@@ -133,18 +167,20 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
         
     generator = torch.Generator(device='cuda').manual_seed(seed)
     
-    result = sdxl_models.pipe(
+    pipe_args = dict(
         prompt=params['prompt'],
-        prompt_2=params['prompt'],
         negative_prompt=params.get('negative_prompt', None),
-        negative_prompt_2=params.get('negative_prompt', None),
         guidance_scale=params.get('cfg', 5.0),
         height=params.get('height', None),
         width=params.get('width', None),
         num_inference_steps=params.get('steps', 50),
         generator=generator,
         **add_args,
-    ).images 
+    )
+    if hasattr(sdxl_models.pipe, 'generate'):
+        result = sdxl_models.pipe.generate(**pipe_args) 
+    else:
+        result = sdxl_models.pipe(**pipe_args).images 
 
     debug_enabled = params.get('globals', {}).get('debug', False)
     if debug_enabled:

@@ -7,7 +7,7 @@ from marshmallow import Schema, fields, validate
 class SDXLSchema(Schema):
     prompt = fields.Str(required=False, load_default="")
     negative_prompt = fields.Str(required=False, load_default=None)
-    model_name = fields.Str(required=True)
+    model_name = fields.Str(required=False, load_default="")
     cfg = fields.Float(required=False, load_default=5.0)
     height = fields.Int(required=False)
     width = fields.Int(required=False)
@@ -22,7 +22,9 @@ class SDXLSchema(Schema):
     controlnet_conditioning_scale = fields.Float(required=False, load_default=1.0)
     controlnet_type = fields.Str(required=False, load_default="pose", validate=validate.OneOf(["pose", "canny", "depth"]))
     strength = fields.Float(required=False, load_default=0.8)
+    ip_adapter_scale = fields.Float(required=False, load_default=0.6)
     globals = fields.Dict(required=False, load_default={})
+
 
 class SDXLTask(WorkflowTask):
     def __init__(self, task_type: str, description: str):
