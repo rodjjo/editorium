@@ -223,6 +223,22 @@ class SdxlModels(ManagedModel):
             hf_hub_download(repo_id="h94/IP-Adapter", filename=f"sdxl_models/{adapter_checkpoint}", local_dir=adapter_dir)
         else:
             adapter_checkpoint = None
+
+        scheduler = EulerAncestralDiscreteScheduler.from_config(json.loads(SCHEDULER_EULERA_CONFIG_JSON))
+
+        def load_lora(pipe):
+            if self.lora_repo_id:
+                if self.lora_repo_id.endswith('.safetensors'):
+                    dir_path = self.model_dir('images', 'sdxl', 'loras')
+                    lora_path = os.path.join(dir_path, self.lora_repo_id)
+                    print(f"Loading lora weights from local path {self.lora_repo_id}")
+                    state_dict = load_lora_state_dict(lora_path)
+                    pipe.load_lora_weights(state_dict)    
+                else:
+                    print(f"Loading lora weights from {self.lora_repo_id}")
+                    pipe.load_lora_weights(self.lora_repo_id)
+                pipe.fuse_lora(lora_scale=self.lora_scale)
+        
         
         if adapter_checkpoint:
             if 'plus' in adapter_checkpoint:
@@ -236,19 +252,24 @@ class SdxlModels(ManagedModel):
             if not os.path.exists(os.path.join(img_encoders_dir, 'model.safetensors')):
                 hf_hub_download(repo_id="h94/IP-Adapter", filename=f"{prefix}/image_encoder/model.safetensors", local_dir=adapter_dir)
             def attach_adpater(pipe):
+                pipe.scheduler = scheduler
+                load_lora(pipe)
+                gc.collect()
+                torch.cuda.empty_cache()
                 pipe.vae.enable_slicing()
                 pipe.vae.enable_tiling()
                 pipe.enable_model_cpu_offload()
-                print(f"Loading IPAdapterPlusXL img_encoders_dir from {img_encoders_dir}")
                 return IPAdapterPlusXL(pipe, img_encoders_dir, os.path.join(adapter_dir, 'sdxl_models', adapter_checkpoint), 'cuda', num_tokens=16)
         else:
             def attach_adpater(pipe):
+                pipe.scheduler = scheduler
+                load_lora(pipe)
+                gc.collect()
+                torch.cuda.empty_cache()
                 pipe.vae.enable_slicing()
                 pipe.vae.enable_tiling()
                 pipe.enable_model_cpu_offload()
                 return pipe
-        
-        scheduler = EulerAncestralDiscreteScheduler.from_config(json.loads(SCHEDULER_EULERA_CONFIG_JSON))
         
         if unet_model:
             config_path = os.path.join(model_dir, 'unet_config.json')
@@ -313,23 +334,6 @@ class SdxlModels(ManagedModel):
                     self.pipe = attach_adpater(StableDiffusionXLCustomPipeline(**args))
                 else:
                     self.pipe = attach_adpater(StableDiffusionXLPipeline(**args))
-
-        self.pipe.scheduler = scheduler
-        if self.lora_repo_id:
-            if self.lora_repo_id.endswith('.safetensors'):
-                dir_path = self.model_dir('images', 'sdxl', 'loras')
-                lora_path = os.path.join(dir_path, self.lora_repo_id)
-                print(f"Loading lora weights from local path {self.lora_repo_id}")
-                state_dict = load_lora_state_dict(lora_path)
-                self.pipe.load_lora_weights(state_dict)    
-            else:
-                print(f"Loading lora weights from {self.lora_repo_id}")
-                self.pipe.load_lora_weights(self.lora_repo_id)
-            self.pipe.fuse_lora(lora_scale=self.lora_scale)
-        
-        # self.pipe.vae.enable_slicing()
-        # self.pipe.vae.enable_tiling()
-        # self.pipe.enable_model_cpu_offload()
 
         del args
         del unet
