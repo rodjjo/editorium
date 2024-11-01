@@ -51,10 +51,10 @@ ADD ./run-server.sh /app/editorium/run-server.sh
 
 RUN groupadd -g $GID $USER && useradd -m -u $UID -g $GID -s /bin/bash -d /home/$USER $USER  && chown -R $USER:$USER /app/editorium
 
-USER $USER
 
 ENV TOKENIZERS_PARALLELISM=false
 # ENV DS_ACCELERATOR=cpu
+USER $USER
 
 CMD ["/app/editorium/run-server.sh"]
 
