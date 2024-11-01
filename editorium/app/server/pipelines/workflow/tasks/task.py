@@ -45,6 +45,14 @@ class WorkflowTaskManager:
     _tasks: dict = {}
     results = {}
     
+    def first_existing_task(self, taskname: str):
+        if '|' in taskname:
+            first, second = taskname.split('|', maxsplit=1)
+            if first in self.flow_store.flows:
+                return first
+            return second
+        return taskname
+    
     @property
     def tasks(self) -> dict:
         return WorkflowTaskManager._tasks
@@ -101,7 +109,7 @@ class WorkflowTaskManager:
         resolved_inputs = {}
         for input, value in item.input.items():
             if value.startswith('task://'):
-                task_name = value.split('task://')[1]
+                task_name = self.first_existing_task(value.split('task://')[1])
                 if task_name in self.results:
                     print(f'Using cached result of {task_name} for task {item.name}')
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
@@ -121,14 +129,14 @@ class WorkflowTaskManager:
 
         if item.config.get('prompt', '').startswith('task://'):
             prompt = item.config.get('prompt', '')
-            task_name = prompt.split('task://')[1]
+            task_name = self.first_existing_task(prompt.split('task://')[1])
             if task_name not in self.results:
                 self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
             item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
 
         if item.config.get('negative_prompt', '').startswith('task://'):
             negative_prompt = item.config.get('negative_prompt', '')
-            task_name = negative_prompt.split('task://')[1]
+            task_name = self.first_existing_task(negative_prompt.split('task://')[1])
             if task_name not in self.results:
                 self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
             item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
@@ -157,8 +165,11 @@ class WorkflowTaskManager:
                 default_value = None
                 if ':' in task_name:
                     task_name, default_value = task_name.split(':', maxsplit=1)
+                    task_name = self.first_existing_task(task_name)
                     if task_name in self.flow_store.flows:
                         default_value = None
+                else:
+                    task_name = self.first_existing_task(task_name)
                 if task_name not in self.results:
                     if default_value is None:
                         self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)

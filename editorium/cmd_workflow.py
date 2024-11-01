@@ -15,6 +15,31 @@ def workflow_group():
     pass
 
 
+def get_lines_from_file(path: str):
+    result = []
+    with open(path, 'r') as f:
+        lines = f.readlines()
+        line_sum = ''
+        include_started = False
+        for line in lines:
+            line = line.strip()
+            if line.startswith('#include '):
+                include_started = True
+                
+            if line.endswith('\\') and include_started:
+                line = line[:-1]
+                line_sum += line
+            else: 
+                line_sum += line
+                include_started = False
+                result.append(line_sum)
+                line_sum = ''
+
+        if line_sum:
+            result.append(line_sum)
+    return result
+
+
 def read_worflow_file(include_dir: str, path: str, already_included: set, replace_input: dict, suffix: str):
     if include_dir == '':
         path = full_path(path)
@@ -28,17 +53,16 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         raise Exception(f"File {path} already included")
     already_included.add(included_track)
     parsed_lines = []
-    capture_inputs1 = re.compile('#input=([^#]+)')
-    capture_inputs2 = re.compile('#input\\.([^=]+)=([^#]+)')
-    capture_path = re.compile('.*#path=([^$#]+).*')
-    capture_suffix = re.compile('.*#suffix=([0-9a-zA-Z_\-]+).*')
+    capture_inputs1 = re.compile(r'#input=([^#]+)')
+    capture_inputs2 = re.compile(r'#input\\.([^=]+)=([^#]+)')
+    capture_path = re.compile(r'.*#path=([^$#]+).*')
+    capture_suffix = re.compile(r'.*#suffix=([0-9a-zA-Z_\-]+).*')
     
-    with open(path, 'r') as f:
-        file_content = f.readlines()
+    file_content = get_lines_from_file(path)
         
     if suffix:
         replace_include_from = re.compile('<insert_task:([^<>]+)>')
-        replace_suffix = re.compile('task:\/\/([^<>:]+)(:|$)')
+        replace_suffix = re.compile(r'task://([^<>:]+)(:|$)')
         for index, line in enumerate(file_content):
             line = line.strip()
             if line.startswith("#name="):
