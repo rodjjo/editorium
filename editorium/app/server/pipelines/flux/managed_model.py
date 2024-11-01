@@ -99,7 +99,7 @@ class FluxModels(ManagedModel):
             else:
                 transformer = FluxTransformer2DModel.from_single_file(transformer2d_model, torch_dtype=torch.bfloat16)
         else:
-            transformer = FluxTransformer2DModel.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+            transformer = FluxTransformer2DModel.from_pretrained(model_name, subfolder='transformer', torch_dtype=torch.bfloat16)
 
         scheduler = FlowMatchEulerDiscreteScheduler(
             base_image_seq_len=256,

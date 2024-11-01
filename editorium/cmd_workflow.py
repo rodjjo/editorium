@@ -46,6 +46,7 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
         include_dir = os.path.dirname(path)
     else:
         path = full_path(os.path.join(include_dir, path))
+        include_dir = os.path.dirname(path)
     if os.path.exists(path) is False:
         raise Exception(f"File {path} not found")
     included_track = f'{path}-{suffix}'
@@ -54,14 +55,14 @@ def read_worflow_file(include_dir: str, path: str, already_included: set, replac
     already_included.add(included_track)
     parsed_lines = []
     capture_inputs1 = re.compile(r'#input=([^#]+)')
-    capture_inputs2 = re.compile(r'#input\\.([^=]+)=([^#]+)')
+    capture_inputs2 = re.compile(r'#input\.([^=]+)=([^#]+)')
     capture_path = re.compile(r'.*#path=([^$#]+).*')
     capture_suffix = re.compile(r'.*#suffix=([0-9a-zA-Z_\-]+).*')
     
     file_content = get_lines_from_file(path)
         
     if suffix:
-        replace_include_from = re.compile('<insert_task:([^<>]+)>')
+        replace_include_from = re.compile(r'<insert_task:([^<>]+)>')
         replace_suffix = re.compile(r'task://([^<>:]+)(:|$)')
         for index, line in enumerate(file_content):
             line = line.strip()

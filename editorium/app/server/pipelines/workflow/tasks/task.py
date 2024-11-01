@@ -48,8 +48,11 @@ class WorkflowTaskManager:
     def first_existing_task(self, taskname: str):
         if '|' in taskname:
             first, second = taskname.split('|', maxsplit=1)
-            if first in self.flow_store.flows:
+            first = first.strip()
+            second = second.strip()
+            if first in self.results:
                 return first
+            print(f"First task {first} not found, trying second task")
             return second
         return taskname
     
@@ -149,6 +152,7 @@ class WorkflowTaskManager:
                     if end == -1:
                         raise ValueError(f'Invalid insert_task tag in task {item.name}')
                     task_name = value[start + 13:end]
+                    
                     if task_name not in self.results:
                         self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
                     task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
@@ -188,13 +192,16 @@ class WorkflowTaskManager:
                 global_seed = self.flow_store.globals.get('seed', -1)
                 new_manager = WorkflowTaskManager(self.workflow_collection)
                 for k, v in inject_result.items():
+                    if type(v) is not dict:
+                        continue
+                    print(f'Injecting result of {k} into the results')
                     v = {
                         **v,
                         '_injected': True,
                     }
                     new_manager.results[k] = v
                     
-                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, callback=callback, parent_dir=parent_dir)
+                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, callback=callback, parent_dir=parent_dir, clear_result=False)
                 if result_task_name in new_manager.results:
                     return new_manager.results[result_task_name]
                 else:
@@ -246,7 +253,7 @@ class WorkflowTaskManager:
                 f.write(line + '\n')
 
         
-    def execute(self, contents: List[str], use_global_seed=None, disable_repeat=False, callback=None, parent_dir='') -> dict:
+    def execute(self, contents: List[str], use_global_seed=None, disable_repeat=False, callback=None, parent_dir='', clear_result=True) -> dict:
         should_repeat = False
         found_global_seed = False
         found_global_debug = False
@@ -269,7 +276,9 @@ class WorkflowTaskManager:
         task_run_count = 0
         while True:
             try:
-                self.results = {}
+                if clear_result:
+                    self.results = {}
+                clear_result = True
                 # dirname = current date and time in format YYYYMMDD-HH-MM-SS.00 in local time
                 time.sleep(0.5)
                 dirname = now_on_tz().strftime('%Y%m%d-%H-%M-%S.%f')[:-2]
