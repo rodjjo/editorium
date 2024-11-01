@@ -70,6 +70,7 @@ class DecisionTextTask(WorkflowTask):
                 return {
                     "default": negative_prompt
                 }
+
         if contains != "" and check_text_in_text(contains, input_text):
             print("Decision of returning tasks from positive prompt")
             return {

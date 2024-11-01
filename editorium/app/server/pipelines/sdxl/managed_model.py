@@ -2,6 +2,7 @@ import gc
 import torch
 import os
 import json
+import re
 
 import safetensors
 import safetensors.torch
@@ -244,6 +245,7 @@ class SdxlModels(ManagedModel):
         self.unet_model = None
         self.controlnet_type = None
         self.adapter_model = None
+        self.load_state_dict = False
         
     def release_model(self):
         self.pipe = None
@@ -254,6 +256,7 @@ class SdxlModels(ManagedModel):
         self.unet_model = None
         self.controlnet_type = None
         self.adapter_model = None
+        self.load_state_dict = False
         gc.collect()
         torch.cuda.empty_cache()
         
@@ -265,7 +268,8 @@ class SdxlModels(ManagedModel):
         return os.path.join(self.model_dir('images', 'sdxl'))
     
     def load_models(self, model_name: str, pipeline_type : str, lora_repo_id: str, lora_scale: str, 
-                    unet_model: str = None, controlnet_type: str = None, adapter_model = None):
+                    unet_model: str = None, controlnet_type: str = None, adapter_model = None,
+                    load_state_dict: bool = False):
         model_dir = self.get_sdxl_model_dir()
         self.release_other_models()
         if model_name.startswith('./'):
@@ -280,6 +284,7 @@ class SdxlModels(ManagedModel):
             self.unet_model != unet_model,
             self.controlnet_type != controlnet_type,
             self.adapter_model != adapter_model,
+            self.load_state_dict != load_state_dict
         ])
         if not has_changes:
             return
@@ -292,6 +297,7 @@ class SdxlModels(ManagedModel):
         self.unet_model = unet_model
         self.controlnet_type = controlnet_type
         self.adapter_model = adapter_model
+        self.load_state_dict = load_state_dict
         
         adapter_dir = self.model_dir('images', 'sdxl', 'adapters')
         
@@ -312,7 +318,6 @@ class SdxlModels(ManagedModel):
             
         if adapter_checkpoint:
             hf_hub_download(repo_id="h94/IP-Adapter", filename=f"sdxl_models/{adapter_checkpoint}", local_dir=adapter_dir)
-
 
         scheduler = EulerAncestralDiscreteScheduler.from_config(json.loads(SCHEDULER_EULERA_CONFIG_JSON))
 
@@ -365,24 +370,44 @@ class SdxlModels(ManagedModel):
                 pipe.enable_model_cpu_offload()
                 #pipe.enable_sequential_cpu_offload()
                 return pipe
-        
+
+        filename = 'unet_config.json' if 'inpaint' not in unet_model else 'unet_config_inpaint.json'
+        config_path = os.path.join(model_dir, filename)
+        if not os.path.exists(config_path):
+            with open(config_path, 'w') as f:
+                f.write(SDXL_UNET_CONFIG if 'inpaint' not in unet_model else SDXL_UNET_CONFIG_INPAINT)        
+
         if unet_model:
-            filename = 'unet_config.json' if 'inpaint' not in unet_model else 'unet_config_inpaint.json'
-            config_path = os.path.join(model_dir, filename)
-            if not os.path.exists(config_path):
-                with open(config_path, 'w') as f:
-                    f.write(SDXL_UNET_CONFIG if 'inpaint' not in unet_model else SDXL_UNET_CONFIG_INPAINT)
-            if unet_model.endswith('.safetensors') and not unet_model.startswith('http'):
-                print(f"Loading unet weights from local path {unet_model}")
-                unet_model = os.path.join(model_dir, unet_model)
-                unet = UNet2DConditionModel.from_single_file(unet_model, config=config_path, torch_dtype=torch_dtype)
-            elif unet_model.startswith('./'):
+            if unet_model.startswith('./'):
                 print(f"Loading unet weights from local folder {unet_model}")
                 unet_model = os.path.join(model_dir, unet_model)
                 unet = UNet2DConditionModel.from_pretrained(unet_model, subfolder='unet', torch_dtype=torch_dtype)
             else:
-                print("Loading unet weights http site...")
-                unet = UNet2DConditionModel.from_single_file(unet_model, config=config_path, torch_dtype=torch_dtype)
+                if unet_model.startswith('http'):
+                    http_re = re.compile(r'(https|http)://[^/]+/([^/]+/[^/]+)/([^?]+)')
+                    group = http_re.match(unet_model)
+                    if not group:
+                        raise ValueError(f"Invalid url {unet_model}")
+                    repo_id = group.group(2)
+                    filename = group.group(3)
+                    model_path = os.path.join(model_dir, filename)
+                    if not os.path.exists(model_path):
+                        print("Loading unet weights http site...")
+                        hf_hub_download(repo_id=repo_id, filename=filename, local_dir=model_dir)
+                else:
+                    model_path = os.path.join(model_dir, unet_model)
+
+                if load_state_dict:
+                    print("Loading unet from local state dict...")
+                    state_dict = safetensors.torch.load_file(model_path, device="cpu")
+                    unet = UNet2DConditionModel.from_config(json.loads(SDXL_UNET_CONFIG), torch_dtype=torch_dtype)
+                    unet.load_state_dict(state_dict)
+                    del state_dict
+                    gc.collect()
+                    unet.to(torch_dtype)
+                    gc.collect()
+                else:
+                    unet = UNet2DConditionModel.from_single_file(model_path, config=config_path, torch_dtype=torch_dtype)
         else:
             print(f"Loading unet weights from pretrained model {model_name}")
             unet = UNet2DConditionModel.from_pretrained(model_name, subfolder='unet', torch_dtype=torch_dtype)

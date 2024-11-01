@@ -111,7 +111,11 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
     if len(adapter_models) == 0:
         adapter_models = [None]
         
-    sdxl_models.load_models(model_name, mode, lora_repo_id, lora_scale, unet_model, controlnet_type, adapter_models[0])
+    sdxl_models.load_models(
+        model_name, mode, lora_repo_id, lora_scale, 
+        unet_model, controlnet_type, adapter_models[0], 
+        load_state_dict=params.get('load_state_dict', False),
+    )
     
     add_args = {}
     
@@ -168,10 +172,16 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
         
     generator = torch.Generator(device='cuda').manual_seed(seed)
     
+    cfg = params.get('cfg', 5.0)
+    if cfg == 0.0:
+        negative_prompt = ''
+    else:
+        negative_prompt = params.get('negative_prompt', '')
+
     pipe_args = dict(
         prompt=params['prompt'],
-        negative_prompt=params.get('negative_prompt', None),
-        guidance_scale=params.get('cfg', 5.0),
+        negative_prompt=negative_prompt,
+        guidance_scale=cfg,
         height=params.get('height', None),
         width=params.get('width', None),
         num_inference_steps=params.get('steps', 50),

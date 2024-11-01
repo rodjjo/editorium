@@ -111,25 +111,25 @@ class FlowItem:
                 continue
 
             if line.startswith("#input."):
-                key = line.split("#input.")[1].split("=")[0]
-                value = line.split("#input.")[1].split("=")[1]
+                key = line.split("#input.", maxsplit=1)[1].split("=", maxsplit=1)[0]
+                value = line.split("#input.", maxsplit=1)[1].split("=", maxsplit=1)[1]
                 input[key] = value
                 continue
             
             if line.startswith("#task_type="):
-                task_type = line.split("#task_type=")[1]
+                task_type = line.split("#task_type=", maxsplit=1)[1]
                 continue
             
             if line.startswith("#type="):
-                task_type = line.split("#type=")[1]
+                task_type = line.split("#type=", maxsplit=1)[1]
                 continue
             
             if line.startswith("#config."):
-                key, value = line.split("#config.")[1].split("=")
+                key, value = line.split("#config.", maxsplit=1)[1].split("=", maxsplit=1)
                 key = key.strip()
                 value = parse_task_value(value.strip())
                 if type(value) is str and value.startswith("global://"):
-                    global_key = value.split("global://")[1]
+                    global_key = value.split("global://", maxsplit=1)[1]
                     if ':' in global_key:
                         global_key, default = global_key.split(':', maxsplit=1)
                         value = globals.get(global_key, default)
