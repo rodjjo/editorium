@@ -6,7 +6,7 @@ from marshmallow import Schema, fields
 class DecisionTextSchema(Schema):
     prompt = fields.Str(required=False, load_default="")
     negative_prompt = fields.Str(required=False, load_default="")
-    contains = fields.Str(required=True)
+    contains = fields.Str(required=False, load_default="")
     globals = fields.Dict(required=False, load_default={})
 
 
@@ -45,15 +45,40 @@ class DecisionTextTask(WorkflowTask):
         negative_prompt = config['negative_prompt'].strip()
         if not prompt and not negative_prompt:
             raise ValueError("It's required a prompt or negative prompt to make a decision")
-        if check_text_in_text(config['contains'], input_text.lower()):
+        contains = config['contains'].strip().lower()
+        input_text = input_text.lower()
+        prompt = [p.strip() for p in prompt.split("\n") if p.strip() != ""]
+        negative_prompt =[p.strip() for p in negative_prompt.split("\n") if p.strip() != ""]
+        
+        if contains == "":
+            new_prompt = []
+            for p in prompt:
+                if p.strip() == "" or ":" not in p:                
+                    continue
+                check, value = p.split(":", maxsplit=1)
+                check = check.strip().lower()
+                value = value.strip()
+                if check_text_in_text(check, input_text):
+                    new_prompt.append(value)
+            if len(new_prompt):
+                print("Decision of returning tasks from positive prompt")
+                return {
+                    "default": new_prompt
+                }
+            else:
+                print(f"Decision of returning tasks from negative prompt")
+                return {
+                    "default": negative_prompt
+                }
+        if contains != "" and check_text_in_text(contains, input_text):
             print("Decision of returning tasks from positive prompt")
             return {
-                "default": prompt.split("\n")
+                "default": prompt
             }
         else:
             print(f"Decision of returning tasks from negative prompt")
             return {
-                "default": negative_prompt.split("\n")
+                "default": negative_prompt
             }
 
 
