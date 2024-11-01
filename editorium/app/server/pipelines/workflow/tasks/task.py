@@ -43,7 +43,6 @@ class WorkflowTask:
 
 class WorkflowTaskManager:
     _tasks: dict = {}
-    results = {}
     
     def first_existing_task(self, taskname: str):
         if '|' in taskname:
@@ -63,6 +62,7 @@ class WorkflowTaskManager:
     def __init__(self, workflow_collection: dict):
         self.flow_store = FlowStore(self)
         self.workflow_collection = workflow_collection
+        self.results = {}
     
     @classmethod
     def add_task(cls, task: WorkflowTask):
@@ -95,7 +95,7 @@ class WorkflowTaskManager:
     
     def process_task(self, base_dir, item: FlowItem, callback: callable, task_stack: set):
         if item.name in self.results:
-            if self.results[item.name]['_injected']:
+            if self.results[item.name].get('_injected'):
                 return self.results[item.name]
 
         if item.task_type not in self.tasks:
@@ -111,8 +111,12 @@ class WorkflowTaskManager:
 
         resolved_inputs = {}
         for input, value in item.input.items():
-            if value.startswith('task://'):
-                task_name = self.first_existing_task(value.split('task://')[1])
+            value = value.strip()
+            if value:
+                if value.startswith('task://'):
+                    task_name = self.first_existing_task(value.split('task://')[1])
+                else:
+                    task_name = self.first_existing_task(value)
                 if task_name in self.results:
                     print(f'Using cached result of {task_name} for task {item.name}')
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
@@ -120,11 +124,6 @@ class WorkflowTaskManager:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
                     self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
-            elif value:
-                print(f'Using literal value {value} for task {item.name}')
-                resolved = {
-                    "result": [value]
-                }
             else:
                 print(f'Empty input for task {item.name}')
                 resolved = {}
@@ -196,8 +195,8 @@ class WorkflowTaskManager:
                         continue
                     print(f'Injecting result of {k} into the results')
                     v = {
-                        **v,
                         '_injected': True,
+                        **v,
                     }
                     new_manager.results[k] = v
                     
