@@ -88,6 +88,7 @@ def openpose_to_body25(keypoints):
             continue
         converted[i] = keypoints[OPEN_POSE_TO_BODY_25[i]]
         if i >= 19:
+            converted[i] = converted[i][:]
             converted[i][2] = converted[i][2] / 2
     converted[8] = [
         (keypoints[8][0] + keypoints[11][0]) / 2, 

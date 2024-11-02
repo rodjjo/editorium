@@ -2,7 +2,6 @@ from pipelines.pose2bvh import math3d
 from pipelines.pose2bvh import bvh_helper
 
 import numpy as np
-from pprint import pprint
 
 
 class CMUSkeleton(object):
