@@ -158,6 +158,7 @@ class Pose3dModels(ManagedModel):
         self.release_model()
         self.openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
         self.model = create_model(self.cfg, self.model_path)
+        self.model.to('cuda')
         
 
 pose3d_models = Pose3dModels()

@@ -4,7 +4,6 @@ import PIL.Image
 import cv2
 import torch
 from diffusers import AutoencoderKL
-from loguru import logger
 
 from iopaint.schema import InpaintRequest, ModelType
 

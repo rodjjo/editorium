@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.utils.data
+import json
 import os
 
 from PIL import Image
@@ -49,6 +50,57 @@ def camera2world(pose, R, T):
     return pose_world
 
 
+OPEN_POSE_TO_BODY_25 = {
+    0: -1,
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 5,
+    6: 6,
+    7: 7,
+    8: -1, # lambda x: (x[8] + x[11]) / 2,
+    9: 8,
+    10: 9,
+    11: 10,
+    12: 11,
+    13: 12,
+    14: 13,
+    15: 14,
+    16: 15,
+    17: 16,
+    18: 17,
+    19: 14, # no more from here
+    20: 14,
+    21: 14,
+    22: 11,
+    23: 11,
+    24: 11
+}
+
+def openpose_to_body25(keypoints):
+    keypoints = [
+        [k.x, k.y, k.score] if k else [0, 0, 0] for k in keypoints
+    ]
+    converted = [[0, 0, 0]] * 25
+    for i in range(25):
+        if OPEN_POSE_TO_BODY_25[i] == -1:
+            continue
+        converted[i] = keypoints[OPEN_POSE_TO_BODY_25[i]]
+        if i >= 19:
+            converted[i][2] = converted[i][2] / 2
+    converted[8] = [
+        (keypoints[8][0] + keypoints[11][0]) / 2, 
+        (keypoints[8][1] + keypoints[11][1]) / 2, 
+        (keypoints[8][2] + keypoints[11][2]) / 2
+    ]
+    converted[0] =  [
+        (keypoints[16][0] + keypoints[17][0]) / 2, 
+        (keypoints[16][1] + keypoints[17][1]) / 2, 
+        (keypoints[16][2] + keypoints[17][2]) / 2
+    ]
+    return np.array(converted)
+
 class WildPoseDataset(object):
     def __init__(self, input_poses, seq_len, image_width, image_height):
         self.seq_len = seq_len
@@ -85,16 +137,15 @@ def open_pose_to_bvh(image: Image.Image):
     
     # see https://github.com/huggingface/controlnet_aux/blob/master/src/controlnet_aux/open_pose/__init__.py
     # see https://github.com/KevinLTT/video2bvh
+    # see 
     pose3d_models.load_models()
     cfg = pose3d_models.cfg
     model = pose3d_models.model
     
     poses = pose3d_models.openpose.detect_poses(image) # List[PoseResult]
-    keypoints = poses[0].body.keypoints
-    keypoints_list = [[
-        (k.x, k.y, k.score) for k in keypoints if k is not None
-    ]]
-    
+    keypoints_result = list(poses[0].body.keypoints)
+    keypoints = openpose_to_body25(poses[0].body.keypoints)
+    keypoints_list = [keypoints]
     poses_2d = np.stack(keypoints_list)[:, :, :2]
    
     dataset = WildPoseDataset(
@@ -114,8 +165,8 @@ def open_pose_to_bvh(image: Image.Image):
     with torch.no_grad():
         for batch in loader:
             input_pose = batch['input_pose'].float().cuda()
-            assert len(input_pose.shape) == 4, f"Wrong shape: {input_pose.shape}"
             output = model(input_pose)
+            # output = output.cpu()
             if cfg['DATASET']['TEST_FLIP']:
                 input_lefts = cfg['DATASET']['INPUT_LEFT_JOINTS']
                 input_rights = cfg['DATASET']['INPUT_RIGHT_JOINTS']
@@ -129,8 +180,10 @@ def open_pose_to_bvh(image: Image.Image):
                 flip_output = model(flip_input_pose)
                 flip_output[..., :, 0] *= -1
                 flip_output[..., output_lefts + output_rights, :] = flip_output[..., output_rights + output_lefts, :]
-
+                # output = np.concatenate(output, flip_output) / 2
+                # output = np.mean(np.array([ output, flip_output ]), axis=0 )
                 output = (output + flip_output) / 2
+                
             output[:, 0] = 0 # center the root joint
             output *= 1000 # m -> mm
 
@@ -139,7 +192,26 @@ def open_pose_to_bvh(image: Image.Image):
             frame += batch_size
             print(f'{frame} / {poses_2d.shape[0]}')
     
-    return poses_3d
+    return poses_3d, keypoints_result
+
+
+def create_openpose_json_file(keypoints, filepath):
+    data = {
+        "version": 1.1,
+        "people": [],
+        "part_candidates": []
+    }
+    for index, k in enumerate(keypoints):
+        if k is not None:
+            data['part_candidates'].append({
+                f"{index}": [k.x, k.y, k.score]
+            })
+        else:
+            data['part_candidates'].append({
+                f"{index}": []
+            })
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
 
 
 def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable):
@@ -148,17 +220,31 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
         raise ValueError("It's required a image pre-process the image #config.input=value")
     if type(images) is str:
         images = [Image.open(images)]
-
+    
+    bvh_paths = []
+    json_paths = []
+    keypoints_list = []
     for index, image in enumerate(images):
-        pose3d = open_pose_to_bvh(image)
+        pose3d, keypoints = open_pose_to_bvh(image)
+        keypoints_list.append(keypoints)
         pose3d_world = pose3d
         # pose3d_world = camera2world(pose=pose3d, R=R, T=T)
         # pose3d_world[:, :, 2] -= np.min(pose3d_world[:, :, 2]) # rebase the height
-        bvh_file = os.path.join(base_dir, f'{name}_{index}.bvh')
+        filepath_bvh = os.path.join(base_dir, f'{name}_{index}.bvh')
+        filepath_json = os.path.join(base_dir, f'{name}_{index}.json')
         cmu_skel = CMUSkeleton()
-        channels, header = cmu_skel.poses2bvh(pose3d_world, output_file=bvh_file)
+        cmu_skel.poses2bvh(pose3d_world, output_file=filepath_bvh)
+        create_openpose_json_file(keypoints, filepath_json)
+        bvh_paths.append(filepath_bvh)
+        json_paths.append(filepath_json)
 
-    pass
+    return {
+        "default": {
+            "bvh_paths": bvh_paths, 
+            "json_paths": json_paths,
+            "coordinates": keypoints_list,
+        }
+    }
 
 
 

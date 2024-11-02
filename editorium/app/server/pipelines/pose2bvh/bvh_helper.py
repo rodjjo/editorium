@@ -23,18 +23,18 @@ class BvhHeader(object):
     def __init__(self, root, nodes):
         self.root = root
         self.nodes = nodes
-
-
+        
+        
 def write_header(writer, node, level):
     indent = ' ' * 4 * level
     if node.is_root:
-        writer.write(f'{indent}ROOT {node.name}\n')
+        writer.write(f'{indent}ROOT {node.name.lower()}\n')
         channel_num = 6
     elif node.is_end_site:
         writer.write(f'{indent}End Site\n')
         channel_num = 0
     else:
-        writer.write(f'{indent}JOINT {node.name}\n')
+        writer.write(f'{indent}JOINT {node.name.lower()}\n')
         channel_num = 3
     writer.write(f'{indent}{"{"}\n')
 
