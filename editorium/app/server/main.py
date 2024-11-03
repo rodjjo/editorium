@@ -293,7 +293,7 @@ def register_server(queue: Queue, completion_queue: Queue):
             with current_task_lock:
                 if current_task is not None:
                     if current_task.task_type == TaskType.COGVIDEO:
-                        ProgressBar.stop() # TODO: implement selective stop
+                        ProgressBar.stop(id=current_task.id)
                     return jsonify({'status': 'ok', 'message': 'Task cancelled'})
                 return jsonify({'status': 'ok', 'message': 'No task in progress'})
         return jsonify({'status': 'error', 'message': 'Not implemented'}), 501
