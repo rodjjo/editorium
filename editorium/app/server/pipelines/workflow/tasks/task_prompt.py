@@ -22,7 +22,7 @@ class PromptTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing prompt task")
         prompt = config['prompt']
         if config['randomize']:
@@ -30,7 +30,7 @@ class PromptTask(WorkflowTask):
             prompt = [x.strip() for x in prompt if x.strip()]
             prompt = random.choice(prompt)
         return {
-            "default": prompt
+            "texts": [prompt]
         }
 
 

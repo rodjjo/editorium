@@ -14,9 +14,7 @@ class CanceledChecker:
         return False # TODO return True if the task should be canceled
 
 
-def generate_text(base_dir: str,
-                  name: str,
-                  repo_id: str, 
+def generate_text(repo_id: str, 
                   image,
                   prompt: str,
                   system_prompt: str = '',
@@ -46,33 +44,19 @@ def generate_text(base_dir: str,
                 system_prompt=system_prompt
             )
             
-            debug_enabled = globals.get('debug', False)
-            if debug_enabled:
-                text_path = os.path.join(base_dir, f'{name}_{i}.txt')
-                with open(text_path, 'w') as f:
-                    f.write("# system_prompt: \n")
-                    f.write(system_prompt)
-                    f.write("\n\n# prompt: \n")
-                    f.write(prompt)
-                    f.write("\n\n# response: \n")
-                    f.write(response)
-                paths.append(text_path)
-            else:
-                paths.append('')
             responses.append(response)
 
     return {
-        "default": responses,
-        "filepath": paths,
+        "texts": responses,
     }
     
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
-    image = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
+def process_workflow_task(input: dict, config: dict) -> dict:
+    image = input.get('default', {}).get('images', [])
+    if not image:
+        image = input.get('image', {}).get('images', [])
     
     return generate_text(
-        base_dir=base_dir,
-        name=name,
         repo_id=config['repo_id'],
         image=image,
         prompt=config['prompt'],

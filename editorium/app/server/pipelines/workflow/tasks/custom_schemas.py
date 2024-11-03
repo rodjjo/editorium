@@ -3,7 +3,7 @@ from PIL import Image
 from io import BytesIO
 import base64
 
-from mashmallow import Schema, fields, ValueError
+from marshmallow import Schema, fields, ValidationError
 
 
 class ImageField(fields.Field):
@@ -14,7 +14,7 @@ class ImageField(fields.Field):
             if type(value) is str:
                 return Image.open(BytesIO(base64.b64decode(value)))
             else:
-                raise ValueError("Image must be a base64 string")
+                raise ValidationError("Image must be a base64 string")
         return value
         
     
@@ -27,10 +27,15 @@ class ImageField(fields.Field):
             return base64.b64encode(buffered.getvalue())
         return value
 
+class BoxSchema(Schema):
+    x = fields.Int(required=True)
+    y = fields.Int(required=True)
+    x2 = fields.Int(required=True)
+    y2 = fields.Int(required=True)
 
 class InputOutputSchema(Schema):
-    images = fields.List(ImageField(), required=False)
-    masks = fields.List(ImageField(), required=False)
-    texts = fields.List(fields.Str(), required=False)
-    data = fields.list(fields.Dict(), required=False)
-    
+    images = fields.List(ImageField(), required=False, load_default=[])
+    boxes = fields.List(fields.Nested(BoxSchema), required=False, load_default=[])
+    texts = fields.List(fields.Str(), required=False, load_default=[])
+    data = fields.Dict(required=False, load_default={})
+    data_list = fields.List(fields.Dict(), required=False, load_default=[])

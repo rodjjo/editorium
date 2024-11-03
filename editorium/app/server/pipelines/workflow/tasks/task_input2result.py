@@ -9,7 +9,7 @@ class ReturnInputTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing input to result task")
         return input.get("default", {})
 

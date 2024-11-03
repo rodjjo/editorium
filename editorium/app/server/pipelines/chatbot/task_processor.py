@@ -42,10 +42,7 @@ def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> s
     return response
         
 
-
-def generate_text(base_dir: str,
-                  name: str,
-                  repo_id: str, 
+def generate_text(repo_id: str, 
                   model_name: str, 
                   template: str,
                   context: str, 
@@ -57,18 +54,10 @@ def generate_text(base_dir: str,
                   repetition_penalty: float = 1,
                   response_after: str = '',
                   globals: dict = {}) -> dict:
-    debug_enabled = globals.get('debug', False)
     response = use_cache(repo_id, context, prompt, '')
     if response:
-        if debug_enabled:
-            text_path = os.path.join(base_dir, f'{name}.txt')
-            with open(text_path, 'w') as f:
-                f.write(response)
-        else:
-            text_path = ''
         return {
-            "default": response,
-            "filepath": text_path,
+            "texts": [response],
         }
 
     chatbot_models.load_models(repo_id=repo_id, model_name=model_name)
@@ -103,26 +92,15 @@ def generate_text(base_dir: str,
             response[i] = v[0] if len(v) < 2 else v[1]
         response = '\n'.join(response)
     
-    debug_enabled = globals.get('debug', False)
-    if debug_enabled:
-        text_path = os.path.join(base_dir, f'{name}.txt')
-        with open(text_path, 'w') as f:
-            f.write(response)
-    else:
-        text_path = ''
-    
     use_cache(repo_id, context, prompt, response)
 
     return {
-        "default": response,
-        "filepath": text_path,
+        "texts": [response],
     }
     
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
+def process_workflow_task(input: dict, config: dict) -> dict:
     return generate_text(
-        base_dir=base_dir,
-        name=name,
         repo_id=config['repo_id'],
         model_name=config['model_name'],
         template=config['template'],

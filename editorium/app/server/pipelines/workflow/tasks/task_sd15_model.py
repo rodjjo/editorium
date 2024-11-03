@@ -17,10 +17,10 @@ class Sd15Task(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool=False):
         super().__init__(task_type, description, config_schema=Sd15ModelSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing SD 1.5 Model task")
         return {
-            'default': config
+            'data': config
         }
 
 

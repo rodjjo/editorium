@@ -350,25 +350,28 @@ def run_pipeline(
     return [r for r in result]
 
 
-def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
+def generate_sd15_image(model_name: str, input: dict, params: dict):
     prompt = params['prompt'] 
     lora_list = []
     if 'loras' in input:
-        output = input['loras']
-        if 'default' in output:
-            lora_list = parse_prompt_loras(output['default'])
+        output = input['loras']['texts']
+        if len(output) > 0:
+            lora_list = parse_prompt_loras(output[0])
     
     negative_prompt = params.get('negative_prompt', None)
     
-    inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
-    inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
+    inpaint_image = input.get('default', {}).get('images', None)
+    if not inpaint_image:
+        inpaint_image = input.get('image', {}).get('images', None)
+    inpaint_mask = input.get('mask', {}).get('images', None)
+    
     controlnets = []
     controlnet_models = []
     for control_index in range(1, 5):
         param_name = f'controlnet_{control_index}'
         if param_name not in input:
             continue
-        controlnet = input.get(param_name, {}).get('default', {})
+        controlnet = input.get(param_name, {}).get('data', {})
         if not controlnet:
             raise ValueError(f"Controlnet {control_index} not found")
         controlnet_models.append(
@@ -397,7 +400,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
         param_name = f'adapter_{adapter_index}'
         if param_name not in input:
             continue
-        adapter = input.get(param_name, {}).get('default', {})
+        adapter = input.get(param_name, {}).get('data', {})
         if not adapter:
             raise ValueError(f"Adapter {adapter_index} not found")
         adapter_models.append(
@@ -525,26 +528,15 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
 
     if len(results) == 0:
         raise ValueError("No results generated for SD 1.5 task")
-
-    debug_enabled = params.get('globals', {}).get('debug', False)
-    if debug_enabled:
-        filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}.jpg')
-        paths = []
-        for i, result in enumerate(results):
-            path2save = filepath.replace('.jpg', f'_{i}.jpg')
-            result.save(path2save)
-            paths.append(path2save)
-    else:
-        paths = [''] * len(results)
  
-    return TaskResult(results, paths).to_dict()
+    return {
+        'images': results
+    }
 
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
+def process_workflow_task(input: dict, config: dict) -> dict:
     return generate_sd15_image(
         model_name=config['model_name'],
-        task_name=name,
-        base_dir=base_dir,
         input=input,
         params=config
     )

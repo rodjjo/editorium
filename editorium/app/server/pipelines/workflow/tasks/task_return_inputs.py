@@ -5,10 +5,12 @@ class ReturnInputsTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool = False):
         super().__init__(task_type, description, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing return inputs task")
         return {
-            **input
+            'data': {
+                **input
+            }
         }
 
 

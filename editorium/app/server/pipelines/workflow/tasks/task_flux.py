@@ -30,15 +30,15 @@ class FluxTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool = False):
         super().__init__(task_type, description, config_schema=FluxPayloadSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing flux task")
-        model = input.get('model', {}).get('default', None)
+        model = input.get('model', {}).get('data', None)
         if model is not None:
             for key in model.keys():
                 config[key] = model[key]
         if not config.get('model_name', None):
             raise ValueError("Model name is required")
-        return process_workflow_task(base_dir, name, input, config)
+        return process_workflow_task(input, config)
 
 
 def register():

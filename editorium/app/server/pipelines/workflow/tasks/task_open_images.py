@@ -16,7 +16,7 @@ class OpenImagesTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool = False):
         super().__init__(task_type, description, config_schema=OpenImageSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing open-images task")
         paths = config['prompt'].split('\n')
         paths = [p.strip() for p in paths if p.strip() != '']
@@ -37,7 +37,9 @@ class OpenImagesTask(WorkflowTask):
             selected = random.choice(paths)
 
         image_list = [Image.open(selected)]
-        return TaskResult(image_list, paths).to_dict()
+        return {
+            'images': image_list
+        }
 
 
 def register():

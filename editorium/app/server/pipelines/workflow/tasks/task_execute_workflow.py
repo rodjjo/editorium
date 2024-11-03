@@ -12,13 +12,13 @@ class ExecuteFlowTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool=False):
         super().__init__(task_type, description, config_schema=ExecuteFlowTaskSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing prompt task")
         path = config['path']
         output_task = config['output_task']
         globals = config.get('globals', {})
         inject = input.get("default", {})
-        return globals['execute_manager'](path, inject, output_task, base_dir)
+        return globals['execute_manager'](path, inject, output_task)
 
 
 def register():

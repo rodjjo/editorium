@@ -17,7 +17,9 @@ class FlipImageTask(WorkflowTask):
         print("Processing flip image task")
         vertical = config['vertical']
 
-        image_list = input.get('default', {}).get('output', None)
+        image_list = input.get('default', {}).get('images', None)
+        if not image_list:
+            image_list = input.get('image', {}).get('images', None)
         if not image_list:
             raise ValueError("It's required a image to flip #config.input=value")
         if type(image_list) is not list:
@@ -33,7 +35,9 @@ class FlipImageTask(WorkflowTask):
             else:
                 image = image.transpose(Image.FLIP_LEFT_RIGHT)
             image_list[image_index] = image
-        return TaskResult(image_list, '').to_dict()
+        return {
+            'images': image_list
+        }
 
 
 def register():

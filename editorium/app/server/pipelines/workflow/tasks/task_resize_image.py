@@ -16,7 +16,7 @@ class ResizeImageTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool=False):
         super().__init__(task_type, description, config_schema=ResizeImageTaskSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing blur image task")
         width = config['width']
         height = config['height']
@@ -24,14 +24,16 @@ class ResizeImageTask(WorkflowTask):
         
         if width is None and height is None and dimension is None:
             raise ValueError("It's required a width, height or dimension to resize the image")
-        image_list = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
+        
+        image_list = input.get('default', {}).get('images', None) 
+        if not image_list:
+            image_list = input.get('image', {}).get('images', None)
+        
         if not image_list:
             raise ValueError("It's required a image to resize #input=value")
         if type(image_list) is not list:
             image_list = [image_list]
         
-        debug_enabled = config.get('globals', {}).get('debug', False)
-        file_paths = []
         for image_index, image in enumerate(image_list):
             if dimension:
                 if image.width > image.height:
@@ -51,14 +53,10 @@ class ResizeImageTask(WorkflowTask):
                 image = image.resize((target_width, height))
 
             image_list[image_index] = image
-            if debug_enabled:
-                filepath = f"{base_dir}/{name}_resize_{image_index}.jpg"
-                image.save(filepath)
-                file_paths.append(filepath)
-            else:
-                file_paths.append('')
             
-        return TaskResult(image_list, file_paths).to_dict()
+        return {
+            'images': image_list
+        }
 
 
 def register():

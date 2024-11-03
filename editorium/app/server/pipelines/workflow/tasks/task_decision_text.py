@@ -22,11 +22,13 @@ class DecisionTextTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool = False):
         super().__init__(task_type, description, config_schema=DecisionTextSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Taking a decision based on the input text")
         config = DecisionTextSchema().load(config)
-        input_text = input.get('default', {}).get('default', None)
-        if input_text is None:
+        input_text = input.get('default', {}).get('texts', [])
+        if not input_text:
+            input_text = input.get('text', {}).get('texts', [])
+        if not input_text:
             raise ValueError("It's required a text to make a decision")
         if type(input_text) is list:
             input_text = "\n".join(input_text)
@@ -54,23 +56,23 @@ class DecisionTextTask(WorkflowTask):
             if len(new_prompt):
                 print("Decision of returning tasks from positive prompt")
                 return {
-                    "default": new_prompt
+                    "texts": new_prompt
                 }
             else:
                 print(f"Decision of returning tasks from negative prompt")
                 return {
-                    "default": negative_prompt
+                    "texts": negative_prompt
                 }
 
         if contains != "" and check_text_in_text(contains, input_text):
             print("Decision of returning tasks from positive prompt")
             return {
-                "default": prompt
+                "texts": prompt
             }
         else:
             print(f"Decision of returning tasks from negative prompt")
             return {
-                "default": negative_prompt
+                "texts": negative_prompt
             }
 
 

@@ -12,12 +12,14 @@ class MergeImageTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing merge image task")
 
-        image_list = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
-        images2merge = input.get('merge', {}).get('output', None) or input.get('merge', {}).get('result', None)
-        masks2merge = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
+        image_list = input.get('default', {}).get('images', None) 
+        if not image_list:
+            image_list = input.get('image', {}).get('images', None)
+        images2merge = input.get('merge', {}).get('images', None) 
+        masks2merge = input.get('mask', {}).get('images', None) 
         boxes2merge = input.get('segmentation', {}).get('boxes', None) 
         
         if not image_list:
@@ -61,15 +63,10 @@ class MergeImageTask(WorkflowTask):
             mask.putalpha(mask.split()[0])
             image.paste(merge, box, mask)
             image_list[image_index] = image
-
-            if debug_enabled:
-                filepath = f"{base_dir}/{name}_merge_{image_index}.jpg"
-                image.save(filepath)
-                filepaths.append(filepath)
-            else:
-                filepaths.append('')
             
-        return TaskResult(image_list, filepaths).to_dict()
+        return {
+            'images': image_list
+        }
 
 
 def register():

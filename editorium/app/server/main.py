@@ -139,7 +139,13 @@ def work_on_task(task: Task) -> CompletedTask:
         elif task.task_type == TaskType.UTILS:
             from pipelines.utils.task_processor import process_workflow_task
             result = process_workflow_task(task.parameters)
-                
+        elif task.task_type.startswith('api-'):
+            from pipelines.workflow.tasks.api_manager import execute_task
+            input = task.parameters.get('input', {})
+            config = task.parameters.get('parameters', {})
+            result = execute_task(task.task_type, input, config)
+        else:
+            raise ValueError(f'Task type {task.task_type} not supported')                
     except Exception as e:
         # print stack
         traceback.print_exc()

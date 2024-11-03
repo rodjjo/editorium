@@ -141,13 +141,14 @@ def fake_pad_images_to_batchsize(imgs, batch_size=8):
 
 def generate_segmentation(task_name: str, base_dir: str, input: dict, params: dict):
     segmentation_models.load_models()
-    images = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
+    
+    images = input.get('default', {}).get('images', None) 
+    if not images:
+        images = input.get('image', {}).get('images', None) 
+        
     if not images:
         raise ValueError("It's required a image to segment")
-    if type(images) is not list:
-        images = [images]
     
-    images = [Image.open(img) if type(img) is str else img for img in images]
     orig_sizes = [img.size for img in images]
     shape = (1024, 768)
     
@@ -161,12 +162,10 @@ def generate_segmentation(task_name: str, base_dir: str, input: dict, params: di
     results = [r.cpu() for r in results]
     results = results[:valid_images_len]
     
-    
     box_margin = params.get('margin', 5)
     boxes = []
     masks = []
-    paths = []
-    debug_enabled = params.get('globals', {}).get('debug', False)
+    
     classes = params.get('classes', '')
     classes = classes.split(',') 
     classes = [c.strip() for c in classes if c.strip() != '']
@@ -195,24 +194,17 @@ def generate_segmentation(task_name: str, base_dir: str, input: dict, params: di
 
         boxes.append(box)
 
-        if debug_enabled:
-            save_path = os.path.join(base_dir, f'{task_name}_{i}_mask.png')
-            mask.save(save_path)
-            paths.append(save_path)
 
     return {
-        "result": masks,
+        "images": masks,
         "boxes": boxes,
-        "filepaths": paths,
     }
 
 
 
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
+def process_workflow_task(input: dict, config: dict) -> dict:
     return generate_segmentation(
-        task_name=name,
-        base_dir=base_dir,
         input=input,
         params=config
     )

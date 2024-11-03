@@ -13,7 +13,7 @@ class ModelSelectorTask(WorkflowTask):
     def __init__(self, task_type: str, description: str, is_api: bool = False):
         super().__init__(task_type, description, config_schema=ModelSelectorSchema, is_api=is_api)
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Executing task model selector")
         prompt = config['prompt'].strip()
         if not prompt:
@@ -35,7 +35,7 @@ class ModelSelectorTask(WorkflowTask):
             raise ValueError("Model selector failed to select a model: empty model name")
         print("Model selected: ", selection)
         return {
-            "default": [selection]
+            "texts": [selection]
         }
     
 

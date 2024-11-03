@@ -12,10 +12,12 @@ from pipelines.sdxl.managed_model import sdxl_models
 from pipelines.common.task_result import TaskResult
 
 
-def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
-    inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
-    inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
-    control_image = input.get('control_image', {}).get('output', None) or input.get('control_image', {}).get('result', None)
+def generate_sdxl_image(model_name: str, input: dict, params: dict):
+    inpaint_image = input.get('default', {}).get('images', None)
+    if not inpaint_image:
+        inpaint_image = input.get('image', {}).get('images', None)
+    inpaint_mask = input.get('mask', {}).get('images', None) 
+    control_image = input.get('control_image', {}).get('images', None)
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:
         raise ValueError("It's required a image to inpaint")
@@ -60,7 +62,7 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
         param_name = f'adapter_{adapter_index}'
         if param_name not in input:
             continue
-        adapter = input.get(param_name, {}).get('default', {})
+        adapter = input.get(param_name, {}).get('data', {})
         if not adapter:
             raise ValueError(f"Adapter {adapter_index} not found")
         adapter_models.append(
@@ -165,24 +167,14 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
     else:
         result = sdxl_models.pipe(**pipe_args).images 
 
-    debug_enabled = params.get('globals', {}).get('debug', False)
-    if debug_enabled:
-        paths = []
-        for i, img in enumerate(result):
-            filepath = os.path.join(base_dir, f'{task_name}_seed_{seed}_{i}.jpg')
-            img.save(filepath)
-            paths.append(filepath)
-    else:
-        paths = [''] * len(result)
- 
-    return TaskResult(result, paths).to_dict()
+    return {
+        'images': result
+    }
     
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
+def process_workflow_task(input: dict, config: dict) -> dict:
     return generate_sdxl_image(
         model_name=config['model_name'],
-        task_name=name,
-        base_dir=base_dir,
         input=input,
         params=config
     )

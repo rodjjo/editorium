@@ -202,30 +202,22 @@ def grounded_segmentation(
     return detections, box
 
 
-def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: str, base_dir: str, input: dict, params: dict):
+def generate_segmentation(model_name_det: str, model_name_seg: str, input: dict, params: dict):
     segmentation_models.load_models(model_name_det=model_name_det, model_name_seg=model_name_seg)
 
-    if (input.get('default') is None):
-        raise Exception("Invalid input data")
+    images = input.get('default', {}).get('images', [])
+    if not images:
+        images = input.get('image', {}).get('images', [])
     
-    input = input['default']
-    if input.get('output') is None:
-        raise Exception("Invalid input data")
-    
-    if type(input['output']) is not list:
-        raise Exception("Invalid input data expected list")
+    if not images:
+        raise Exception("Invalid input data expected a not empty list")
     
     box_margin = params.get('margin', 5)
-    debug_enabled = params.get('globals', {}).get('debug', False)
+
     masks = []
     boxes = []
-    paths = []
-    for index, output in enumerate(input['output']):
-        if (type(output) is str):
-            image = Image.open(output)
-        else:
-            image = output
-        
+
+    for image in images:
         labels = params['prompt'].lower().replace(',', '.')
         labels = [label.strip() for label in labels.split('.')]
         labels = [label for label in labels if label != '']
@@ -253,29 +245,20 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
         elif params.get('selection_type', 'detected') == 'entire-image':
             box = [0, 0, image.size[0], image.size[1]]
         
-        if debug_enabled:                
-            filepath = os.path.join(base_dir, f'{task_name}-{index}.png')
-            mask.save(filepath)
-        else:
-            filepath = ''
         
         masks.append(mask)
         boxes.append(box)
-        paths.append(filepath)
 
     return {
-        "result": masks,
+        "images": masks,
         "boxes": boxes,
-        "filepaths": paths,
     }
 
     
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
+def process_workflow_task(input: dict, config: dict) -> dict:
     return generate_segmentation(
         model_name_det=config['model_name_detection'],
         model_name_seg=config['model_name_segmentation'],
-        task_name=name,
-        base_dir=base_dir,
         input=input,
         params=config
     )

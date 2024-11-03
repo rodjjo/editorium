@@ -12,9 +12,13 @@ class InvertImageTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         print("Processing invert image task")
-        image_list = input.get('default', {}).get('result', None)
+
+        image_list = input.get('default', {}).get('images', None)
+        if not image_list:
+            image_list = input.get('image', {}).get('images', None)
+
         if not image_list:
             raise ValueError("It's required a image to invert #input=value")
         if type(image_list) is not list:
@@ -27,7 +31,9 @@ class InvertImageTask(WorkflowTask):
                 image = output
             image = ImageOps.invert(image)
             image_list[image_index] = image
-        return TaskResult(image_list, '').to_dict()
+        return {
+            'images': image_list
+        }
 
 
 def register():

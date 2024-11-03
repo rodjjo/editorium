@@ -304,19 +304,10 @@ def process_cogvideo_task(task: dict) -> dict:
 
 
 def process_workflow_task(base_dir: str, name: str, input: dict, config: dict):
-    input_images = None
-    if input.get('default', None):
-        if type(input['default']) == str:
-            input_images = [Image.open(input['default'])]
-        elif type(input['default']) == dict and 'output' in input['default']:
-            input_images = input['default']['output']
-    
-    input_videos = None
-    if input.get('video', None):
-        if type(input['video']) == str:
-            input_videos = [load_video(input['video'])]
-        elif type(input['video']) == dict and 'output' in input['video']:
-            input_videos = input['video']['output']
+    input_images = input.get('default', {}).get('images', None)
+    if not input_images:
+        input_images = input.get('image', {}).get('images', None)
+    input_videos = input.get('video', {}).get('images', None)
             
     if input_images and input_videos:
         raise ValueError("Both images and videos were passed as input")
@@ -328,19 +319,19 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict):
     else:
         generate_type = 't2v'
 
-    inputs = input_images if input_images else input_videos
+    data = input_images if input_images else input_videos
     
     all_paths = []
     all_saved = []
     
-    for index, input in enumerate(inputs):
+    for index, data in enumerate(data):
         output_path = os.path.join(base_dir, f'{name}-{index}.mp4')
         paths, saved = generate_video(
             prompt=config['prompt'],
             lora_path=config.get('lora_path', None),
             lora_rank=config.get('lora_rank', 128),
             output_path=output_path,
-            image_or_video_path=input,
+            image_or_video_path=data,
             num_inference_steps=config.get('num_inference_steps', 50),
             guidance_scale=config.get('guidance_scale', 6.0),
             num_videos_per_prompt=config.get('num_videos_per_prompt', 1),

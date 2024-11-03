@@ -7,6 +7,8 @@ from importlib import import_module
 from typing import List
 from copy import deepcopy
 from pipelines.common.flow_parser import FlowStore, FlowItem, parse_task_value
+from pipelines.workflow.tasks.api_manager import register_task
+from pipelines.workflow.tasks.custom_schemas import InputOutputSchema
 
 BASE_DIR = '/app/output_dir'
 
@@ -25,11 +27,10 @@ def now_on_tz():
 
 
 class WorkflowTask:
-    def __init__(self, task_type: str, description: str, config_schema=None, input_schema=None, is_api=False):
+    def __init__(self, task_type: str, description: str, config_schema=None, is_api=False):
         self.task_type = task_type
         self.description = description
         self.config_schema = config_schema
-        self.input_schema = input_schema
         self.is_api = is_api
             
     def validate_config(self, config: dict):
@@ -44,20 +45,46 @@ class WorkflowTask:
     def _process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         if self.config_schema:
             config = self.config_schema(context={'from_api': self.is_api}).load(config)
-        if self.input_schema:
-            input = self.input_schema(context={'from_api': self.is_api}).load(input)
-        result = self.process_task(base_dir, name, input, config)
-        if self.input_schema:
-            result = self.input_schema(context={'from_api': self.is_api}).dump(result)
+        input_validator = InputOutputSchema(context={'from_api': self.is_api})
+        for k, v in input.items():
+            if k in ('_item', '_injected'):
+                continue
+            v = {
+                kk: vv for kk, vv in v.items() if kk not in ('_item', '_injected')
+            }
+            input[k] = input_validator.load(v)
+        result = self.process_task(input, config)
+        result = InputOutputSchema(context={'from_api': self.is_api}).dump(result)
+        debug_type = config.get('globals', {}).get('debug', '') 
+        if debug_type and not self.is_api:
+            if debug_type in ('images', 'all'):
+                if result.get('images'):
+                    for i, image in enumerate(result['images']):
+                        if type(image) is not str:
+                            image.save(f"{base_dir}/{name}_{i}.jpg")
+                if result.get('masks'):
+                    for i, image in enumerate(result['masks']):
+                        if type(image) is not str:
+                            image.save(f"{base_dir}/{name}_{i}.png")
+            if debug_type in ('text', 'all'):
+                if result.get('texts'):
+                    for i, text in enumerate(result['texts']):
+                        if type(text) is str:
+                            path = f"{base_dir}/{name}_{i}.txt"
+                            with open(path, 'w') as f:
+                                f.write(text)
         return result
     
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task(self, input: dict, config: dict) -> dict:
         return {}
     
     @classmethod
-    def register(cls,task_type: str, description: str):
+    def register(cls, task_type: str, description: str, api_enabled: bool = False):
         instance = cls(task_type, description, is_api=False)
         WorkflowTaskManager.add_task(instance)
+        if api_enabled:
+            instance = cls(task_type, description, is_api=True)
+            register_task(instance)
 
 
 class WorkflowTaskManager:
@@ -99,9 +126,9 @@ class WorkflowTaskManager:
             item_result = self.results[item.name]
             if type(item_result) is not dict:
                 raise ValueError(f'Decision Task {item.name} did not return a dictionary')
-            if 'default' not in item_result:
-                raise ValueError(f'Decision Task {item.name} did not return a default value')
-            default = item_result['default']
+            if 'texts' not in item_result:
+                raise ValueError(f'Decision Task {item.name} did not return a text value')
+            default = item_result['texts']
             if type(default) is not list:
                 raise ValueError(f'Decision Task {item.name} default value is not a list')
             if len(default) == 0:
@@ -153,15 +180,19 @@ class WorkflowTaskManager:
             task_name = self.first_existing_task(prompt.split('task://')[1])
             if task_name not in self.results:
                 self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-            item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
+            item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
+            if type(item.config['prompt']) is list:
+                item.config['prompt'] = item.config['prompt'][0]
 
         if item.config.get('negative_prompt', '').startswith('task://'):
             negative_prompt = item.config.get('negative_prompt', '')
             task_name = self.first_existing_task(negative_prompt.split('task://')[1])
             if task_name not in self.results:
                 self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-            item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
-            
+            item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
+            if type(item.config['negative_prompt']) is list:
+                item.config['negative_prompt'] = item.config['negative_prompt'][0]
+                
         for key, value in item.config.items():
             if key in ['prompt', 'negative_prompt', 'globals']:
                 while '<insert_task:' in value:
@@ -173,7 +204,7 @@ class WorkflowTaskManager:
                     
                     if task_name not in self.results:
                         self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
+                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
                     if type(task_value) is list:
                         task_value = task_value[0]
                     if type(task_value) is not str:
@@ -196,7 +227,7 @@ class WorkflowTaskManager:
                     if default_value is None:
                         self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
                 if default_value is None:
-                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
+                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
                 else:
                     task_value = default_value
                 if type(task_value) is list:
@@ -206,7 +237,7 @@ class WorkflowTaskManager:
                 item.config[key] = parse_task_value(task_value)
 
         try:
-            def execute_manager(path, inject_result, result_task_name, parent_dir):
+            def execute_manager(path, inject_result, result_task_name):
                 global_seed = self.flow_store.globals.get('seed', -1)
                 new_manager = WorkflowTaskManager(self.workflow_collection)
                 for k, v in inject_result.items():
@@ -219,7 +250,7 @@ class WorkflowTaskManager:
                     }
                     new_manager.results[k] = v
                     
-                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, parent_dir=parent_dir, clear_result=False)
+                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, parent_dir=base_dir, clear_result=False)
                 if result_task_name in new_manager.results:
                     return new_manager.results[result_task_name]
                 else:
@@ -247,9 +278,9 @@ class WorkflowTaskManager:
         if item.decision:
             if type(task_result) is not dict:
                 raise ValueError(f'Decision Task {item.name} did not return a dictionary')
-            if 'default' not in task_result:
+            if 'texts' not in task_result:
                 raise ValueError(f'Decision Task {item.name} did not return a default value')
-            default = task_result['default']
+            default = task_result['texts']
             if type(default) is not list:
                 raise ValueError(f'Decision Task {item.name} default value is not a list')
             for i, value in enumerate(default):
@@ -273,7 +304,7 @@ class WorkflowTaskManager:
     def execute(self, contents: List[str], use_global_seed=None, disable_repeat=False, parent_dir='', clear_result=True) -> dict:
         should_repeat = False
         found_global_seed = False
-        found_global_debug = False
+        found_global_debug = ''
         for index, line in enumerate(contents):
             if disable_repeat is False and line.startswith('#global.repeat='):
                 should_repeat = line.split('#global.repeat=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
@@ -285,7 +316,7 @@ class WorkflowTaskManager:
                 found_global_seed = True
 
             if line.startswith('#global.debug='):
-                found_global_debug = line.split('#global.debug=')[1].lower() in ['true', '1', 'yes', 'on', 'sure']
+                found_global_debug = line.split('#global.debug=')[1].lower()
 
         if not found_global_seed:
             contents = [f'#global.seed={use_global_seed or random.randint(0, 1000000)}'] + contents
@@ -325,7 +356,7 @@ class WorkflowTaskManager:
                 if task_run_count == 0:
                     raise ValueError("No tasks were executed")
 
-                if found_global_debug:
+                if found_global_debug in ('all', 'workflow'):
                     self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
             except:
                 self.save_workflow(contents, os.path.join(dirpath, 'workflow.txt'))
@@ -352,6 +383,8 @@ def register_workflow_tasks():
                 module.register()
             else:
                 print(f'Warning: {file} does not have a register function')
+            if hasattr(module, 'register_api'):
+                module.register_api()
 
 register_workflow_tasks()
 
