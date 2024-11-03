@@ -10,21 +10,11 @@ class SaveTextSchema(Schema):
 
 
 class SaveTextTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = SaveTextSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=SaveTextSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing save text task")
-        config = SaveTextSchema().load(config)
         input_text = input.get('default', {}).get('default', None)
         if input_text:
             if type(input_text) is list:

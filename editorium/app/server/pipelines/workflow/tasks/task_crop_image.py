@@ -2,14 +2,11 @@ from .task import WorkflowTask
 from marshmallow import Schema, fields
 from pipelines.common.task_result import TaskResult
 
-   
 
 class CropImageTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, is_api=is_api)
 
-    def validate_config(self, config: dict):
-        return True
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing blur image task")
@@ -53,5 +50,8 @@ class CropImageTask(WorkflowTask):
 
 
 def register():
-    CropImageTask.register("crop-image", "Crop an image based on a box")
+    CropImageTask.register(
+        "crop-image", 
+        "Crop an image based on a box"
+    )
  

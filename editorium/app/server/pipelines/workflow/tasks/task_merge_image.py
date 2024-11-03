@@ -6,8 +6,8 @@ from pipelines.common.task_result import TaskResult
 
 
 class MergeImageTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, is_api=is_api)
 
     def validate_config(self, config: dict):
         return True

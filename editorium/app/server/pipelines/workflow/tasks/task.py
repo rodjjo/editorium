@@ -25,19 +25,38 @@ def now_on_tz():
 
 
 class WorkflowTask:
-    def __init__(self, task_type: str, description: str):
+    def __init__(self, task_type: str, description: str, config_schema=None, input_schema=None, is_api=False):
         self.task_type = task_type
         self.description = description
-        
+        self.config_schema = config_schema
+        self.input_schema = input_schema
+        self.is_api = is_api
+            
     def validate_config(self, config: dict):
+        if self.config_schema:
+            try:
+                self.config_schema(context={'from_api': self.is_api}).load(config)
+            except Exception as e:
+                print(str(e))
+                return False
         return True
+    
+    def _process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+        if self.config_schema:
+            config = self.config_schema(context={'from_api': self.is_api}).load(config)
+        if self.input_schema:
+            input = self.input_schema(context={'from_api': self.is_api}).load(input)
+        result = self.process_task(base_dir, name, input, config)
+        if self.input_schema:
+            result = self.input_schema(context={'from_api': self.is_api}).dump(result)
+        return result
     
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         return {}
     
     @classmethod
     def register(cls,task_type: str, description: str):
-        instance = cls(task_type, description)
+        instance = cls(task_type, description, is_api=False)
         WorkflowTaskManager.add_task(instance)
 
 
@@ -206,7 +225,7 @@ class WorkflowTaskManager:
                 else:
                     raise ValueError(f'Task {result_task_name} not found in {path}')
             
-            task_result = self.tasks[item.task_type].process_task(
+            task_result = self.tasks[item.task_type]._process_task(
                 base_dir,
                 item.name,
                 deepcopy(resolved_inputs), 

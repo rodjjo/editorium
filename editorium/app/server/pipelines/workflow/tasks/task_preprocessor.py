@@ -10,17 +10,8 @@ class PreprocessorSchema(Schema):
 
 
 class PreprocessorTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = PreprocessorSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=PreprocessorSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing preprocessor task")
@@ -29,4 +20,7 @@ class PreprocessorTask(WorkflowTask):
 
 
 def register():
-    PreprocessorTask.register("image-preprocessor", "Pre-process a image to be used by other tasks")
+    PreprocessorTask.register(
+        "image-preprocessor", 
+        "Pre-process a image to be used by other tasks"
+    )

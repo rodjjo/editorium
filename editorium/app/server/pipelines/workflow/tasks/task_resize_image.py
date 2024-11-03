@@ -13,24 +13,14 @@ class ResizeImageTaskSchema(Schema):
     
 
 class ResizeImageTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = ResizeImageTaskSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool=False):
+        super().__init__(task_type, description, config_schema=ResizeImageTaskSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing blur image task")
-        params = ResizeImageTaskSchema().load(config)
-        width = params['width']
-        height = params['height']
-        dimension = params['dimension']
+        width = config['width']
+        height = config['height']
+        dimension = config['dimension']
         
         if width is None and height is None and dimension is None:
             raise ValueError("It's required a width, height or dimension to resize the image")
@@ -40,7 +30,7 @@ class ResizeImageTask(WorkflowTask):
         if type(image_list) is not list:
             image_list = [image_list]
         
-        debug_enabled = params.get('globals', {}).get('debug', False)
+        debug_enabled = config.get('globals', {}).get('debug', False)
         file_paths = []
         for image_index, image in enumerate(image_list):
             if dimension:

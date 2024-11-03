@@ -14,21 +14,12 @@ class SegmentationPayloadSchema(Schema):
 
 
 class SegmentationTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = SegmentationPayloadSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=SegmentationPayloadSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing segmentation task")
-        return process_workflow_task(base_dir, name, input, SegmentationPayloadSchema().load(config))
+        return process_workflow_task(base_dir, name, input, config)
 
 
 def register():

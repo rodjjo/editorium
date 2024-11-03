@@ -13,22 +13,16 @@ class ChatvisionPayloadSchema(Schema):
 
 
 class ChatvisionTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = ChatvisionPayloadSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=ChatvisionPayloadSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing chatvision task")
-        return process_workflow_task(base_dir, name, input, ChatvisionPayloadSchema().load(config))
+        return process_workflow_task(base_dir, name, input, config)
 
 
 def register():
-    ChatvisionTask.register("chatvision", "Use a chatvision model to check the image contents")
+    ChatvisionTask.register(
+        "chatvision", 
+        "Use a chatvision model to check the image contents"
+    )

@@ -10,22 +10,12 @@ class FlipImageSchema(Schema):
     
 
 class FlipImageTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = FlipImageSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=FlipImageSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing flip image task")
-        params = FlipImageSchema().load(config)
-        vertical = params['vertical']
+        vertical = config['vertical']
 
         image_list = input.get('default', {}).get('output', None)
         if not image_list:

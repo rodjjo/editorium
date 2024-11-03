@@ -8,32 +8,20 @@ class SdxlIpAdapterSchema(Schema):
 
 
 class SdxlIpAdapterTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = SdxlIpAdapterSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool=False):
+        super().__init__(task_type, description, config_schema=SdxlIpAdapterSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing SD XL ipadapter task")
         image = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None) 
         if image is None:
             raise ValueError("It's required a image to apply the controlnet #config.input=value")
-        config = SdxlIpAdapterSchema().load(config)
         return {
             "default": {
                 'image': image,
                 'adapter_model': config['adapter_model'],       
             }
         }
-
-
 
 def register():
     SdxlIpAdapterTask.register("sdxl-ipadapter", "Store an ip adapter that can be used by other tasks")

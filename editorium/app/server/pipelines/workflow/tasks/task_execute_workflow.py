@@ -9,27 +9,20 @@ class ExecuteFlowTaskSchema(Schema):
 
 
 class ExecuteFlowTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = ExecuteFlowTaskSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool=False):
+        super().__init__(task_type, description, config_schema=ExecuteFlowTaskSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing prompt task")
-        params = ExecuteFlowTaskSchema().load(config)
-        path = params['path']
-        output_task = params['output_task']
-        globals = params.get('globals', {})
+        path = config['path']
+        output_task = config['output_task']
+        globals = config.get('globals', {})
         inject = input.get("default", {})
         return globals['execute_manager'](path, inject, output_task, base_dir)
 
 
 def register():
-    ExecuteFlowTask.register("execute", "Execute an external worflow and capture the output")
+    ExecuteFlowTask.register(
+        "execute", 
+        "Execute an external worflow and capture the output"
+    )

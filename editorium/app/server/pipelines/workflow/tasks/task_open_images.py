@@ -13,22 +13,12 @@ class OpenImageSchema(Schema):
 
 
 class OpenImagesTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = OpenImageSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=OpenImageSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing open-images task")
-        params = OpenImageSchema().load(config)
-        paths = params['prompt'].split('\n')
+        paths = config['prompt'].split('\n')
         paths = [p.strip() for p in paths if p.strip() != '']
 
         selected = None
@@ -51,4 +41,7 @@ class OpenImagesTask(WorkflowTask):
 
 
 def register():
-    OpenImagesTask.register("open-images", "Opens a random image from a list of images in the prompt (or one selected with >)")
+    OpenImagesTask.register(
+        "open-images", 
+        "Opens a random image from a list of images in the prompt (or one selected with >)"
+    )

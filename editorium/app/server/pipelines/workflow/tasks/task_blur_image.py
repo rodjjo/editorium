@@ -11,23 +11,14 @@ class BlurImageTaskSchema(Schema):
 
 
 class BlurImageTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = BlurImageTaskSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=BlurImageTaskSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing blur image task")
-        params = BlurImageTaskSchema().load(config)
-        dilate_size = params['dilate_size']
-        blur_size = params['blur_size']
+        
+        dilate_size = config['dilate_size']
+        blur_size = config['blur_size']
         
         kernel_size_dilate = 3
         kernel_size_blur = 3
@@ -61,4 +52,7 @@ class BlurImageTask(WorkflowTask):
 
 
 def register():
-    BlurImageTask.register("blur-image", "Store a prompt that can be used by other tasks")
+    BlurImageTask.register(
+        "blur-image", 
+        "Store a prompt that can be used by other tasks",
+    )

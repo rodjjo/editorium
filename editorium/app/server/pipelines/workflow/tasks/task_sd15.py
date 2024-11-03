@@ -32,21 +32,11 @@ class Sd15PayloadSchema(Schema):
     globals = fields.Dict(required=False, load_default={})
 
 class Sd15Task(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = Sd15PayloadSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool=False):
+        super().__init__(task_type, description, config_schema=Sd15PayloadSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing SD 1.5 task")
-        config = Sd15PayloadSchema().load(config)
         model = input.get('model', {}).get('default', None)
         if model is not None:
             for key in model.keys():

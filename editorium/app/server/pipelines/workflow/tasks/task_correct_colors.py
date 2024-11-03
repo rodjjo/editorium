@@ -5,11 +5,8 @@ from pipelines.common.color_fixer import color_correction
    
 
 class CorrectColorsTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing blur image task")
@@ -49,5 +46,8 @@ class CorrectColorsTask(WorkflowTask):
 
 
 def register():
-    CorrectColorsTask.register("correct-colors", "Correct colors of a new image to match the original")
+    CorrectColorsTask.register(
+        "correct-colors", 
+        "Correct colors of a new image to match the original"
+    )
  

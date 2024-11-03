@@ -10,8 +10,8 @@ class PromptTaskSchema(Schema):
 
 
 class PromptTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=PromptTaskSchema, is_api=is_api)
 
     def validate_config(self, config: dict):
         schema = PromptTaskSchema()
@@ -24,9 +24,8 @@ class PromptTask(WorkflowTask):
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing prompt task")
-        params = PromptTaskSchema().load(config)
-        prompt = params['prompt']
-        if params['randomize']:
+        prompt = config['prompt']
+        if config['randomize']:
             prompt = prompt.split('\n')
             prompt = [x.strip() for x in prompt if x.strip()]
             prompt = random.choice(prompt)

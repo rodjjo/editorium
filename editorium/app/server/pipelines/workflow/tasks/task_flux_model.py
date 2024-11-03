@@ -16,22 +16,13 @@ class FluxModelSchema(Schema):
 
 
 class FluxModelTask(WorkflowTask):
-    def __init__(self, task_type: str, description: str):
-        super().__init__(task_type, description)
-
-    def validate_config(self, config: dict):
-        schema = FluxModelSchema()
-        try:
-            schema.load(config)
-        except Exception as e:
-            print(str(e))
-            return False
-        return True
+    def __init__(self, task_type: str, description: str, is_api: bool = False):
+        super().__init__(task_type, description, config_schema=FluxModelSchema, is_api=is_api)
 
     def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing flux model task")
         return {
-            "default": FluxModelSchema().load(config)
+            "default": config
         }
 
 
