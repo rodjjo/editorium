@@ -37,9 +37,9 @@ class CogVideoTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing CogVideoX task")
-        return process_workflow_task(base_dir, name, input, config, callback)
+        return process_workflow_task(base_dir, name, input, config)
 
 
 def register():

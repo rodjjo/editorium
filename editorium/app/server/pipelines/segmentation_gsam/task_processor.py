@@ -270,32 +270,7 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, task_name: s
     }
 
     
-
-def process_segmentation_task(task: dict, callback=None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-
-    return {
-        "success": True,
-    }
-
-
-def cancel_task():
-    global SHOULD_STOP
-    SHOULD_STOP = True
-    return {
-        "success": True,
-    }
-
-
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     return generate_segmentation(
         model_name_det=config['model_name_detection'],
         model_name_seg=config['model_name_segmentation'],

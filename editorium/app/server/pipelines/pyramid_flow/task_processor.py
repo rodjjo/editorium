@@ -11,29 +11,11 @@ from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
 from pipelines.pyramid_flow.managed_model import pyramid_model
 
+from task_helpers.progress_bar import ProgressBar
 
-SHOULD_STOP = False
-PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
-
-
-def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-def progress_callback(position, total):
-    if SHOULD_STOP:
-        raise StopException("Stopped by user.")
-    if PROGRESS_CALLBACK is not None and total is not None and total > 0:
-        PROGRESS_CALLBACK(CURRENT_TITLE, position / total)
-
+def report_progress(position, total):
+    if total is not None and total > 0:
+        ProgressBar.set_progress(position / total)
 
 
 class PyramidTaskParameters:
@@ -105,7 +87,7 @@ def generate_video(task: PyramidTaskParameters) -> dict:
         'video_guidance_scale': task.video_guidance_scale,
         'save_memory': True,
         'cpu_offloading': True,
-        'callback': progress_callback,
+        'callback': report_progress,
     }
     
     if task.seed_use in (None, -1):
@@ -191,7 +173,7 @@ def process_prompts_from_file(prompts_data: str):
     }
     
 
-def process_pyramid_task(parameters: dict, callback = None) -> dict:
+def process_pyramid_task(parameters: dict) -> dict:
     global SHOULD_STOP
     SHOULD_STOP = False
     if 'prompts_data' in parameters:

@@ -21,7 +21,7 @@ class ExecuteFlowTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing prompt task")
         params = ExecuteFlowTaskSchema().load(config)
         path = params['path']

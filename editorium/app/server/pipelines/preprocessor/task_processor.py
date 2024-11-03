@@ -185,7 +185,7 @@ def pre_process_image(control_type: str, im):
     return None
 
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable):
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict):
     images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
     if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")

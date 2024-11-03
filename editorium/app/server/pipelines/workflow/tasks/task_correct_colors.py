@@ -11,7 +11,7 @@ class CorrectColorsTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing blur image task")
         
         new_images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)

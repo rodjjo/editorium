@@ -8,7 +8,7 @@ class ReturnInputsTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing return inputs task")
         return {
             **input

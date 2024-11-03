@@ -24,9 +24,9 @@ class GfpGanUpscalerTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing gfpgan-upscaler task")
-        return process_workflow_task(base_dir, name, input, GfpGanUpscalerPayloadSchema().load(config), callback)
+        return process_workflow_task(base_dir, name, input, GfpGanUpscalerPayloadSchema().load(config))
 
 
 def register():

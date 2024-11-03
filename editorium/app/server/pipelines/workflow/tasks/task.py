@@ -32,7 +32,7 @@ class WorkflowTask:
     def validate_config(self, config: dict):
         return True
     
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         return {}
     
     @classmethod
@@ -93,7 +93,7 @@ class WorkflowTaskManager:
             return self.accept_resolved_value(self.results[result_task_name]['_item'], self.results[result_task_name])
         return value
     
-    def process_task(self, base_dir, item: FlowItem, callback: callable, task_stack: set):
+    def process_task(self, base_dir, item: FlowItem, task_stack: set):
         if item.name in self.results:
             if self.results[item.name].get('_injected'):
                 return self.results[item.name]
@@ -122,7 +122,7 @@ class WorkflowTaskManager:
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
                 else:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
-                    self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
+                    self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
                     resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
             else:
                 print(f'Empty input for task {item.name}')
@@ -133,14 +133,14 @@ class WorkflowTaskManager:
             prompt = item.config.get('prompt', '')
             task_name = self.first_existing_task(prompt.split('task://')[1])
             if task_name not in self.results:
-                self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
+                self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
             item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
 
         if item.config.get('negative_prompt', '').startswith('task://'):
             negative_prompt = item.config.get('negative_prompt', '')
             task_name = self.first_existing_task(negative_prompt.split('task://')[1])
             if task_name not in self.results:
-                self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
+                self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
             item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', ''))
             
         for key, value in item.config.items():
@@ -153,7 +153,7 @@ class WorkflowTaskManager:
                     task_name = value[start + 13:end]
                     
                     if task_name not in self.results:
-                        self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
+                        self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
                     task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
                     if type(task_value) is list:
                         task_value = task_value[0]
@@ -175,7 +175,7 @@ class WorkflowTaskManager:
                     task_name = self.first_existing_task(task_name)
                 if task_name not in self.results:
                     if default_value is None:
-                        self.process_task(base_dir, self.flow_store.get_task(task_name), callback, task_stack)
+                        self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
                 if default_value is None:
                     task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('default', '') or self.results[task_name].get('result', ''))
                 else:
@@ -200,7 +200,7 @@ class WorkflowTaskManager:
                     }
                     new_manager.results[k] = v
                     
-                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, callback=callback, parent_dir=parent_dir, clear_result=False)
+                new_manager.execute(self.workflow_collection[path], use_global_seed=global_seed, disable_repeat=True, parent_dir=parent_dir, clear_result=False)
                 if result_task_name in new_manager.results:
                     return new_manager.results[result_task_name]
                 else:
@@ -214,10 +214,9 @@ class WorkflowTaskManager:
                     **deepcopy(item.config),
                     'globals': {
                         **deepcopy(self.flow_store.globals),
-                        'execute_manager': execute_manager, # contents: List[str], use_global_seed=None, disable_repeat=False, callback=None
+                        'execute_manager': execute_manager, # contents: List[str], use_global_seed=None, disable_repeat=False, 
                     },
-                },
-                callback
+                }
             )
         except Exception as e:
             print(f"Error processing task {item.name}: {str(e)}")
@@ -242,7 +241,7 @@ class WorkflowTaskManager:
                 if value != '':
                     if value == item.name:
                         raise ValueError(f'Decision Task {item.name} cannot reference itself')
-                    self.process_task(base_dir, self.flow_store.get_task(value), callback, task_stack)
+                    self.process_task(base_dir, self.flow_store.get_task(value), task_stack)
                 else:
                     print(f'Empty task name in decision task {item.name}')
 
@@ -252,7 +251,7 @@ class WorkflowTaskManager:
                 f.write(line + '\n')
 
         
-    def execute(self, contents: List[str], use_global_seed=None, disable_repeat=False, callback=None, parent_dir='', clear_result=True) -> dict:
+    def execute(self, contents: List[str], use_global_seed=None, disable_repeat=False, parent_dir='', clear_result=True) -> dict:
         should_repeat = False
         found_global_seed = False
         found_global_debug = False
@@ -292,7 +291,7 @@ class WorkflowTaskManager:
                 for item in self.flow_store.iterate():
                     if item.flow_lazy:
                         continue
-                    self.process_task(dirpath, item, callback, set())
+                    self.process_task(dirpath, item, set())
                     task_run_count += 1
 
                 if not should_repeat:

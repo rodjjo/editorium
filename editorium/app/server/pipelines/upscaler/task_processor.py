@@ -52,7 +52,7 @@ def gfpgan_upscale(scale, restore_bg):
         yield restorer
 
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
     if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")

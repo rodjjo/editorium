@@ -21,7 +21,6 @@ def generate_text(base_dir: str,
                   prompt: str,
                   system_prompt: str = '',
                   temperature: float = 0.7,
-                  callback: callable = None,
                   globals: dict = {}) -> dict:
     if not image:
         raise ValueError('Image is required')
@@ -68,12 +67,7 @@ def generate_text(base_dir: str,
     }
     
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-    
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     image = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
     
     return generate_text(
@@ -84,7 +78,6 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
         prompt=config['prompt'],
         system_prompt=config.get('system_prompt', ''),
         temperature=config.get('temperature', 0.7),
-        callback=callback,
         globals=config.get('globals', {})
     )
     

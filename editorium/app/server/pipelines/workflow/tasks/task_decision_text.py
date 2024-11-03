@@ -31,7 +31,7 @@ class DecisionTextTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Taking a decision based on the input text")
         config = DecisionTextSchema().load(config)
         input_text = input.get('default', {}).get('default', None)

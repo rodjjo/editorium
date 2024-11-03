@@ -18,32 +18,15 @@ from pipelines.common.save_video import save_video, to_tensors_transform
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.cogvideo.managed_model import cogvideo_model
 from pipelines.common.exceptions import StopException
+from task_helpers.progress_bar import ProgressBar
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
 
 
 def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-
-class TqdmUpTo(tqdm):
-    def update(self, n=1):
-        result = super().update(n)
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
-            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
-        return result
+    ProgressBar.set_title(f'CogVideoX: {title}')
+    ProgressBar.set_progress(0.0)
 
 
 def generate_video(
@@ -146,10 +129,9 @@ def generate_video(
         pipe_args["num_frames"] = 49
         
 
-    cogvideo_model.pipe.progress_bar = lambda total: TqdmUpTo(total=total)
+    cogvideo_model.pipe.progress_bar = lambda total: ProgressBar(total=total)
 
-
-    call_callback("Generating video")
+    set_title("Generating video")
     
     if vae_encode_decode:
         vae = cogvideo_model.pipe.vae
@@ -167,7 +149,7 @@ def generate_video(
         video_generate = cogvideo_model.pipe(**pipe_args).frames
 
     if len(video_generate) < 1:
-        call_callback("No video generated.")
+        set_title("No video generated.")
         return
     saved_videos = []
     paths = []
@@ -307,56 +289,21 @@ def process_prompts_from_file(prompts_data: str):
         "success": True,
     }
 
-def process_cogvideo_task(task: dict, callback = None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
 
-    SHOULD_STOP = False
-
-    try:
-        if 'prompt' in task:
-            call_callback("Generating video from a prompt passed as parameter")
-            return process_cogvideo_task_generate(task)
-        if 'prompts_data' in task:
-            call_callback("Iterating over a file and parsing prompts to generate videos")
-            return process_prompts_from_file(task['prompts_data'])
-        return {
-            "success": False,
-            "error": "Cogvideo: Invalid task",
-        }
-        SHOULD_STOP = False
-    except StopException as ex:
-        SHOULD_STOP = False
-        print("Task stopped by the user.")
-        return {
-            "success": False,
-            "error": str(ex)
-        }
-    except Exception as ex:
-        SHOULD_STOP = False
-        print(str(ex))
-        traceback.print_exc()
-        return {
-            "success": False,
-            "error": str(ex)
-        }
-
-
-def cancel_cogvideo_task():
-    global SHOULD_STOP
-    SHOULD_STOP = True
+def process_cogvideo_task(task: dict) -> dict:
+    if 'prompt' in task:
+        set_title("Generating video from a prompt passed as parameter")
+        return process_cogvideo_task_generate(task)
+    if 'prompts_data' in task:
+        set_title("Iterating over a file and parsing prompts to generate videos")
+        return process_prompts_from_file(task['prompts_data'])
     return {
-        "success": True,
+        "success": False,
+        "error": "Cogvideo: Invalid task",
     }
 
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable):
-    global PROGRESS_CALLBACK
-    global SHOULD_STOP
-    SHOULD_STOP = False
-    PROGRESS_CALLBACK = callback
-
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict):
     input_images = None
     if input.get('default', None):
         if type(input['default']) == str:

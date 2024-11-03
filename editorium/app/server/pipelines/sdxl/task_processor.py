@@ -12,34 +12,6 @@ from pipelines.sdxl.managed_model import sdxl_models
 from pipelines.common.task_result import TaskResult
 
 
-SHOULD_STOP = False
-PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
-
-
-def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-
-class TqdmUpTo(tqdm):
-    def update(self, n=1):
-        result = super().update(n)
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
-            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
-        return result
-
-
-
 def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('output', None) or input.get('default', {}).get('result', None)
     inpaint_mask = input.get('mask', {}).get('output', None) or input.get('mask', {}).get('result', None)
@@ -206,31 +178,7 @@ def generate_sdxl_image(model_name: str, task_name: str, base_dir: str, input: d
     return TaskResult(result, paths).to_dict()
     
 
-def process_sdxl_task(task: dict, callback=None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-    
-    return {
-        "success": True,
-    }
-
-
-def cancel_sdxl_task():
-    global SHOULD_STOP
-    SHOULD_STOP = True
-    return {
-        "success": True,
-    }
-
-
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     return generate_sdxl_image(
         model_name=config['model_name'],
         task_name=name,

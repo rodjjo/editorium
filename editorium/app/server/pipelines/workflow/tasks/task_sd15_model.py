@@ -26,7 +26,7 @@ class Sd15Task(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing SD 1.5 Model task")
         return {
             'default': Sd15ModelSchema().load(config)

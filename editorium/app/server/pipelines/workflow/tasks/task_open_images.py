@@ -25,7 +25,7 @@ class OpenImagesTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing open-images task")
         params = OpenImageSchema().load(config)
         paths = params['prompt'].split('\n')

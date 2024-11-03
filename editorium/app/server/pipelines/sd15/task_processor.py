@@ -14,35 +14,6 @@ from pipelines.sd15.managed_model import sd15_models
 from pipelines.sd15.loader import LORA_DIR
 
 
-
-SHOULD_STOP = False
-PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
-
-
-def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-
-class TqdmUpTo(tqdm):
-    def update(self, n=1):
-        result = super().update(n)
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
-            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
-        return result
-
-
-
 def get_lora_path(lora: str, lora_dir_contents: list) -> str:
     if '*' not in lora:
         for e in ('.ckpt', '.safetensors'):
@@ -569,31 +540,7 @@ def generate_sd15_image(model_name: str, task_name: str, base_dir: str, input: d
     return TaskResult(results, paths).to_dict()
 
 
-def process_sd15_task(task: dict, callback=None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-    
-    return {
-        "success": True,
-    }
-
-
-def cancel_sd15_task():
-    global SHOULD_STOP
-    SHOULD_STOP = True
-    return {
-        "success": True,
-    }
-
-
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     return generate_sd15_image(
         model_name=config['model_name'],
         task_name=name,

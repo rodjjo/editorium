@@ -11,7 +11,7 @@ class InvertImageTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing invert image task")
         image_list = input.get('default', {}).get('result', None)
         if not image_list:

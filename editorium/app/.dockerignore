@@ -7,3 +7,4 @@
 !requirements-experimental.txt
 !server/*
 !server/**/*
+!cameras.h5

@@ -14,9 +14,6 @@ from pipelines.common.exceptions import StopException
 from pipelines.segmentation_sapiens.managed_model import segmentation_models, SEGMENTATION_CLASSES_NUMBERS
 from pipelines.segmentation_gsam.task_processor import refine_mask_uint8
 
-SHOULD_STOP = False
-PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
 
 def pil_to_cv2(image: Image) -> np.array:
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -211,31 +208,8 @@ def generate_segmentation(task_name: str, base_dir: str, input: dict, params: di
 
 
 
-def process_segmentation_task(task: dict, callback=None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
 
-    return {
-        "success": True,
-    }
-
-
-def cancel_task():
-    global SHOULD_STOP
-    SHOULD_STOP = True
-    return {
-        "success": True,
-    }
-
-
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     return generate_segmentation(
         task_name=name,
         base_dir=base_dir,

@@ -44,7 +44,7 @@ class Sd15Task(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing SD 1.5 task")
         config = Sd15PayloadSchema().load(config)
         model = input.get('model', {}).get('default', None)
@@ -53,7 +53,7 @@ class Sd15Task(WorkflowTask):
                 config[key] = model[key]
         if not config.get('model_name', None):
             raise ValueError("Model name is required")
-        return process_workflow_task(base_dir, name, input, config, callback)
+        return process_workflow_task(base_dir, name, input, config)
 
 
 def register():

@@ -170,31 +170,13 @@ def generate_flux_image(model_name: str, task_name: str, base_dir: str, input: d
 
     
 
-def process_flux_task(task: dict, callback=None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-    
+def process_flux_task(task: dict) -> dict:
     return {
         "success": True,
     }
 
 
-def cancel_flux_task():
-    global SHOULD_STOP
-    SHOULD_STOP = True
-    return {
-        "success": True,
-    }
-
-
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     return generate_flux_image(
         model_name=config['model_name'],
         task_name=name,

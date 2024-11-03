@@ -48,7 +48,6 @@ RUN pip install -r /tmp/requirements3.txt && rm /tmp/requirements3.txt
 
 ADD ./server /app/editorium/server
 ADD ./run-server.sh /app/editorium/run-server.sh
-
 RUN groupadd -g $GID $USER && useradd -m -u $UID -g $GID -s /bin/bash -d /home/$USER $USER  && chown -R $USER:$USER /app/editorium
 
 

@@ -11,10 +11,12 @@ from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
 from pipelines.common.task_result import TaskResult
 from pipelines.chatbot.managed_model import chatbot_models
+from task_helpers.progress_bar import ProgressBar
 
 
 class CanceledChecker:
     def __call__(self, *args, **kwargs) -> bool:
+        ProgressBar.set_progress(0.0)
         return False # TODO return True if the task should be canceled
 
 
@@ -54,7 +56,6 @@ def generate_text(base_dir: str,
                   top_k: int = 0,
                   repetition_penalty: float = 1,
                   response_after: str = '',
-                  callback: callable = None,
                   globals: dict = {}) -> dict:
     debug_enabled = globals.get('debug', False)
     response = use_cache(repo_id, context, prompt, '')
@@ -118,12 +119,7 @@ def generate_text(base_dir: str,
     }
     
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
-    SHOULD_STOP = False
-    
+def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
     return generate_text(
         base_dir=base_dir,
         name=name,
@@ -138,7 +134,6 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict, c
         top_k=config.get('top_k', 0),
         repetition_penalty=config.get('repetition_penalty', 1),
         response_after=config.get('response_after', ''),
-        callback=callback,
         globals=config.get('globals', {})
     )
     

@@ -22,7 +22,7 @@ class ModelSelectorTask(WorkflowTask):
             return False
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Executing task model selector")
         config = ModelSelectorSchema().load(config)
         prompt = config['prompt'].strip()

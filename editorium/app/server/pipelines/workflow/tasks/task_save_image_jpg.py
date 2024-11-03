@@ -13,7 +13,7 @@ class SaveImageJPGTask(WorkflowTask):
     def validate_config(self, config: dict):
         return True
 
-    def process_task(self, base_dir: str, name: str, input: dict, config: dict, callback: callable) -> dict:
+    def process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         print("Processing save image jpg task")
         image_list = input.get('default', {}).get('result', None) or input.get('default', {}).get('output', None)
         if not image_list:

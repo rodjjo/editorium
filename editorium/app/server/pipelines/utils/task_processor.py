@@ -37,7 +37,7 @@ def convert_flux_model(repo_id: str, unet_filename: str):
     flux_models.release_model()
 
 
-def process_workflow_task(task: dict, callback: callable) -> dict:
+def process_workflow_task(task: dict) -> dict:
     if 'command' not in task:
         return {
             "success": False,

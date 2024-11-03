@@ -55,32 +55,7 @@ from diffusers.utils.torch_utils import is_compiled_module
 
 from safetensors.torch import save_file
 
-from pipelines.common.exceptions import StopException
-
-PROGRESS_CALLBACK = None
-SHOULD_STOP = False
-
-
-def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-
-class TqdmUpTo(tqdm):
-    def update(self, n=1):
-        result = super().update(n)
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
-            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
-        return result
+from task_helpers.progress_bar import ProgressBar
 
 
 def get_train_base_directory() -> str:
@@ -1017,34 +992,12 @@ def train_cogvideo_lora(train_filepath: str):
             "success": False,
         }
 
-def process_cogvideo_lora_task(task: dict, callback = None) -> dict:
-    global SHOULD_STOP
-    global PROGRESS_CALLBACK
-    PROGRESS_CALLBACK = callback
+def process_cogvideo_lora_task(task: dict) -> dict:
+    if 'train_file' in task:
+        ProgressBar.set_title("Training lora model")
+        return train_cogvideo_lora(task['train_file'])
+    return {
+        "success": False,
+        "error": "Cogvideo: Invalid task",
+    }
 
-    SHOULD_STOP = False
-
-    try:
-        if 'train_file' in task:
-            call_callback("Training lora model")
-            return train_cogvideo_lora(task['train_file'])
-        return {
-            "success": False,
-            "error": "Cogvideo: Invalid task",
-        }
-        SHOULD_STOP = False
-    except StopException as ex:
-        SHOULD_STOP = False
-        print("Task stopped by the user.")
-        return {
-            "success": False,
-            "error": str(ex)
-        }
-    except Exception as ex:
-        SHOULD_STOP = False
-        print(str(ex))
-        traceback.print_exc()
-        return {
-            "success": False,
-            "error": str(ex)
-        }

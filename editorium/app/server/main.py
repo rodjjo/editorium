@@ -15,27 +15,13 @@ import sys
 import signal
 import traceback
 
+from task_helpers.exceptions import StopException
+from task_helpers.progress_bar import ProgressBar
+
 
 progress_title = ''
 progress = 0.0
 progress_lock = Lock()
-
-
-def get_progress_percentage():
-    with progress_lock:
-        return progress
-
-
-def get_progress_title():
-    with progress_lock:
-        return progress_title
-
-
-def progress_callback(title, percentage):
-    with progress_lock:
-        global progress_title, progress
-        progress_title = title
-        progress = percentage
 
 
 class TaskType:
@@ -134,24 +120,25 @@ def list_queue(queue: Queue):
 def work_on_task(task: Task) -> CompletedTask:
     print(f'Working on task {task.id}')
     print(f'Task type: {task.task_type}')
+    ProgressBar.set_task_id(task.id)
     
     result = {}
     try:
         if task.task_type == TaskType.COGVIDEO:
             from pipelines.cogvideo.task_processor import process_cogvideo_task
-            result = process_cogvideo_task(task.parameters, progress_callback)
+            result = process_cogvideo_task(task.parameters)
         if task.task_type == TaskType.COGVIDEO_LORA:
             from pipelines.cogvideo_lora.task_processor import process_cogvideo_lora_task
-            result = process_cogvideo_lora_task(task.parameters, progress_callback)
+            result = process_cogvideo_lora_task(task.parameters)
         elif task.task_type == TaskType.PYRAMID_FLOW:
             from pipelines.pyramid_flow.task_processor import process_pyramid_task
-            result = process_pyramid_task(task.parameters, progress_callback)
+            result = process_pyramid_task(task.parameters)
         elif task.task_type == TaskType.WORKFLOW:
             from pipelines.workflow.task_processor import process_workflow_task
-            result = process_workflow_task(task.parameters, progress_callback)
+            result = process_workflow_task(task.parameters)
         elif task.task_type == TaskType.UTILS:
             from pipelines.utils.task_processor import process_workflow_task
-            result = process_workflow_task(task.parameters, progress_callback)
+            result = process_workflow_task(task.parameters)
                 
     except Exception as e:
         # print stack
@@ -257,12 +244,8 @@ def register_server(queue: Queue, completion_queue: Queue):
         data['id'] = str(uuid4())
         task = Task.from_dict(data)
 
-        if task.task_type in (TaskType.COGVIDEO, TaskType.PYRAMID_FLOW) and task.parameters.get('prompts_data', False):
-            from pipelines.cogvideo.task_processor import cancel_cogvideo_task
-            from pipelines.pyramid_flow.task_processor import cancel_pyramid_task
-            print("Canceling any cogvideo or pyramid task")
-            cancel_cogvideo_task()
-            cancel_pyramid_task()
+        print("Send cancel to any task that's running")
+        ProgressBar.stop()
 
         app.service_queue.put(task)
         return jsonify({'status': 'ok', 'task_id': task.id})
@@ -278,7 +261,8 @@ def register_server(queue: Queue, completion_queue: Queue):
         is_task_in_progress = False
         with current_task_lock:
             is_task_in_progress = current_task is not None and current_task.id == task_id
-        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress, 'progress_bar': get_progress_percentage(), 'progress_title': get_progress_title()})
+        progress_title, progress = ProgressBar.get_progress()
+        return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress, 'progress_bar': progress, 'progress_title': progress_title})
     
     @app.route('/current-task', methods=['GET'])
     def get_current_task():
@@ -308,9 +292,8 @@ def register_server(queue: Queue, completion_queue: Queue):
         if task_id == 'current':
             with current_task_lock:
                 if current_task is not None:
-                    from pipelines.cogvideo.task_processor import cancel_cogvideo_task
                     if current_task.task_type == TaskType.COGVIDEO:
-                        cancel_cogvideo_task()
+                        ProgressBar.stop() # TODO: implement selective stop
                     return jsonify({'status': 'ok', 'message': 'Task cancelled'})
                 return jsonify({'status': 'ok', 'message': 'No task in progress'})
         return jsonify({'status': 'error', 'message': 'Not implemented'}), 501
