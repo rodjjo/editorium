@@ -7,8 +7,8 @@ from importlib import import_module
 from typing import List
 from copy import deepcopy
 from pipelines.common.flow_parser import FlowStore, FlowItem, parse_task_value
-from pipelines.workflow.tasks.api_manager import register_task
-from pipelines.workflow.tasks.custom_schemas import InputOutputSchema
+from workflow.tasks.api_manager import register_task
+from workflow.tasks.custom_schemas import InputOutputSchema
 
 BASE_DIR = '/app/output_dir'
 
@@ -27,10 +27,11 @@ def now_on_tz():
 
 
 class WorkflowTask:
-    def __init__(self, task_type: str, description: str, config_schema=None, is_api=False):
+    def __init__(self, task_type: str, description: str, config_schema=None, input_schema=None, is_api=False):
         self.task_type = task_type
         self.description = description
         self.config_schema = config_schema
+        self.input_schema = input_schema
         self.is_api = is_api
             
     def validate_config(self, config: dict):
@@ -45,14 +46,25 @@ class WorkflowTask:
     def _process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         if self.config_schema:
             config = self.config_schema(context={'from_api': self.is_api}).load(config)
-        input_validator = InputOutputSchema(context={'from_api': self.is_api})
-        for k, v in input.items():
-            if k in ('_item', '_injected'):
-                continue
-            v = {
-                kk: vv for kk, vv in v.items() if kk not in ('_item', '_injected')
-            }
-            input[k] = input_validator.load(v)
+        if self.input_schema:
+            validation_payload = {}
+            for k, v in input.items():
+                item_payload = {}
+                for kk, vv in v.items():
+                    if kk in ('_item', '_injected'):
+                        continue
+                    item_payload[kk] = vv
+                validation_payload[k] = item_payload
+            input = self.input_schema(context={'from_api': self.is_api}).load(validation_payload)
+        else:
+            input_validator = InputOutputSchema(context={'from_api': self.is_api})
+            for k, v in input.items():
+                if k in ('_item', '_injected'):
+                    continue
+                v = {
+                    kk: vv for kk, vv in v.items() if kk not in ('_item', '_injected')
+                }
+                input[k] = input_validator.load(v)
         result = self.process_task(input, config)
         result = InputOutputSchema(context={'from_api': self.is_api}).dump(result)
         debug_type = config.get('globals', {}).get('debug', '') 
@@ -66,7 +78,7 @@ class WorkflowTask:
                     for i, image in enumerate(result['masks']):
                         if type(image) is not str:
                             image.save(f"{base_dir}/{name}_{i}.png")
-            if debug_type in ('text', 'all'):
+            if debug_type in ('texts', 'all'):
                 if result.get('texts'):
                     for i, text in enumerate(result['texts']):
                         if type(text) is str:
@@ -122,7 +134,7 @@ class WorkflowTaskManager:
         return self.tasks[task_type].validate_config(config)
     
     def accept_resolved_value(self, item, value):
-        if item.decision:
+        if item and item.decision:
             item_result = self.results[item.name]
             if type(item_result) is not dict:
                 raise ValueError(f'Decision Task {item.name} did not return a dictionary')
@@ -165,11 +177,11 @@ class WorkflowTaskManager:
                     task_name = self.first_existing_task(value)
                 if task_name in self.results:
                     print(f'Using cached result of {task_name} for task {item.name}')
-                    resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
+                    resolved = self.accept_resolved_value(self.results[task_name].get('_item'), self.results[task_name])
                 else:
                     print(f'Processing task {task_name} to resolve input for task {item.name}')
                     self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-                    resolved = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name])
+                    resolved = self.accept_resolved_value(self.results[task_name].get('_item'), self.results[task_name])
             else:
                 print(f'Empty input for task {item.name}')
                 resolved = {}
@@ -180,7 +192,7 @@ class WorkflowTaskManager:
             task_name = self.first_existing_task(prompt.split('task://')[1])
             if task_name not in self.results:
                 self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-            item.config['prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
+            item.config['prompt'] = self.accept_resolved_value(self.results[task_name].get('_item'), self.results[task_name].get('texts', []))
             if type(item.config['prompt']) is list:
                 item.config['prompt'] = item.config['prompt'][0]
 
@@ -189,7 +201,7 @@ class WorkflowTaskManager:
             task_name = self.first_existing_task(negative_prompt.split('task://')[1])
             if task_name not in self.results:
                 self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-            item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
+            item.config['negative_prompt'] = self.accept_resolved_value(self.results[task_name].get('_item'), self.results[task_name].get('texts', []))
             if type(item.config['negative_prompt']) is list:
                 item.config['negative_prompt'] = item.config['negative_prompt'][0]
                 
@@ -204,7 +216,7 @@ class WorkflowTaskManager:
                     
                     if task_name not in self.results:
                         self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
-                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
+                    task_value = self.accept_resolved_value(self.results[task_name].get('_item'), self.results[task_name].get('texts', []))
                     if type(task_value) is list:
                         task_value = task_value[0]
                     if type(task_value) is not str:
@@ -227,7 +239,7 @@ class WorkflowTaskManager:
                     if default_value is None:
                         self.process_task(base_dir, self.flow_store.get_task(task_name), task_stack)
                 if default_value is None:
-                    task_value = self.accept_resolved_value(self.results[task_name]['_item'], self.results[task_name].get('texts', []))
+                    task_value = self.accept_resolved_value(self.results[task_name].get('_item'), self.results[task_name].get('texts', []))
                 else:
                     task_value = default_value
                 if type(task_value) is list:
@@ -378,7 +390,7 @@ class WorkflowTaskManager:
 def register_workflow_tasks():
     for file in os.listdir(os.path.dirname(__file__)):
         if file.startswith('task_') and file.endswith('.py'):
-            module = import_module(f'pipelines.workflow.tasks.{file[:-3]}')
+            module = import_module(f'workflow.tasks.{file[:-3]}')
             if hasattr(module, 'register'):
                 module.register()
             else:

@@ -17,7 +17,7 @@ class ExecuteFlowTask(WorkflowTask):
         path = config['path']
         output_task = config['output_task']
         globals = config.get('globals', {})
-        inject = input.get("default", {})
+        inject = input.get("default", {}).get("data", {})
         return globals['execute_manager'](path, inject, output_task)
 
 

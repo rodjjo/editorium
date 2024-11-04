@@ -1,4 +1,4 @@
-from pipelines.workflow.tasks.task import get_workflow_manager
+from workflow.tasks.task import get_workflow_manager
 
 
 def process_workflow_task(task: dict) -> dict:
