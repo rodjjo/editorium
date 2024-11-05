@@ -196,7 +196,8 @@ class DockerManager:
 
         return True, content_hash
 
-    def shell(self, host_network: bool = True, workdir: str = '', env: dict = {}, args: List = [], volumes: dict = {}):
+    def shell(self, host_network: bool = True, workdir: str = '', env: dict = {}, args: List = [], volumes: dict = {}, add_networks: List[str] = []):
+        add_networks = add_networks[:]
         if not len(args):
             args = ['bash']
 
@@ -220,7 +221,11 @@ class DockerManager:
             ]
         net_params = []
         if host_network:
-            net_params = ['--network', 'host']
+            if 'host' not in add_networks:
+                add_networks.append('host')
+
+        for network in add_networks:
+            net_params = ['--network', network]
 
         # '--cpuset-cpus=0',
         command = [

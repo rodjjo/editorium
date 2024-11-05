@@ -15,9 +15,10 @@ def server_group():
     pass
 
 
-def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_point):
+def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_point, add_networks=[]):
     args = list(args)
     env = list(env)
+    add_networks = list(add_networks)
     path = full_path(path)
     models_dir = full_path(models_dir)
     cache_dir = full_path(cache_dir)
@@ -53,7 +54,8 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
         env=env, 
         args=[entry_point] + args, 
         volumes=volumes,
-        workdir='/app/output_dir'
+        workdir='/app/output_dir',
+        add_networks=add_networks,
     )
 
 
@@ -63,13 +65,14 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
 @click.option('--env', '-e', type=str, multiple=True, help = "[optional] Allow to set multiple environment variables --env x=val --env y=val ...")
 @click.option('--cache-dir', type=str, default='~/.cache', help="[optional] The directory to store the cache files")
 @click.option('--models-dir', type=str, required=True, help="The directory to store the models files")
+@click.option('--network', type=str, multiple=True, help="[optional] Add the container to a network")
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
-def run(path, docker_image, env, args, cache_dir, models_dir):
+def run(path, docker_image, env, args, cache_dir, models_dir, network):
     '''
     This command runs a server in a docker container.
     The running server is able to generate videos from text, image or other video.
     '''
-    execute_server(path, docker_image, env, args, cache_dir, models_dir, '/app/editorium/run-server.sh')
+    execute_server(path, docker_image, env, args, cache_dir, models_dir, '/app/editorium/run-server.sh', network)
     
 
 @server_group.command(help="Run a bash shell inside the server container")
@@ -78,9 +81,10 @@ def run(path, docker_image, env, args, cache_dir, models_dir):
 @click.option('--env', '-e', type=str, multiple=True, help = "[optional] Allow to set multiple environment variables --env x=val --env y=val ...")
 @click.option('--cache-dir', type=str, default='~/.cache', help="[optional] The directory to store the cache files")
 @click.option('--models-dir', type=str, required=True, help="The directory to store the models files")
+@click.option('--network', type=str, multiple=True, help="[optional] Add the container to a network")
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
-def bash(path, docker_image, env, args, cache_dir, models_dir):
-    execute_server(path, docker_image, env, args, cache_dir, models_dir, '/bin/bash')
+def bash(path, docker_image, env, args, cache_dir, models_dir, network):
+    execute_server(path, docker_image, env, args, cache_dir, models_dir, '/bin/bash', network)
     
     
 def register(main):

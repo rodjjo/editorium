@@ -39,7 +39,6 @@ class TqdmUpTo(tqdm):
         return result
 
 
-
 def generate_flux_image(model_name: str, input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('images', None)
     if not inpaint_image:

@@ -10,8 +10,13 @@ from pipelines.common.flow_parser import FlowStore, FlowItem, parse_task_value
 from workflow.tasks.api_manager import register_task
 from workflow.tasks.custom_schemas import InputOutputSchema
 
+from marshmallow import Schema
+
 BASE_DIR = '/app/output_dir'
 
+
+class EmptySchema(Schema):
+    pass
 
 def now_on_tz():
     tz = os.environ.get('TZ', 'UTC')
@@ -42,6 +47,22 @@ class WorkflowTask:
                 print(str(e))
                 return False
         return True
+    
+    def get_description(self):
+        return self.description
+    
+    def api_compatible(self):
+        return self.is_api and self.input_schema is not None
+    
+    def get_input_schema(self):
+        if self.input_schema is None:
+            return EmptySchema()
+        return self.input_schema(context={'from_api': self.is_api})
+    
+    def get_config_schema(self):
+        if self.config_schema is None:
+            return EmptySchema()
+        return self.config_schema(context={'from_api': self.is_api})
     
     def _process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         if self.config_schema:
