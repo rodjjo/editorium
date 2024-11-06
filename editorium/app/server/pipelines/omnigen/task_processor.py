@@ -27,10 +27,7 @@ def generate_omnigen_image(input: dict, params: dict):
     if type(inpaint_image) is not list:
         inpaint_image = [inpaint_image]
     
-    if len(inpaint_image) == 0:
-        inpaint_image = [None]
-    
-    steps = params.get('steps', 4)
+    steps = params.get('steps', 50)
     
     omnigen_models.load_models()
 
