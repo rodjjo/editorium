@@ -7,9 +7,6 @@ import json
 from tqdm import tqdm
 import transformers
 
-from pipelines.common.prompt_parser import iterate_prompts
-from pipelines.common.exceptions import StopException
-from pipelines.common.task_result import TaskResult
 from pipelines.chatbot.managed_model import chatbot_models
 from task_helpers.progress_bar import ProgressBar
 

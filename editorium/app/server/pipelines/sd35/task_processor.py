@@ -8,7 +8,7 @@ from tqdm import tqdm
 from PIL import Image, ImageFilter
 
 from pipelines.common.exceptions import StopException
-from pipelines.flux.managed_model import flux_models
+from pipelines.sd35.managed_model import sd35_models
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
@@ -37,12 +37,11 @@ class TqdmUpTo(tqdm):
         return result
 
 
-def generate_flux_image(model_name: str, input: dict, params: dict):
+def generate_sd35_image(model_name: str, input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('images', None)
     if not inpaint_image:
         inpaint_image = input.get('image', {}).get('images', None)
     inpaint_mask = input.get('mask', {}).get('images', None) 
-    control_image = input.get('control_image', {}).get('images', None) 
     
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:
@@ -72,29 +71,15 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
     elif not inpaint_mask:
         inpaint_mask = [None] * len(inpaint_image)
         
-    if control_image is not None:
-        controlnet_type = params.get('controlnet_type', 'pose')
-    else:
-        controlnet_type = ''
     
     steps = params.get('steps', 4)
     lora_repo_id = params.get('lora_repo_id', '')
     lora_scale = params.get('lora_scale', 1.0)
     transformer2d_model = params.get('transformer2d_model', None)
-    flux_models.load_models(model_name, mode, controlnet_type, lora_repo_id, lora_scale, transformer2d_model)
-    flux_models.pipe.scheduler.shift = 3.0 if steps >= 7 else 1.0
+    sd35_models.load_models(model_name, mode, lora_repo_id, lora_scale, transformer2d_model)
+    sd35_models.pipe.scheduler.shift = 3.0 if steps >= 7 else 1.0
     
-    if control_image is not None:
-        control_args = dict(
-            control_image=control_image,
-            control_mode=flux_models.control_mode,
-            # control_guidance_start=params.get('control_guidance_start', 0.2),
-            # control_guidance_end=params.get('control_guidance_end', 0.8),
-            controlnet_conditioning_scale=params.get('controlnet_conditioning_scale', 1.0),
-        )
-    else:
-        control_args = dict()
-    
+
     seed = params.get('seed', -1)
     if seed == -1:
         seed = random.randint(0, 1000000)
@@ -108,11 +93,10 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
         width=params.get('width', 1360),
         num_inference_steps=steps,
         max_sequence_length=params.get('max_sequence_length', 256),
-        generator=generator,
-        **control_args,
+        generator=generator
     )
     if mode == 'txt2img':
-        result = flux_models.pipe(
+        result = sd35_models.pipe(
            **additional_args
         ).images
     elif mode == 'img2img':
@@ -121,7 +105,7 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
             'image': inpaint_image,
             'strength': strength,
         }
-        result = flux_models.pipe(
+        result = sd35_models.pipe(
            **additional_args
         ).images
     else: # mode == 'inpaint'
@@ -152,7 +136,7 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
             'mask_image': mask,
             'strength': strength,
         }
-        result = flux_models.pipe(
+        result = sd35_models.pipe(
            **additional_args
         ).images
  
@@ -169,7 +153,7 @@ def process_flux_task(task: dict) -> dict:
 
 
 def process_workflow_task(input: dict, config: dict) -> dict:
-    return generate_flux_image(
+    return generate_sd35_image(
         model_name=config['model_name'],
         input=input,
         params=config

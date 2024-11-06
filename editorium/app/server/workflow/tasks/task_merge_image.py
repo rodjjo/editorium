@@ -2,7 +2,6 @@ from .task import WorkflowTask
 from PIL import Image, ImageFilter, ImageOps
 
 from marshmallow import Schema, fields
-from pipelines.common.task_result import TaskResult
 
 
 class MergeImageTask(WorkflowTask):

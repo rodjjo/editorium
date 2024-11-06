@@ -7,7 +7,6 @@ from contextlib import contextmanager
 from PIL import Image
 from pipelines.upscaler.managed_model import upscaler_models
 
-from pipelines.common.task_result import TaskResult
 
 def report(message):
     print(f'[GFPGAN Upscaler] - {message}')

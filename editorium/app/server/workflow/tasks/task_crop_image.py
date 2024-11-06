@@ -1,6 +1,5 @@
 from .task import WorkflowTask
 from marshmallow import Schema, fields
-from pipelines.common.task_result import TaskResult
 
 
 class CropImageTask(WorkflowTask):

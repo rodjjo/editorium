@@ -5,7 +5,7 @@ from .task import WorkflowTask
 from PIL import Image
 
 from marshmallow import Schema, fields
-from pipelines.common.task_result import TaskResult
+
 
 class OpenImageSchema(Schema):
     prompt = fields.Str(required=True)

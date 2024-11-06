@@ -9,7 +9,6 @@ import cv2
 from PIL import Image
 import numpy as np
 
-from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
 from pipelines.segmentation_sapiens.managed_model import segmentation_models, SEGMENTATION_CLASSES_NUMBERS
 from pipelines.segmentation_gsam.task_processor import refine_mask_uint8

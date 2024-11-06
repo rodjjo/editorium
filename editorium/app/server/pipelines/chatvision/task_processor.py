@@ -3,9 +3,6 @@ from typing import List
 import os
 import torch
 
-from pipelines.common.prompt_parser import iterate_prompts
-from pipelines.common.exceptions import StopException
-from pipelines.common.task_result import TaskResult
 from pipelines.chatvision.managed_model import chatvision_model
 
 

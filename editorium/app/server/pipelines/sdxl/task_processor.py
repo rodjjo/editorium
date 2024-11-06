@@ -6,10 +6,7 @@ from tqdm import tqdm
 import random
 from PIL import Image, ImageFilter 
 
-from pipelines.common.prompt_parser import iterate_prompts
-from pipelines.common.exceptions import StopException
 from pipelines.sdxl.managed_model import sdxl_models
-from pipelines.common.task_result import TaskResult
 
 
 def generate_sdxl_image(model_name: str, input: dict, params: dict):

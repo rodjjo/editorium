@@ -9,7 +9,6 @@ from transformers import pipeline
 
 from pipelines.preprocessor.line_art import LineartDetector
 from pipelines.preprocessor.manga_line import MangaLineExtration
-from pipelines.common.task_result import TaskResult
 
 
 def report(message):

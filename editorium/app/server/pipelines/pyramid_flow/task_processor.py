@@ -5,8 +5,7 @@ import torch
 from tqdm import tqdm
 
 from pipelines.common import utils
-from pipelines.common.rife_model import rife_inference_with_latents
-from pipelines.common.save_video import save_video, to_tensors_transform
+from pipelines.common.save_video import save_video
 from pipelines.common.prompt_parser import iterate_prompts
 from pipelines.common.exceptions import StopException
 from pipelines.pyramid_flow.managed_model import pyramid_model
