@@ -89,8 +89,8 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
         prompt=params['prompt'],
         prompt_2=params['prompt'],
         guidance_scale=params.get('cfg', 3.5),
-        height=params.get('height', 768),
-        width=params.get('width', 1360),
+        height=params.get('height', 1024),
+        width=params.get('width', 1024),
         num_inference_steps=steps,
         max_sequence_length=params.get('max_sequence_length', 256),
         generator=generator
@@ -142,13 +142,6 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
  
     return {
         'images': result
-    }
-
-    
-
-def process_flux_task(task: dict) -> dict:
-    return {
-        "success": True,
     }
 
 

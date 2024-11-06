@@ -1,7 +1,7 @@
 from .task import WorkflowTask
-from pipelines.flux.task_processor import process_workflow_task
+from pipelines.sd35.task_processor import process_workflow_task
 
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields
 
 
 class Sd35TaskSchema(Schema):
