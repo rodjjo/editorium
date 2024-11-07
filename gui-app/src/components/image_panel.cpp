@@ -236,7 +236,7 @@ namespace editorium
         if (l->getImage()) {
             if (strlen(l->name()) == 0) {
                 char buffer[128] = "";
-                sprintf(buffer, "Layer %03d", name_index_);
+                sprintf(buffer, "Layer %03d", (int)name_index_);
                 l->name(buffer);
             }
             name_index_ += 1;

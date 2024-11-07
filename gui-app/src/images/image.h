@@ -1,11 +1,15 @@
 #pragma once
 
-#include <list>
+#include <vector>
 #include <memory>
+#include <string>
 #include <stdint.h>
+
+#include <nlohmann/json.hpp>
 
 namespace editorium {
 
+using json = nlohmann::json;
 
 typedef enum {
     img_gray_8bit,
@@ -59,6 +63,8 @@ class RawImage {
     image_ptr_t rotate();
     image_ptr_t invert_mask();
     image_ptr_t negative_mask();
+    json toJson();
+    
     void clear(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
     bool getColor(int x, int y, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *a);
@@ -78,7 +84,8 @@ class RawImage {
 
 
 image_ptr_t newImage(uint32_t w, uint32_t h, bool enable_alpha);
- 
+image_ptr_t newImage(const json& value);
+std::vector<image_ptr_t> newImageList(const json& value);
 
 typedef image_ptr_t image_ptr_t;
 typedef RawImage RawImage;

@@ -31,6 +31,9 @@ add_compile_definitions(
     BOOST_ASIO_STANDALONE
 )
 
+find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIR})
+
 
 add_subdirectory("dependencies/fltk")
 add_subdirectory("dependencies/tiny_websockets")
@@ -48,7 +51,6 @@ include_directories(
 )
 
 
-
 file(GLOB Sources
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/images/*.cpp"
@@ -57,6 +59,8 @@ file(GLOB Sources
     "${CMAKE_CURRENT_SOURCE_DIR}/src/components/xpm/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/messagebus/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/base64/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/websocket/*.cpp"
 )
 
 add_executable(editorium-ui ${Sources})
@@ -71,6 +75,7 @@ target_link_libraries(
     fltk_images 
     fltk_gl 
     tiny_websockets_lib
+    ${PNG_LIBRARY}
     X11
 )
 

@@ -6,13 +6,27 @@ import base64
 from marshmallow import Schema, fields, ValidationError
 
 
+def pil_as_dict(pil_image):
+    return {
+        'data': base64.b64encode(pil_image.tobytes()).decode('utf-8'),
+        'width': int(pil_image.width),
+        'height': int(pil_image.height),
+        'mode': str(pil_image.mode),
+    }
+
+
+
+def pil_from_dict(data):
+    return Image.frombytes(data['mode'], (data['width'], data['height']),  base64.b64decode(data['data']))
+
+
 class ImageField(fields.Field):
     def _deserialize(self, value, attr, data):
         if not value:
             return None
         if self.context.get("from_api", False):
             if type(value) is str:
-                return Image.open(BytesIO(base64.b64decode(value)))
+                return  pil_from_dict(value)
             else:
                 raise ValidationError("Image must be a base64 string")
         return value
@@ -22,9 +36,7 @@ class ImageField(fields.Field):
         if not value:
             return None
         if self.context.get("from_api", False):
-            buffered = BytesIO()
-            value.save(buffered, format="JPEG")
-            return base64.b64encode(buffered.getvalue())
+            return pil_as_dict(value)
         return value
 
 class BoxSchema(Schema):

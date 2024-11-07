@@ -1,8 +1,11 @@
+#include <vector>
+#include <stdio.h>
 #include <string>
 #include <exception>
 
 #include <CImg.h>
 
+#include "base64/b64.h"
 #include "images/image.h"
 
 using namespace cimg_library;
@@ -683,13 +686,56 @@ void RawImage::clear(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     incVersion();
 }
 
+json RawImage::toJson() {
+    json result;
+    result["width"] = w_;
+    result["height"] = h_;
+    result["mode"] = format_ == img_rgb ? "RGB" : "RGBA";
+    std::shared_ptr<char> buffer(b64_encode(buffer_, buffer_len_), free);
+    result["data"] = buffer.get();
+    return result;
+}
+
 image_ptr_t newImage(uint32_t w, uint32_t h, bool enable_alpha) {
     return std::make_shared<RawImage>(
         (const unsigned char *) NULL, w, h, enable_alpha ? img_rgba : img_rgb
     );
 }
 
+image_ptr_t newImage(const json& value) {
+    if (value.is_null()) {
+        return image_ptr_t();
+    }
+    if (!value.contains("data") || !value.contains("width") || !value.contains("height") || !value.contains("mode")) {
+        return image_ptr_t();
+    }
+    auto img_mode = value["mode"].get<std::string>();
+    auto format = img_gray_8bit;
+    if (img_mode == "RGB")
+        format = img_rgb;
+    else if (img_mode == "RGBA")
+        format = img_rgba;
+    const auto &data = value["data"].get<std::string>();
+    const auto &width = value["width"].get<uint32_t>();
+    const auto &height = value["height"].get<uint32_t>();
+    size_t decoded_size = 0;
+    std::shared_ptr<unsigned char> buffer(b64_decode_ex(data.c_str(), data.size(), &decoded_size), free);
+    return std::make_shared<RawImage>(buffer.get(), width, height, format);
+}
 
+std::vector<image_ptr_t> newImageList(const json& value) {
+    std::vector<image_ptr_t> result;
+    if (value.is_null() || !value.is_array()) {
+        return result;
+    }
+    for (const auto &item : value) {
+        auto img = newImage(item);
+        if (img) {
+            result.push_back(img);
+        }
+    }
+    return result;
+}
 
 
 } // namespace editorium

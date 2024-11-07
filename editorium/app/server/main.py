@@ -5,7 +5,6 @@ from uuid import uuid4
 from datetime import datetime
 from datetime import timedelta
 from flask import Flask, jsonify, redirect, request
-from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from queue import Queue, Empty
 from threading import Thread, Lock
@@ -15,7 +14,6 @@ import sys
 import signal
 import traceback
 
-from task_helpers.exceptions import StopException
 from task_helpers.progress_bar import ProgressBar
 
 
@@ -186,20 +184,35 @@ def keep_worinking(queue: Queue, completion_queue: Queue):
         with current_task_lock:
             current_task = None
 
+    
+def run_websocket():
+    # https://github.com/Pithikos/python-websocket-server
+    from websocket_server import WebsocketServer
+    
+    def new_client(client, server):
+	    server.send_message_to_all("Hey all, a new client has joined us")
+
+    server = WebsocketServer(host='0.0.0.0', port=5001, loglevel=logging.INFO)
+    server.set_fn_new_client(new_client)
+    server.run_forever()
+    
+            
+def create_websocket_thread():
+    return Thread(target=run_websocket, args=(), daemon=True)
+
 
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'secret!'
-    socketio = SocketIO(app)
     CORS(app)
     # disable logging
     log = logging.getLogger('werkzeug')
     log.disabled  = True
-    return app, socketio
+    return app
 
 
 def register_server(queue: Queue, completion_queue: Queue):
-    app, socketio = create_app()
+    app = create_app()
     app.service_queue = queue
     app.completion_queue = completion_queue
     app.completed_tasks = {}
@@ -309,12 +322,12 @@ def register_server(queue: Queue, completion_queue: Queue):
         from workflow.tasks.task import get_workflow_manager
         return jsonify(get_workflow_manager().get_registered_tasks())
     
-    return app, socketio
+    return app
 
 
 def run_server(queue: Queue, completion_queue: Queue):
-    app, socketio = register_server(queue, completion_queue)
-    socketio.run(app, host='0.0.0.0', port=os.environ.get('PORT', 5000))
+    app = register_server(queue, completion_queue)
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', 5000))
 
 
 def create_server_thread(queue: Queue, completion_queue: Queue):
@@ -338,6 +351,9 @@ if __name__ == '__main__':
     completion_queue = Queue()
     thread = create_server_thread(queue, completion_queue)
     thread.start()
+    ws_thread = create_websocket_thread()
+    ws_thread.start()
     keep_worinking(queue, completion_queue)
     thread.join()
+    ws_thread.join()
     
