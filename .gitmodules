@@ -9,4 +9,4 @@
 	url = https://github.com/GreycLab/CImg.git
 [submodule "tiny_websockets"]
 	path = gui-app/dependencies/tiny_websockets
-	url = https://github.com/gilmaimon/TinyWebsockets.git
+	url = https://github.com/rodjjo/TinyWebsockets.git
