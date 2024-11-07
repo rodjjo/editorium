@@ -1,0 +1,12 @@
+[submodule "fltk"]
+	path = gui-app/dependencies/fltk
+	url = https://www.github.com/fltk/fltk.git
+[submodule "nlohmann_json"]
+	path = gui-app/dependencies/nlohmann_json
+	url = https://www.github.com/nlohmann/json.git
+[submodule "cimg"]
+	path = gui-app/dependencies/cimg
+	url = https://github.com/GreycLab/CImg.git
+[submodule "tiny_websockets"]
+	path = gui-app/dependencies/tiny_websockets
+	url = https://github.com/gilmaimon/TinyWebsockets.git

@@ -196,8 +196,17 @@ class DockerManager:
 
         return True, content_hash
 
-    def shell(self, host_network: bool = True, workdir: str = '', env: dict = {}, args: List = [], volumes: dict = {}, add_networks: List[str] = []):
+    def shell(self, 
+        host_network: bool = True, 
+        workdir: str = '', 
+        env: dict = {}, 
+        args: List = [], 
+        volumes: dict = {}, 
+        add_networks: List[str] = [],
+        port_mapping: List[Tuple[int, int]] = []
+    ):
         add_networks = add_networks[:]
+        port_mapping = port_mapping[:]
         if not len(args):
             args = ['bash']
 
@@ -223,16 +232,25 @@ class DockerManager:
         if host_network:
             if 'host' not in add_networks:
                 add_networks.append('host')
+        
+        for  port in port_mapping:
+            net_params += ['-p', f'{port[0]}:{port[1]}']
 
         for network in add_networks:
-            net_params = ['--network', network]
+            net_params += ['--network', network]
 
         # '--cpuset-cpus=0',
         command = [
-            'docker', 'run', '--cpuset-cpus=0', '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', '--init', '-it', '--rm', '--runtime=nvidia',
+            'docker', 'run',  '--name', 'editorium-server', '--cpuset-cpus=0', 
+            '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', 
+            '--init', '-it', '--rm', '--runtime=nvidia',
         ] + volume_args + env_ags + net_params + [ 
             self.docker_tag, 'bash', '-c',
         ] + args
+        try:
+            docker_cmd(['rm', '-f', 'editorium-server'])
+        except:
+            pass
         subprocess.check_call(command)
         
         # '--shm-size=4096m'

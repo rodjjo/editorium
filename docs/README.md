@@ -10,8 +10,11 @@ TODOS
 [x] Open the sources  
 [x] Add CogVideoX basic commands  
 [x] Add Pyramid Flow basic commands  
-[ ] Add Flux  
-[ ] Add Stable Diffusion 1.5  
+[x] Add Flux  
+[x] Add Stable Diffusion 1.5  
+[x] Add SDXL
+[x] Add SD 3.5
+[x] Add Omnigen
 [ ] Replace ffmpeg command by builtin scripts that manipulates the video.  
 [ ] Create documentation explaining each command  
 

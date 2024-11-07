@@ -15,10 +15,11 @@ def server_group():
     pass
 
 
-def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_point, add_networks=[]):
+def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_point, add_network, port):
     args = list(args)
     env = list(env)
     add_networks = list(add_networks)
+    ports = [(port, 5000)]
     path = full_path(path)
     models_dir = full_path(models_dir)
     cache_dir = full_path(cache_dir)
@@ -48,14 +49,17 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
     print('Models dir:', models_dir)
     print('Cache dir:', cache_dir)
     print('Root directory:', path)
+    print("Networks to add: ", add_networks)
+    print("Ports to expose: ", ports)
 
     manager.shell(
-        host_network=True, 
+        host_network=False, 
         env=env, 
         args=[entry_point] + args, 
         volumes=volumes,
         workdir='/app/output_dir',
         add_networks=add_networks,
+        port_mapping=ports,
     )
 
 
@@ -66,13 +70,14 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
 @click.option('--cache-dir', type=str, default='~/.cache', help="[optional] The directory to store the cache files")
 @click.option('--models-dir', type=str, required=True, help="The directory to store the models files")
 @click.option('--network', type=str, multiple=True, help="[optional] Add the container to a network")
+@click.option('--port', type=int, default=5000, help="[optional] The port number to expose")
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
-def run(path, docker_image, env, args, cache_dir, models_dir, network):
+def run(path, docker_image, env, args, cache_dir, models_dir, network, port):
     '''
     This command runs a server in a docker container.
     The running server is able to generate videos from text, image or other video.
     '''
-    execute_server(path, docker_image, env, args, cache_dir, models_dir, '/app/editorium/run-server.sh', network)
+    execute_server(path, docker_image, env, args, cache_dir, models_dir, '/app/editorium/run-server.sh', network, port)
     
 
 @server_group.command(help="Run a bash shell inside the server container")

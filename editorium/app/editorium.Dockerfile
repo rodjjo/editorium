@@ -52,6 +52,8 @@ RUN groupadd -g $GID $USER && useradd -m -u $UID -g $GID -s /bin/bash -d /home/$
 
 
 ENV TOKENIZERS_PARALLELISM=false
+ENV U2NET_HOME=/home/editorium/models
+
 # ENV DS_ACCELERATOR=cpu
 USER $USER
 
