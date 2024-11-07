@@ -38,6 +38,8 @@ add_subdirectory("dependencies/tiny_websockets")
 
 include_directories(
     ${PROJECT_SOURCE_DIR}
+    "${CMAKE_CURRENT_LIST_DIR}/src"
+    "${CMAKE_CURRENT_LIST_DIR}/dependencies/cimg"
     "${CMAKE_CURRENT_LIST_DIR}/dependencies/nlohmann_json/include"
     "${CMAKE_CURRENT_LIST_DIR}/dependencies/tiny_websockets/tiny_websockets_lib/include"
     "${CMAKE_CURRENT_LIST_DIR}/dependencies/asio_only/asio/include"
@@ -49,7 +51,12 @@ include_directories(
 
 file(GLOB Sources
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/web_socket/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/images/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/misc/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/components/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/components/xpm/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/messagebus/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/*.cpp"
 )
 
 add_executable(editorium-ui ${Sources})
