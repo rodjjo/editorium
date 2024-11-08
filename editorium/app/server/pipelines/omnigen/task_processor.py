@@ -77,3 +77,6 @@ def process_workflow_task(input: dict, config: dict) -> dict:
         input=input,
         params=config
     )
+    
+def process_workflow_list_model(list_loras: bool):
+    return []

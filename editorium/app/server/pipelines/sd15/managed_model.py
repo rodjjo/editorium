@@ -17,7 +17,7 @@ from diffusers import (
 from diffusers.models.attention_processor import AttnProcessor2_0
 
 from pipelines.common.model_manager import ManagedModel
-from pipelines.sd15.loader import load_stable_diffusion_model
+from pipelines.sd15.loader import load_stable_diffusion_model, LORA_DIR
 from pipelines.sd15.img2img_controlnet import StableDiffusionControlNetImg2ImgPipeline
 from pipelines.sd15.img2img_inpaint_controlnet import StableDiffusionControlNetInpaintImg2ImgPipeline
 
@@ -155,7 +155,19 @@ class Sd15Models(ManagedModel):
         gc.collect()
         torch.cuda.empty_cache()
         
-        
+    def sd15_model_dir(self):
+        return self.model_dir('images', 'sd15')
+    
+    def sd15_lora_dir(self):
+        return LORA_DIR
+    
+    def list_models(self, list_loras):
+        if list_loras:
+            result = os.listdir(self.sd15_lora_dir())
+        else:
+            result = os.listdir(self.sd15_model_dir())
+        result = [f for f in result if f.endswith('.safetensors')]
+        return result
         
     def load_models(self, 
                     model_name: str, 
@@ -209,7 +221,7 @@ class Sd15Models(ManagedModel):
                 continue
             adapter_models_resolved.append(ipdapter_repos[ip_model])
         
-        model_path = os.path.join(self.model_dir('images', 'sd15'), model_name)
+        model_path = os.path.join(self.sd15_model_dir(), model_name)
         
         components = load_stable_diffusion_model(
             model_path,

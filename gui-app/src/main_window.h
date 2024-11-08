@@ -44,6 +44,7 @@ private:
     void layer_cb(Fl_Widget* widget);
     void dfe_handle_event(void *sender, event_id_t id, void *data) override;
     void choose_file_and_open(bool clear_layers);
+    void choose_file_and_save();
     void remove_selected_layer();
     void clear_layers();
     void update_layer_list();

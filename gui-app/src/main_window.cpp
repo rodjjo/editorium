@@ -2,9 +2,11 @@
 #include <FL/Fl.H>
 #include <FL/fl_ask.H>
 #include "windows/progress_ui.h"
+#include "windows/settings_ui.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
 #include "misc/utils.h"
+#include "websocket/tasks.h"
 
 #include "main_window.h"
 
@@ -18,6 +20,7 @@ namespace editorium
             event_main_menu_clicked,
             event_main_menu_file_new_art,
             event_main_menu_file_open,
+            event_main_menu_file_save,
             event_main_menu_file_open_layer,
             event_main_menu_file_close,
             event_main_menu_edit_settings,
@@ -46,6 +49,7 @@ namespace editorium
 
             menu_->addItem(event_main_menu_file_new_art, "", "File/New Art", "^n", 0, xpm::img_24x24_new);
             menu_->addItem(event_main_menu_file_open, "", "File/Open", "^o", 0, xpm::img_24x24_open);
+            menu_->addItem(event_main_menu_file_save, "", "File/Save", "^s", 0, xpm::img_24x24_flash_drive);
             menu_->addItem(event_main_menu_file_open_layer, "", "File/Open as Layer", "^l", 0, xpm::img_24x24_open_layer);
             menu_->addItem(event_main_menu_file_close, "", "File/Close", "^x", 0, xpm::img_24x24_close);
             menu_->addItem(event_main_menu_exit, "", "File/Exit", "", 0, xpm::img_24x24_exit);
@@ -159,7 +163,7 @@ namespace editorium
     }
 
     void MainWindow::dfe_show_error(const char *message) {
-        fl_alert(message);
+        fl_alert("%s", message);
     }
 
     void MainWindow::alignComponents() {
@@ -249,6 +253,9 @@ namespace editorium
         case event_main_menu_file_open:
             choose_file_and_open(true);
             break;
+        case event_main_menu_file_save:
+            choose_file_and_save();
+            break;
         case event_main_menu_file_open_layer:
             choose_file_and_open(false);
             break;
@@ -266,7 +273,7 @@ namespace editorium
             }
             break;
         case event_main_menu_edit_settings:
-            //edit_settings();
+            edit_settings();
             break;
         case event_main_menu_layers_duplicate:
             image_->view_settings()->duplicate_selected();
@@ -333,6 +340,17 @@ namespace editorium
             }
             printf("[MainWindow] Opening file: %s\n", result.c_str());
             image_->view_settings()->add_layer(result.c_str());
+        }
+    }
+
+    void MainWindow::choose_file_and_save() {
+        std::string result = choose_image_to_save_fl("main_window_picture");
+        if (!result.empty()) {
+            printf("[MainWindow] Saving file: %s\n", result.c_str());
+            auto img = image_->view_settings()->merge_layers_to_image();
+            if (img) {
+                ws::save_image(result, img, result.find(".png") != std::string::npos);
+            }
         }
     }
 

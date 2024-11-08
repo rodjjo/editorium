@@ -16,6 +16,7 @@ typedef enum {
     event_main_menu_clicked,
     event_main_menu_file_new_art,
     event_main_menu_file_open,
+    event_main_menu_file_save,
     event_main_menu_file_open_layer,
     event_main_menu_file_close,
     event_main_menu_edit_settings,

@@ -1,7 +1,35 @@
+#include <fstream>
+#include <nlohmann/json.hpp>
 #include "misc/config.h"
+#include "misc/utils.h"
 
 namespace editorium
 {
+    using json = nlohmann::json;
+
+    json load_config() {
+        std::ifstream file(configPath());
+        if (!file.is_open()) {
+            return json();
+        }
+        try{
+            json cf;
+            file >> cf;
+            return cf;
+        } catch(std::exception e) {
+            printf("Failed to load the config: %s", e.what());
+            return json();
+        }
+    }
+
+    void save_config(const json &config) {
+        std::ofstream file(configPath());
+        if (!file.is_open()) {
+            return;
+        }
+        file << config.dump(4);
+    }
+
     namespace 
     {
         std::unique_ptr<Config> conf;
@@ -22,11 +50,87 @@ namespace editorium
     }
 
     bool Config::load() {
-        return false;
+        json cf = load_config(); // load the configuration
+
+        if (cf.is_null()) {
+            puts("Configuration empty, using the default values...");
+            return true; // there is no config saved yet use the defaults
+        }
+
+        try {
+            auto load_map = [&cf] (const char *key, std::map<std::string, std::string> & output) {
+                if (cf.contains(key) && cf[key].is_object()) {
+                    auto hist =  cf[key];
+                    output.clear();
+                    for (auto it = hist.begin(); it != hist.end(); ++it) {
+                        output[it.key()] = it.value().get<std::string>();
+                    }
+                }
+            };
+            load_map("open_history", last_open_dirs);
+            load_map("save_history", last_save_dirs);
+
+            auto load_key = [&cf] (const char *key, const char *sub_key) -> std::string {
+                std::string r;
+                if (!cf.contains(key)) {
+                    return r;
+                }
+                auto sub = cf[key];
+                if (sub.contains(sub_key)) {
+                    return sub[sub_key].get<std::string>();
+                }
+                return r;
+            };
+
+            add_lora_dir_ = load_key("directories", "add_lora_dir");
+            add_emb_dir_ = load_key("directories", "add_emb_dir");
+            add_model_dir_ = load_key("directories", "add_model_dir");
+
+            if (cf.contains("float16_enabled")) {
+                use_float16_ = cf["float16_enabled"];
+            }
+            if (cf.contains("private_mode_enabled")) {
+                private_mode_ = cf["private_mode_enabled"];
+            }
+            if (cf.contains("keep_in_memory")) {
+                keep_in_memory_ = cf["keep_in_memory"];
+            }
+        } catch(std::exception e) {
+            printf("Failed to load the config: %s", e.what());
+            return false;
+        }
+
+        return true;
     }
 
     bool Config::save() {
-        return false;
+        json cf;
+        try {
+            auto store_map = [&cf] (const char *key, const std::map<std::string, std::string> & input) {
+                json d;
+                for (const auto & v: input) {
+                    d[v.first.c_str()] = v.second;
+                }
+                cf[key] = d;
+            };
+            store_map("open_history", last_open_dirs);
+            store_map("save_history", last_save_dirs);
+            
+            json dirs;
+            dirs["add_lora_dir"] = add_lora_dir_;
+            dirs["add_emb_dir"] = add_emb_dir_;
+            dirs["add_model_dir"] = add_model_dir_;
+            cf["directories"] = dirs;
+            
+            cf["float16_enabled"] = use_float16_;
+            cf["private_mode_enabled"] = private_mode_;
+            cf["keep_in_memory"] = keep_in_memory_;
+        } catch(std::exception e) {
+            printf("Failed to save the config: %s", e.what());
+            return false;
+        }
+        save_config(cf);
+        return true;
     }
 
     std::string Config::last_save_directory(const char *scope) {
@@ -79,20 +183,12 @@ namespace editorium
         add_emb_dir_ = value;
     }
 
-    bool Config::filter_nsfw() {
-        return filter_nsfw_;
-    }
-
     bool Config::use_float16() {
         return use_float16_;
     }
 
     bool Config::private_mode() {
         return private_mode_;
-    }
-
-    void Config::filter_nsfw(bool value) {
-        filter_nsfw_ = value;
     }
 
     void Config::use_float16(bool value) {

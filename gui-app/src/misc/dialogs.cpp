@@ -1,4 +1,3 @@
-
 #include <FL/Fl.H>
 #include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_File_Chooser.H>
@@ -7,6 +6,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include <unistd.h>
 #endif 
 
 #include "misc/config.h"
@@ -24,7 +25,7 @@ bool path_exists(const char *p) {
 #ifdef _WIN32
     return GetFileAttributesA(p) != INVALID_FILE_ATTRIBUTES;
 #else 
-    return false;
+    return access(p, F_OK) != -1;
 #endif
 }
 
@@ -68,6 +69,7 @@ std::string choose_image_to_open_fl(const std::string& scope) {
     if (!path_exists(current_dir.c_str())) {
         current_dir = "";
     }
+    
     Fl_File_Chooser dialog(current_dir.c_str(), kIMAGE_FILES_FILTER_FL, Fl_File_Chooser::SINGLE, "Open image");
     std::string result = executeChooser(&dialog);
     if (!result.empty()) {

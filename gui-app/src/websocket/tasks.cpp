@@ -35,7 +35,7 @@ namespace ws {
         json config;
         config["png_format"] = png_format;
 
-        auto result = execute("img2base64", inputs, config);
+        auto result = execute("image2base64", inputs, config);
 
         if (!result || result->texts.empty()) {
             return;
@@ -45,6 +45,17 @@ namespace ws {
         auto decoded = base64_decode(base64.c_str(), base64.size());
         std::ofstream file(path, std::ios::binary);
         file.write((const char *)decoded.first.get(), decoded.second);
+    }
+
+    std::vector<std::string> list_models(const std::string& model_type, bool list_loras) {
+        json config;
+        config["list_lora"] = list_loras;
+        config["model_type"] = model_type;
+        auto result = execute("list-models", json(), config);
+        if (!result) {
+            return std::vector<std::string>();
+        }
+        return result->texts;
     }
 }
 } // namespace editorium

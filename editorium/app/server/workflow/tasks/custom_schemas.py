@@ -1,6 +1,5 @@
 import base64
 from PIL import Image
-from io import BytesIO
 import base64
 
 from marshmallow import Schema, fields, ValidationError
@@ -25,10 +24,10 @@ class ImageField(fields.Field):
         if not value:
             return None
         if self.context.get("from_api", False):
-            if type(value) is str:
+            if type(value) is dict:
                 return  pil_from_dict(value)
             else:
-                raise ValidationError("Image must be a base64 string")
+                raise ValidationError("Image must be a dictionary with 'data', 'width', 'height' and 'mode' keys.")
         return value
         
     

@@ -22,12 +22,10 @@ class Config {
         void add_lora_dir(const char *value);
         void add_emb_dir(const char *value);
 
-        bool filter_nsfw();
         bool use_float16();
         bool private_mode();
         bool keep_in_memory();
 
-        void filter_nsfw(bool value);
         void use_float16(bool value);
         void private_mode(bool value);
         void keep_in_memory(bool value);
@@ -38,7 +36,6 @@ class Config {
         std::string add_model_dir_;
         std::string add_lora_dir_;
         std::string add_emb_dir_;
-        bool filter_nsfw_ = true;
         bool use_float16_ = true;
         bool private_mode_ = false;
         bool keep_in_memory_ = false;

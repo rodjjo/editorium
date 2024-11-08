@@ -2,6 +2,8 @@
 #include <Windows.h>
 #endif
 
+#include <unistd.h>
+
 #include <GL/gl.h>
 #include <FL/Fl.H>
 #include <FL/gl.h>
@@ -18,13 +20,10 @@ namespace editorium
 {
 namespace 
 {
-    std::wstring executable_dir;
-    std::wstring python_exe_path;
-    std::wstring pysources_dir;
-    std::wstring comfyui_dir;
+    std::string executable_dir;
 } 
 
-const std::wstring& executableDir() {
+const std::string& executableDir() {
     if (executable_dir.empty()) {
 #ifdef _WIN32
     wchar_t path[1024] = { 0, };
@@ -32,41 +31,26 @@ const std::wstring& executableDir() {
         executable_dir = path;
     }
 #else
-    //TODO: create linux implementation
+        char path[1024] = { 0, };
+        if (readlink("/proc/self/exe", path, sizeof(path) - 1) != -1) {
+            executable_dir = path;
+        }
 #endif
-        size_t latest = executable_dir.find_last_of(L"/\\");
-        if (latest != std::wstring::npos) {
+        size_t latest = executable_dir.find_last_of("/\\");
+        if (latest != std::string::npos) {
             executable_dir = executable_dir.substr(0, latest);
         } else {
-            executable_dir = std::wstring();
+            executable_dir = std::string();
         }
     }
 
     return executable_dir;
 }
 
-
-const std::wstring& pythonExecutablePath() {
-    if (python_exe_path.empty()) {
-        python_exe_path = executableDir() + L"/python.exe";
-    }
-    return python_exe_path;
+std::string configPath() {
+    return executableDir() + "/editorium-ui-config.json";
 }
-
-const std::wstring& sourcesDirectory() {
-    if (pysources_dir.empty()) {
-        pysources_dir = executableDir() + L"/../diffusion_expert";
-    }
-    return pysources_dir;
-}
-
-const std::wstring& comfyuiDirectory() {
-    if (comfyui_dir.empty()) {
-        comfyui_dir = executableDir() + L"/../python_deps/comfyui";
-    }
-    return comfyui_dir;
-}
-
+ 
 std::string filepath_dir(const std::string & path) {
     size_t pos = path.find_last_of("/\\");
     if (pos != std::string::npos) {
