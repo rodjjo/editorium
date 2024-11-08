@@ -1,3 +1,4 @@
+#include <atomic>
 #include <mutex>
 #include <thread>
 #include <chrono>
@@ -25,31 +26,12 @@ namespace editorium
             std::mutex listener_mutex;
             callback_t current_callback;
             std::shared_ptr<WebsocketsClient> ws_client;
-            request_cb_t request_callback;
             std::shared_ptr<std::thread> ws_thread;
-            size_t listener_id = 0;
-            std::vector<std::pair<size_t, listener_t>> listeners;
-        }
-
-        size_t add_listener(listener_t listener) {
-            std::unique_lock<std::mutex> lk(listener_mutex);
-            listener_id++;
-            listeners.push_back(std::make_pair(listener_id, listener));
-            return listener_id;
-        }
-
-        void remove_listener(size_t id) {
-            std::unique_lock<std::mutex> lk(listener_mutex);
-            for (auto it = listeners.begin(); it != listeners.end(); it++) {
-                if (it->first == id) {
-                    listeners.erase(it);
-                    return;
-                }
-            }
+            listener_t listener;
         }
 
         void response_callback(const json& response) {
-            if (!response.contains("id") || !response.contains("images") != !response.contains("texts") != !response.contains("boxes")) {
+            if (!response.contains("id") || !response.contains("images") || !response.contains("texts") || !response.contains("boxes")) {
                 return;
             }
             std::string id = response["id"];
@@ -65,11 +47,8 @@ namespace editorium
                 payload.boxes.push_back(box);
             }
             std::unique_lock<std::mutex> lk(listener_mutex);
-            for (auto & listener : listeners) {
-                if (listener.second(id, payload)) {
-                    return;
-                }
-            }
+            if (listener) 
+                listener(id, payload);
         }
 
         void replace_callback(callback_t callback)
@@ -100,11 +79,46 @@ namespace editorium
             }
         }
 
-        void execute(callback_t cb)
-        {
+        std::shared_ptr<api_payload_t> execute(const std::string& task_type, const json &inputs, const json &config, bool &canceled_checker) {
+            std::shared_ptr<api_payload_t> result;
+            auto callback_send = [task_type, inputs, config, &result, &canceled_checker]() {
+                json req;
+                auto uuid = UUID::generate_uuid();
+                req["task_type"] = task_type;
+                req["input"] = inputs;
+                req["config"] = config;
+                req["id"] = uuid;
+                std::atomic<bool> result_set = false;
+
+                { // scope to set the listener
+                    std::unique_lock<std::mutex> lk(listener_mutex);
+                    listener = [uuid, &result, &result_set] (const std::string& id, const api_payload_t & response) {
+                        if (id == uuid) {
+                            result = std::make_shared<api_payload_t>(response);
+                            result_set.store(true);
+                        }
+                    };
+                }
+
+                ws_client->send(req.dump());
+                while (!canceled_checker) {
+                    if (result_set.load() || !ws_client->available()) {
+                        break;
+                    }
+                    ws_client->poll();
+                }
+
+                { // scope to reset the listener
+                    std::unique_lock<std::mutex> lk(listener_mutex);
+                    listener = listener_t();
+                }
+            };
+
             wait_callback();
-            replace_callback(cb);
+            replace_callback(callback_send);
             wait_callback();
+
+            return result;
         }
 
         void execute_next_cb()
@@ -120,7 +134,7 @@ namespace editorium
                 return;
             }
 
-            cb(request_callback);
+            cb();
 
             { // locking area
                 std::unique_lock<std::mutex> lk(callback_mutex);
@@ -134,7 +148,7 @@ namespace editorium
                 return std::string();
             }
             json req;
-            req["task_type"] = "request";
+            req["task_type"] = task_type;
             req["inputs"] = inputs;
             req["config"] = config;
             req["id"] = UUID::generate_uuid();
@@ -149,16 +163,14 @@ namespace editorium
             }
             ws_thread.reset(new std::thread([] () {
                 try {
-                    request_callback = [](
-                        const std::string& task_type, 
-                        const json &inputs, 
-                        const json &config
-                    ) -> std::string {
-                        return send_request(task_type, inputs, config);
-                    };
                     std::string address = "ws://localhost:5001/";
                     ws_client.reset(new WebsocketsClient());
                     ws_client->connect(address);
+
+                    ws_client->onMessage([&](WebsocketsClient&, WebsocketsMessage message){
+                        json response = json::parse(message.data());
+                        response_callback(response);
+                    });
 
                     if (ws_client->available()) {
                         puts("Connected to websocket server!");

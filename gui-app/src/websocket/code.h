@@ -25,12 +25,11 @@ namespace editorium
             std::vector<box_t> boxes;
         } api_payload_t;
 
-        typedef std::function<std::string(const std::string& task_type, const json &inputs, const json & config)> request_cb_t;
-        typedef std::function<void(request_cb_t &request_cb)> callback_t;
-        typedef std::function<bool(const std::string& id, const api_payload_t & response)> listener_t;
-        void execute(callback_t cb);
-        size_t add_listener(listener_t listener);
-        void remove_listener(size_t id);
+        typedef std::function<void()> callback_t;
+        typedef std::function<void(const std::string& id, const api_payload_t & response)> listener_t;
+        
+        std::shared_ptr<api_payload_t> execute(const std::string& task_type,  const json &inputs,  const json &config, bool &canceled_checker);
+
         void run_websocket();
         void stop_websocket();
     } // namespace py
