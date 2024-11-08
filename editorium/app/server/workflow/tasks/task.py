@@ -64,7 +64,7 @@ class WorkflowTask:
             return EmptySchema()
         return self.config_schema(context={'from_api': self.is_api})
     
-    def _process_task(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+    def process_task_safe(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
         if self.config_schema:
             config = self.config_schema(context={'from_api': self.is_api}).load(config)
         if self.input_schema:
@@ -112,12 +112,12 @@ class WorkflowTask:
         return {}
     
     @classmethod
-    def register(cls, task_type: str, description: str, api_enabled: bool = False):
+    def register(cls, task_type: str, description: str, api_enabled: bool=False):
         instance = cls(task_type, description, is_api=False)
         WorkflowTaskManager.add_task(instance)
         if api_enabled:
             instance = cls(task_type, description, is_api=True)
-            register_task(instance)
+            register_task(task_type, instance)
 
 
 class WorkflowTaskManager:
@@ -289,7 +289,7 @@ class WorkflowTaskManager:
                 else:
                     raise ValueError(f'Task {result_task_name} not found in {path}')
             
-            task_result = self.tasks[item.task_type]._process_task(
+            task_result = self.tasks[item.task_type].process_task_safe(
                 base_dir,
                 item.name,
                 deepcopy(resolved_inputs), 

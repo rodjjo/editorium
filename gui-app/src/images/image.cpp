@@ -5,7 +5,7 @@
 
 #include <CImg.h>
 
-#include "base64/b64.h"
+#include "base64/base64.h"
 #include "images/image.h"
 
 using namespace cimg_library;
@@ -691,8 +691,7 @@ json RawImage::toJson() {
     result["width"] = w_;
     result["height"] = h_;
     result["mode"] = format_ == img_rgb ? "RGB" : "RGBA";
-    std::shared_ptr<char> buffer(b64_encode(buffer_, buffer_len_), free);
-    result["data"] = buffer.get();
+    result["data"] = base64_encode((const unsigned char *) buffer_, buffer_len_);
     return result;
 }
 
@@ -719,8 +718,11 @@ image_ptr_t newImage(const json& value) {
     const auto &width = value["width"].get<uint32_t>();
     const auto &height = value["height"].get<uint32_t>();
     size_t decoded_size = 0;
-    std::shared_ptr<unsigned char> buffer(b64_decode_ex(data.c_str(), data.size(), &decoded_size), free);
-    return std::make_shared<RawImage>(buffer.get(), width, height, format);
+    auto decoded = base64_decode(data.c_str(), data.size());
+    if (decoded.first == nullptr || decoded.second != width * height * format_channels[format]) {
+        return image_ptr_t();
+    }
+    return std::make_shared<RawImage>(decoded.first.get(), width, height, format);
 }
 
 std::vector<image_ptr_t> newImageList(const json& value) {

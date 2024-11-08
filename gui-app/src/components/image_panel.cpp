@@ -6,6 +6,8 @@
 #include "misc/config.h"
 #include "misc/utils.h"
 #include "components/image_panel.h"
+#include "websocket/code.h"
+#include "websocket/tasks.h"
 
 namespace editorium
 {
@@ -50,14 +52,13 @@ namespace editorium
 
     }
 
-    /*
-    Layer::Layer(ViewSettings *parent, const char *path) : parent_(parent), image_(open_image(path)) {
+
+    Layer::Layer(ViewSettings *parent, const char *path) : parent_(parent), image_(editorium::ws::load_image(path)) {
         if (image_) {
             w_ = image_->w();
             h_ = image_->h();
         }
     }
-    */
 
     Layer::Layer(ViewSettings *parent, int w, int h, bool transparent) : parent_(parent), image_(newImage(w, h, transparent))  {
         if (image_) {
@@ -250,11 +251,9 @@ namespace editorium
         return NULL;
     }
 
-    /*
     Layer* ViewSettings::add_layer(const char *path) {
         return add_layer(std::make_shared<Layer>(this, path));
     }
-    */
 
     Layer* ViewSettings::add_layer(int w, int h, bool transparent) {
         return add_layer(std::make_shared<Layer>(this, w, h, transparent));

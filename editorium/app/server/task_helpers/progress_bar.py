@@ -20,6 +20,7 @@ class ProgressBar(tqdm):
             
     @classmethod
     def set_task_id(cls, task_id):
+        ProgressBar.stop(False)
         ProgressBar.global_task_id = task_id  # it's only accessed by one thread
             
     @classmethod

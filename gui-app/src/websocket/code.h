@@ -27,8 +27,9 @@ namespace editorium
 
         typedef std::function<void()> callback_t;
         typedef std::function<void(const std::string& id, const api_payload_t & response)> listener_t;
-        
-        std::shared_ptr<api_payload_t> execute(const std::string& task_type,  const json &inputs,  const json &config, bool &canceled_checker);
+
+        json to_input(const api_payload_t &payload);
+        std::shared_ptr<api_payload_t> execute(const std::string& task_type,  const json &inputs,  const json &config, bool *canceled_checker=NULL);
 
         void run_websocket();
         void stop_websocket();

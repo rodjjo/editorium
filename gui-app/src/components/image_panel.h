@@ -15,7 +15,7 @@ namespace editorium
 
     class Layer {
       public:
-        // Layer(ViewSettings *parent, const char *path);
+        Layer(ViewSettings *parent, const char *path);
         Layer(ViewSettings *parent, int w, int h, bool transparent);
         Layer(ViewSettings *parent, image_ptr_t image);
         virtual ~Layer();
@@ -86,7 +86,7 @@ namespace editorium
         ViewSettings(ImagePanel *parent);
         virtual ~ViewSettings();
         size_t layer_count();
-        //Layer* add_layer(const char *path);
+        Layer* add_layer(const char *path);
         Layer* add_layer(int w, int h, bool transparent);
         Layer* add_layer(image_ptr_t image);
         Layer* at(size_t position);

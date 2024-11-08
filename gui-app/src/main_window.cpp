@@ -331,7 +331,8 @@ namespace editorium
             if (clear_layers) {
                 image_->view_settings()->clear_layers();
             }
-            // image_->view_settings()->add_layer(result.c_str());
+            printf("[MainWindow] Opening file: %s\n", result.c_str());
+            image_->view_settings()->add_layer(result.c_str());
         }
     }
 
