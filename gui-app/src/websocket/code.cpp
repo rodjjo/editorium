@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <memory>
+#include <set>
 #include <tiny_websockets/client.hpp>
 
 #include <FL/Fl.H>
@@ -29,6 +30,11 @@ namespace editorium
             std::shared_ptr<std::thread> ws_thread;
             std::shared_ptr<std::thread> ws_callback;
             listener_t listener;
+            std::string current_task_id;
+            std::set<std::string> reported_task_ids;
+            std::chrono::_V2::system_clock::time_point last_report_time;
+            std::chrono::_V2::system_clock::time_point last_check_time;
+            size_t miss_count = 0;
         }
 
         json to_input(const api_payload_t &payload) {
@@ -80,7 +86,7 @@ namespace editorium
             callback_mutex.unlock();
         }
 
-        void wait_callback()
+        void wait_callback(bool wait_report=false, bool *canceled_checker=NULL)
         {
             bool should_continue = true;
             bool locked = false;
@@ -96,13 +102,45 @@ namespace editorium
                 {
                     Fl::wait(0.033);
                 }
+
+                if (canceled_checker && *canceled_checker)
+                {
+                    should_continue = false;
+                }
+
+                if (wait_report) {
+                    std::unique_lock<std::mutex> lk(listener_mutex);
+                    auto last_report_was = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - last_report_time).count();
+
+                    if (last_report_was > 8) {
+                        printf("Missed report for %lu seconds\n", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - last_report_time).count());
+                        should_continue = false;
+                    } else {
+                        auto last_check_was = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - last_check_time).count();
+                        if (last_check_was > 1) {
+                            if (reported_task_ids.find(current_task_id) == reported_task_ids.end()) {
+                                miss_count++;
+                            } else {
+                                miss_count = 0;
+                            }
+                            last_check_time = std::chrono::high_resolution_clock::now();
+                            if (miss_count > 5) {
+                                printf("The task %s is lost\n", current_task_id.c_str());
+                                should_continue = false;
+                            }
+                        }
+                    }
+
+                }
             }
         }
 
         std::shared_ptr<api_payload_t> execute(const std::string& task_type, const json &inputs, const json &config, bool *canceled_checker) {
-            std::shared_ptr<api_payload_t> result;
+            auto result = std::make_shared<api_payload_t>();
             std::string id = UUID::generate_uuid();
-            auto callback_send = [id, task_type, inputs, config, &result, canceled_checker]() {
+            std::shared_ptr<bool> interrupted = std::make_shared<bool>(false);
+
+            auto callback_send = [id, task_type, inputs, config, result, interrupted]() {
                 printf("[callback_send] Executing task: %s, id: %s \n", task_type.c_str(), id.c_str());
                 json req;
                 json default_input;
@@ -117,7 +155,7 @@ namespace editorium
                     std::unique_lock<std::mutex> lk(listener_mutex);
                     listener = [uuid{id}, &result, &result_set] (const std::string& id, const api_payload_t & response) {
                         if (id == uuid) {
-                            result = std::make_shared<api_payload_t>(response);
+                            *result = response;
                             result_set.store(true);
                         }
                     };
@@ -125,8 +163,8 @@ namespace editorium
 
                 printf("[callback_send] Sending request: %s, id: %s \n", task_type.c_str(), id.c_str());
                 ws_client->send(req.dump());
-                while (true) {
-                    if (result_set.load() || !ws_client->available() || (canceled_checker && *canceled_checker)) {
+                while (running && !(*interrupted)) {
+                    if (result_set.load() || !ws_client->available()) {
                         break;
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(33));
@@ -138,12 +176,31 @@ namespace editorium
                 }
             };
 
+            wait_callback();
+            
+            {
+                std::unique_lock<std::mutex> lk(listener_mutex);
+                current_task_id = id;
+                reported_task_ids.clear();
+                miss_count = 0;
+                last_report_time = std::chrono::high_resolution_clock::now();
+                last_check_time = last_report_time;
+            }
 
-            wait_callback();
-            printf("[ws:execute] Executing task: %s, id: %s \n", task_type.c_str(), id.c_str());
             replace_callback(callback_send);
-            printf("[ws:execute] Waiting task: %s, id: %s \n", task_type.c_str(), id.c_str());
-            wait_callback();
+
+            wait_callback(true, canceled_checker);
+
+            *interrupted = true;
+
+            { // scope to reset the listener
+                std::unique_lock<std::mutex> lk(listener_mutex);
+                listener = listener_t();
+            }
+
+            if (result->boxes.empty() && result->images.empty() && result->texts.empty()) {
+                return std::shared_ptr<api_payload_t>();
+            }
 
             return result;
         }
@@ -193,6 +250,14 @@ namespace editorium
                     if (response.contains("id") && response.contains("result")) {
                         printf("Received response, id: %s \n", response["id"].get<std::string>().c_str());
                         response_callback(response["id"], response["result"]);
+                    } if (response.contains("current_task") && response.contains("pending_tasks")) {
+                        std::unique_lock<std::mutex> lk(listener_mutex);
+                        last_report_time = std::chrono::high_resolution_clock::now();
+                        reported_task_ids.clear();
+                        reported_task_ids.insert(response["current_task"]["id"]);
+                        for (const auto & task : response["pending_tasks"]) {
+                            reported_task_ids.insert(task["id"]);
+                        }
                     } else {
                         puts("Received unexpected message!");
                     }

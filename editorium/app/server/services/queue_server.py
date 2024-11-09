@@ -79,7 +79,8 @@ keep_running = True
 current_task = None
 current_task_lock = Lock()
 
-def pop_one_task(ws_queue: Queue, api_queue: Queue):
+def pick_one_task(ws_queue: Queue, api_queue: Queue):
+    global current_task
     with current_task_lock:
         try:
             task = ws_queue.get_nowait()
@@ -92,6 +93,7 @@ def pop_one_task(ws_queue: Queue, api_queue: Queue):
                 task.source = 'api'
             except Empty:
                 pass
+        current_task = task
         return task
 
 
@@ -163,15 +165,12 @@ def queue_processor(api_queue: Queue, ws_queue: Queue, api_out_queue: Queue, ws_
     while keep_running:
         remove_old_completed_task(api_out_queue)
         remove_old_completed_task(ws_out_queue)
-        task = pop_one_task(ws_queue, api_queue)
+        task = pick_one_task(ws_queue, api_queue)
         if task is None:
             # sleep for a while
             time.sleep(1)
             continue
-
-        with current_task_lock:
-            current_task = task
-            
+           
         if task.source == 'ws':
             ws_queue.task_done()
         else:
@@ -212,6 +211,10 @@ def list_queue(queue: Queue):
 def get_current_task():
     with current_task_lock:
         return current_task
+    
+def track_current_task(queue: Queue):
+    with current_task_lock:
+        return current_task, list(queue.queue)
     
     
 def stop_queue_server():
