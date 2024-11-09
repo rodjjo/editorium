@@ -443,12 +443,12 @@ namespace editorium
     void ViewSettings::mouse_drag(float zoom, int dx, int dy, int x, int y) {
         if (zoom == 0 || !selected_) 
             return;
-        float mx = x / zoom;
-        float my = y / zoom;
-        float mdx = dx / zoom;
-        float mdy = dy / zoom;
-        float dragx = mx - mdx;
-        float dragy = my - mdy;
+        float mx = x;
+        float my = y;
+        float mdx = dx;
+        float mdy = dy;
+        float dragx = (mx - mdx) / zoom;
+        float dragy = (my - mdy) / zoom;
         selected_->x(drag_begin_x_ + dragx);
         selected_->y(drag_begin_y_ + dragy);
         compact_image_area();
@@ -457,8 +457,23 @@ namespace editorium
 
     void ViewSettings::compact_image_area() {
         /*
+            This function ensure the image does not scroll far than largest image layer size * 2
             This function ensure that at least one layer has the position (0, 0)
         */
+        int max_w = 0;
+        int max_h = 0;
+        for (auto & l : layers_) {
+            if (l->w() > max_w) {
+                max_w = l->w();
+            }
+            if (l->h() > max_h) {
+                max_h = l->h();
+            }
+        }
+        max_w = int(1.005 * max_w);
+        max_h = int(1.005 * max_h);
+        int max_w2 = int(2.00 * max_w);
+        int max_h2 = int(2.00 * max_h);
         int x, y, w, h;
         get_image_area(&x, &y, &w, &h);
         int add_x = -x;
@@ -466,7 +481,20 @@ namespace editorium
         for (auto & l : layers_) {
             l->x(l->x() + add_x);
             l->y(l->y() + add_y);
+            if (l->x() < -max_w) {
+                l->x(-max_w);
+            }
+            if (l->y() < -max_h) {
+                l->y(-max_h);
+            }
+            if (l->x() > max_w2) {
+                l->x(max_w2);
+            }
+            if (l->y() > max_h2) {
+                l->y(max_h2);
+            }
         }
+       
         parent_->schedule_redraw(true);
     }
 
