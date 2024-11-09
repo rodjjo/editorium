@@ -22,5 +22,6 @@ class PreprocessorTask(WorkflowTask):
 def register():
     PreprocessorTask.register(
         "image-preprocessor", 
-        "Pre-process a image to be used by other tasks"
+        "Pre-process a image to be used by other tasks",
+        api_enabled=True
     )

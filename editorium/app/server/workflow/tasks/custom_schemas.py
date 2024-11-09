@@ -3,20 +3,7 @@ from PIL import Image
 import base64
 
 from marshmallow import Schema, fields, ValidationError
-
-
-def pil_as_dict(pil_image):
-    return {
-        'data': base64.b64encode(pil_image.tobytes()).decode('utf-8'),
-        'width': int(pil_image.width),
-        'height': int(pil_image.height),
-        'mode': str(pil_image.mode),
-    }
-
-
-
-def pil_from_dict(data):
-    return Image.frombytes(data['mode'], (data['width'], data['height']),  base64.b64decode(data['data']))
+from pipelines.common.utils import pil_as_dict, pil_from_dict
 
 
 class ImageField(fields.Field):

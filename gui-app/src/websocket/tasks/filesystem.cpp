@@ -1,12 +1,11 @@
 #include <fstream>
 #include "base64/base64.h"
-#include "tasks.h"
+#include "websocket/tasks/filesystem.h"
 #include "websocket/code.h"
 
-namespace editorium
-{
+namespace editorium {
 namespace ws {
-    
+namespace filesystem {
     image_ptr_t load_image(const std::string &path) {
         printf("Loading image: %s\n", path.c_str());
         std::ifstream file(path, std::ios::binary);
@@ -16,8 +15,9 @@ namespace ws {
         api_payload_t payload;
         payload.texts = {encoded};
         auto inputs = to_input(payload);
-
-        auto result = execute("base64image", inputs, json());
+        json default_input;
+        default_input["default"] = inputs;
+        auto result = execute("base64image", default_input, json());
 
         if (!result || result->images.empty()) {
             return nullptr;
@@ -34,8 +34,9 @@ namespace ws {
 
         json config;
         config["png_format"] = png_format;
-
-        auto result = execute("image2base64", inputs, config);
+        json default_input;
+        default_input["default"] = inputs;
+        auto result = execute("image2base64", default_input, config);
 
         if (!result || result->texts.empty()) {
             return;
@@ -47,15 +48,6 @@ namespace ws {
         file.write((const char *)decoded.first.get(), decoded.second);
     }
 
-    std::vector<std::string> list_models(const std::string& model_type, bool list_loras) {
-        json config;
-        config["list_lora"] = list_loras;
-        config["model_type"] = model_type;
-        auto result = execute("list-models", json(), config);
-        if (!result) {
-            return std::vector<std::string>();
-        }
-        return result->texts;
-    }
-}
+} // namespace filesystem
+} // namespace ws
 } // namespace editorium

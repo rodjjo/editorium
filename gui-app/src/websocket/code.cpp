@@ -39,12 +39,15 @@ namespace editorium
 
         json to_input(const api_payload_t &payload) {
             json inputs;
-            inputs["images"] = json::array();
+            inputs["images"] = json(json::value_type::array());
             for (const auto & image : payload.images) {
                 inputs["images"].push_back(image->toJson());
             }
-            inputs["texts"] = payload.texts;
-            inputs["boxes"] = json::array();
+            inputs["texts"] = json(json::value_type::array());
+            for (const auto & text : payload.texts) {
+                inputs["texts"].push_back(text);
+            }
+            inputs["boxes"] = json(json::value_type::array());
             for (const auto & box : payload.boxes) {
                 json box_json;
                 box_json["x"] = box.x;
@@ -143,10 +146,8 @@ namespace editorium
             auto callback_send = [id, task_type, inputs, config, result, interrupted]() {
                 printf("[callback_send] Executing task: %s, id: %s \n", task_type.c_str(), id.c_str());
                 json req;
-                json default_input;
-                default_input["default"] = inputs;
                 req["task_type"] = std::string("api-") + task_type;
-                req["input"] = default_input;
+                req["input"] = inputs;
                 req["config"] = config;
                 req["id"] = id;
                 std::atomic<bool> result_set = false;
@@ -315,4 +316,4 @@ namespace editorium
         }
     } // namespace py
 
-} // namespace dfe
+} // namespace editorium

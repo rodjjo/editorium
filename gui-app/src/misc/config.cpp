@@ -82,9 +82,7 @@ namespace editorium
                 return r;
             };
 
-            add_lora_dir_ = load_key("directories", "add_lora_dir");
-            add_emb_dir_ = load_key("directories", "add_emb_dir");
-            add_model_dir_ = load_key("directories", "add_model_dir");
+            profiles_dir_ = load_key("directories", "profiles_dir");
 
             if (cf.contains("float16_enabled")) {
                 use_float16_ = cf["float16_enabled"];
@@ -117,9 +115,7 @@ namespace editorium
             store_map("save_history", last_save_dirs);
             
             json dirs;
-            dirs["add_lora_dir"] = add_lora_dir_;
-            dirs["add_emb_dir"] = add_emb_dir_;
-            dirs["add_model_dir"] = add_model_dir_;
+            dirs["profiles_dir"] = profiles_dir_;
             cf["directories"] = dirs;
             
             cf["float16_enabled"] = use_float16_;
@@ -159,28 +155,12 @@ namespace editorium
         save();
     }
 
-    std::string Config::add_model_dir() {
-        return add_model_dir_;
+    std::string Config::profiles_dir() {
+        return profiles_dir_;
     }
 
-    std::string Config::add_lora_dir() {
-        return add_lora_dir_;
-    }
-
-    std::string Config::add_emb_dir() {
-        return add_emb_dir_;
-    }
-
-    void Config::add_model_dir(const char *value) {
-        add_model_dir_ = value;
-    }
-
-    void Config::add_lora_dir(const char *value) {
-        add_lora_dir_ = value;
-    }
-
-    void Config::add_emb_dir(const char *value) {
-        add_emb_dir_ = value;
+    void Config::profiles_dir(const char *value) {
+        profiles_dir_ = value;
     }
 
     bool Config::use_float16() {

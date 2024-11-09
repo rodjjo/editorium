@@ -52,4 +52,4 @@ void set_progress(size_t value, size_t max);
 
 
     
-} // namespace dfe
+} // namespace editorium

@@ -59,8 +59,10 @@ file(GLOB Sources
     "${CMAKE_CURRENT_SOURCE_DIR}/src/components/xpm/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/messagebus/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/frames/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/base64/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/websocket/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/websocket/tasks/*.cpp"
 )
 
 add_executable(editorium-ui ${Sources})

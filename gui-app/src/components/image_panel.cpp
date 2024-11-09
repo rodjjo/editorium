@@ -54,7 +54,7 @@ namespace editorium
     }
 
 
-    Layer::Layer(ViewSettings *parent, const char *path) : parent_(parent), image_(editorium::ws::load_image(path)) {
+    Layer::Layer(ViewSettings *parent, const char *path) : parent_(parent), image_(ws::filesystem::load_image(path)) {
         if (image_) {
             w_ = image_->w();
             h_ = image_->h();

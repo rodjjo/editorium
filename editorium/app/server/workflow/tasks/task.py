@@ -65,6 +65,10 @@ class WorkflowTask:
         return self.config_schema(context={'from_api': self.is_api})
     
     def process_task_safe(self, base_dir: str, name: str, input: dict, config: dict) -> dict:
+        if config is None:
+            config = {}
+        if input is None:
+            input = {}
         if self.config_schema:
             config = self.config_schema(context={'from_api': self.is_api}).load(config)
         if self.input_schema:
@@ -82,6 +86,8 @@ class WorkflowTask:
             for k, v in input.items():
                 if k in ('_item', '_injected'):
                     continue
+                if v is None:
+                    v = {}
                 v = {
                     kk: vv for kk, vv in v.items() if kk not in ('_item', '_injected')
                 }

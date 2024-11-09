@@ -21,7 +21,7 @@ class Sd15IpAdapterTask(WorkflowTask):
         return {
             "data": {
                 'image': image,
-                'adapter_model': config['adapter_model'],       
+                'adapter_model': config['adapter_model'],
             }
         }
 

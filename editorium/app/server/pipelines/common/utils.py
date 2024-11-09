@@ -11,6 +11,7 @@ import safetensors.torch
 import tqdm
 import logging
 import requests
+import base64
 
 from PIL import Image
 from diffusers.utils import export_to_video
@@ -227,3 +228,31 @@ def download_file(url, local_path, chunk_size=1024):
                         f.write(data)
                         pbar.update(chunk_size)
 
+
+def pil_as_dict(pil_image):
+    return {
+        'data': base64.b64encode(pil_image.tobytes()).decode('utf-8'),
+        'width': int(pil_image.width),
+        'height': int(pil_image.height),
+        'mode': str(pil_image.mode),
+    }
+
+
+def pil_from_dict(data):
+    return Image.frombytes(data['mode'], (data['width'], data['height']),  base64.b64decode(data['data']))
+
+
+def ensure_image(data):
+    if data is None:
+        return None
+    if type(data) is list:
+        data = [
+            ensure_image(d)
+            for d in data
+        ]
+        return data
+    if type(data) is dict:
+        return pil_from_dict(data)
+    if type(data) is str:
+        return Image.open(data)
+    return data

@@ -1,14 +1,12 @@
-from typing import List
-
 import os
 import torch
-from tqdm import tqdm
 from PIL import Image, ImageFilter
 import numpy as np
 import random
 
 from pipelines.sd15.managed_model import sd15_models
 from pipelines.sd15.loader import LORA_DIR
+from pipelines.common.utils import ensure_image
 
 
 def get_lora_path(lora: str, lora_dir_contents: list) -> str:
@@ -360,7 +358,9 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('images', None)
     if not inpaint_image:
         inpaint_image = input.get('image', {}).get('images', None)
+    inpaint_image = ensure_image(inpaint_image)
     inpaint_mask = input.get('mask', {}).get('images', None)
+    inpaint_mask = ensure_image(inpaint_mask)
     
     controlnets = []
     controlnet_models = []
@@ -374,11 +374,10 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
         controlnet_models.append(
             (controlnet['repo_id'], controlnet['control_type'])
         )
-        image = controlnet['image']
-        if type(image) is str:
-            image = [Image.open(image)]
-        elif type(image) is list:
-            image = [Image.open(i) if type(i) is str else i for i in image]
+        image = ensure_image(controlnet['image'])
+        if type(image) is not list:
+            image = [image]
+            
         if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
             if len(inpaint_image) == 1:
                 image = [image[0]] * len(inpaint_image)
@@ -404,11 +403,9 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
             adapter['adapter_model']
         )
         adapter_scale.append(params.get(f'ip_adapter_scale_{adapter_index}', 0.6))
-        image = adapter['image']
-        if type(image) is str:
-            image = [Image.open(image)]
-        elif type(image) is list:
-            image = [Image.open(i) if type(i) is str else i for i in image]
+        image = ensure_image(adapter['image'])
+        if type(image) is not list:
+            image = [image]
         if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
             if len(inpaint_image) == 1:
                 image = [image[0]] * len(inpaint_image)

@@ -67,4 +67,4 @@ Subscriber::~Subscriber() {
 
 
     
-} // namespace dfe
+} // namespace editorium

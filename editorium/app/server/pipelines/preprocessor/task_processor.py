@@ -9,6 +9,7 @@ from transformers import pipeline
 
 from pipelines.preprocessor.line_art import LineartDetector
 from pipelines.preprocessor.manga_line import MangaLineExtration
+from pipelines.common.utils import ensure_image
 
 
 def report(message):
@@ -193,6 +194,7 @@ def process_workflow_task(input: dict, config: dict):
     if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")
 
+    images = ensure_image(images)
     results = []
     for image in images:
         if type(image) is str:

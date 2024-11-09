@@ -43,8 +43,12 @@ class Sd15Task(WorkflowTask):
                 config[key] = model[key]
         if not config.get('model_name', None):
             raise ValueError("Model name is required")
-        return process_workflow_task(input, config)
+        return process_workflow_task(input, Sd15PayloadSchema().load(config))
 
 
 def register():
-    Sd15Task.register("sd15", "Generate images using a model based on SD 1.5")
+    Sd15Task.register(
+        "sd15", 
+        "Generate images using a model based on SD 1.5",
+        api_enabled=True,
+    )

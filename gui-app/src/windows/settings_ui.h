@@ -27,9 +27,7 @@ private:
     Fl_Tabs *tabs_;
     Fl_Group *page_params_;
     Fl_Group *page_directories_;
-    Fl_Input *add_model_dir_;
-    Fl_Input *add_lora_dir_;
-    Fl_Input *add_emb_dir_;
+    Fl_Input *profiles_dir_;
     Fl_Check_Button *use_float16_;
     Fl_Check_Button *private_mode_;
     Fl_Check_Button *keep_models_;
@@ -40,4 +38,4 @@ private:
 
 void edit_settings();
 
-} // namespace dfe
+} // namespace editorium

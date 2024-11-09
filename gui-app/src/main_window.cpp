@@ -3,6 +3,7 @@
 #include <FL/fl_ask.H>
 #include "windows/progress_ui.h"
 #include "windows/settings_ui.h"
+#include "windows/diffusion_ui.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
 #include "misc/utils.h"
@@ -359,7 +360,7 @@ namespace editorium
             printf("[MainWindow] Saving file: %s\n", result.c_str());
             auto img = image_->view_settings()->merge_layers_to_image();
             if (img) {
-                ws::save_image(result, img, result.find(".png") != std::string::npos);
+                ws::filesystem::save_image(result, img, result.find(".png") != std::string::npos);
             }
         }
     }
@@ -396,10 +397,10 @@ namespace editorium
                 return;
             }
         }
-        /*auto img = selection ? generate_image(image_->view_settings()) : generate_image();
+        auto img = selection ? generate_image(image_->view_settings()) : generate_image();
         if (img) {
             image_->view_settings()->fuse_image(img);
-        } */
+        } 
     }
 
 } // namespace editorium

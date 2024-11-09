@@ -68,4 +68,4 @@ private:
     bool in_layer_callback_ = false;
 };
 
-} // namespace dfe
+} // namespace editorium

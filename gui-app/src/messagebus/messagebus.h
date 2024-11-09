@@ -69,4 +69,4 @@ class SubscriberThis: public Subscriber {
 
 void publish_event(void *sender, event_id_t event, void *data);
 
-} // namespace dfe
+} // namespace editorium

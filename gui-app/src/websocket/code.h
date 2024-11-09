@@ -35,4 +35,4 @@ namespace editorium
         void stop_websocket();
     } // namespace py
     
-} // namespace dfe
+} // namespace editorium

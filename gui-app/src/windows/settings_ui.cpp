@@ -22,9 +22,7 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
     tabs_->begin();
     
     page_directories_ = new Fl_Group(0, 0, 1, 1, "Directories");
-    add_model_dir_ = new Fl_Input(1, 1, 1, 1, "Additional stable diffusion model dir");
-    add_lora_dir_ = new Fl_Input(1, 1, 1, 1, "Additional lora model dir");
-    add_emb_dir_ = new Fl_Input(1, 1, 1, 1, "Additional embedding dir");
+    profiles_dir_ = new Fl_Input(1, 1, 1, 1, "Directory to save the profiles");
     page_directories_->end();
 
     wnd_->begin();
@@ -43,9 +41,7 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
     btnCancel_->tooltip("Discart the changes");
     keep_models_->tooltip("Move the model to RAM when it exchanges between inpaint and normal model");
 
-    add_model_dir_->align(FL_ALIGN_TOP_LEFT);
-    add_lora_dir_->align(FL_ALIGN_TOP_LEFT);
-    add_emb_dir_->align(FL_ALIGN_TOP_LEFT);
+    profiles_dir_->align(FL_ALIGN_TOP_LEFT);
 
     alignComponents();
 }
@@ -55,9 +51,7 @@ SettingsWindow::~SettingsWindow() {
 
 void SettingsWindow::save_settings() {
     auto cfg = get_config();
-    cfg->add_emb_dir(add_emb_dir_->value());
-    cfg->add_lora_dir(add_lora_dir_->value());
-    cfg->add_model_dir(add_model_dir_->value());
+    cfg->profiles_dir(profiles_dir_->value());
     cfg->use_float16(use_float16_->value() == 1);
     cfg->private_mode(private_mode_->value() == 1);
     cfg->keep_in_memory(keep_models_->value() == 1);
@@ -67,9 +61,7 @@ void SettingsWindow::save_settings() {
 void SettingsWindow::load_settings() {
     auto cfg = get_config();
     cfg->load();
-    add_emb_dir_->value(cfg->add_emb_dir().c_str());
-    add_lora_dir_->value(cfg->add_lora_dir().c_str());
-    add_model_dir_->value(cfg->add_model_dir().c_str());
+    profiles_dir_->value(cfg->profiles_dir().c_str());
     use_float16_->value((int) cfg->use_float16());
     private_mode_->value((int) cfg->private_mode());
     keep_models_->value((int) cfg->keep_in_memory());
@@ -106,9 +98,7 @@ void SettingsWindow::alignComponents() {
     btnCancel_->position(btnOk_->x() + btnOk_->w() + 2, btnOk_->y());
     btnCancel_->size(100, 30);
 
-    add_model_dir_->resize(left, top, page_directories_->w() - 20, height);
-    add_lora_dir_->resize(left, add_model_dir_->y() + add_model_dir_->h() + 20, page_directories_->w() - 20, height);
-    add_emb_dir_->resize(left, add_lora_dir_->y() + add_lora_dir_->h() + 20, page_directories_->w() - 20, height);
+    profiles_dir_->resize(left, top, page_directories_->w() - 20, height);
 
     use_float16_->resize(left, top, 200, height);
     private_mode_->resize(use_float16_->x() + use_float16_->w() + 5, top, 200, height);
@@ -129,4 +119,4 @@ void edit_settings() {
     Fl::do_widget_deletion();
 }
     
-} // namespace dfe
+} // namespace editorium
