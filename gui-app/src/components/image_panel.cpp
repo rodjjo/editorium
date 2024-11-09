@@ -6,6 +6,7 @@
 #include "misc/config.h"
 #include "misc/utils.h"
 #include "components/image_panel.h"
+#include "messagebus/messagebus.h"
 #include "websocket/code.h"
 #include "websocket/tasks.h"
 
@@ -244,8 +245,8 @@ namespace editorium
             layers_.push_back(l);
             selected_ = l.get();
             refresh(true);
-            // publish_event(parent_, event_layer_count_changed, NULL);
-            // publish_event(parent_, event_layer_selected, selected_);
+            publish_event(parent_, event_layer_count_changed, NULL);
+            publish_event(parent_, event_layer_selected, selected_);
             return l.get();
         }
         return NULL;
@@ -361,7 +362,7 @@ namespace editorium
             cache_.set_scroll(0, 0);
         }
         refresh();
-        // publish_event(parent_, event_layer_count_changed, NULL);
+        publish_event(parent_, event_layer_count_changed, NULL);
     }
 
     void ViewSettings::select(size_t index) {
@@ -369,7 +370,7 @@ namespace editorium
             if (selected_ != layers_.at(index).get()) {
                 selected_ = layers_.at(index).get();
                 refresh(true);
-                // publish_event(parent_, event_layer_selected, selected_);
+                publish_event(parent_, event_layer_selected, selected_);
             }
         }
     }
@@ -412,7 +413,7 @@ namespace editorium
         layers_.clear();
         cache_.set_scroll(0, 0);
         refresh(true);
-        // publish_event(parent_, event_layer_count_changed, NULL);
+        publish_event(parent_, event_layer_count_changed, NULL);
     }
 
     Layer* ViewSettings::selected_layer() {
@@ -804,7 +805,7 @@ namespace editorium
                 return;
             }
             redraw();
-            // publish_event(this, event_layer_after_draw, NULL);
+            publish_event(this, event_layer_after_draw, NULL);
         }
     }
 
