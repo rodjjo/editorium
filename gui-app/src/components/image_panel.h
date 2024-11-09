@@ -160,6 +160,7 @@ namespace editorium
         void resize(int x, int y, int w, int h) override;
         float getZoom();
         void cancel_refresh();
+        void clear_scroll();
 
     private:
         void after_constructor();

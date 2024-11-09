@@ -68,6 +68,24 @@ std::map<xpm_t, const char * const*> xpm_db = {
 };
 
 std::shared_ptr<Fl_RGB_Image> image(xpm_t xpm_id, Fl_Color bg) {
+    if (xpm_id == no_image) {
+        static Fl_Color saved_bg  = 0;
+        static unsigned char buffer[24 * 24 * 3] = {0};
+        if (saved_bg != bg) {
+            saved_bg = bg;
+            unsigned char r;
+            unsigned char g;
+            unsigned char b;
+            Fl::get_color(bg, r, g, b);
+            size_t pixels_count = 24 * 24;
+            for (int i = 0; i < pixels_count; i++) {
+                buffer[i * 3] = r;
+                buffer[i * 3 + 1] = g;
+                buffer[i * 3 + 2] = b;
+            }
+        }
+        return std::shared_ptr<Fl_RGB_Image>(new Fl_RGB_Image(buffer, 24, 24, 3, 0));
+    }
     Fl_Pixmap image(xpm_db[xpm_id]);
     return std::shared_ptr<Fl_RGB_Image>(new Fl_RGB_Image(&image, bg));
 }

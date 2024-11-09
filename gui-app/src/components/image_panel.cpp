@@ -815,14 +815,20 @@ namespace editorium
     {
         switch (event) {
             case FL_MOUSEWHEEL: {
-                int16_t z = g_mouse_delta > 0 ? -10 : 10;
-                if (g_mouse_delta != 0) {
+                #ifdef _WIN32
+                int16_t z = g_mouse_delta;
+                #else
+                int16_t z = Fl::event_dy(); 
+                #endif
+                if (z != 0) {
+                    z = z > 0 ? -10 : 10;
                     bool control_pressed = Fl::event_command() != 0;
                     bool shift_pressed = Fl::event_shift() != 0;
                     bool alt_pressed = Fl::event_alt() != 0;
                     if (!control_pressed && !shift_pressed && !alt_pressed) {
                         if (enable_zoom()) {
                             view_settings_->setZoom(view_settings_->getZoom() + z);
+                            mouse_drag(0, 0, 0, 0);
                         }
                     } else if (!control_pressed && shift_pressed && !alt_pressed) {
                         if (enable_resize()) {
@@ -1116,19 +1122,24 @@ namespace editorium
         }
 
         if (left_button && !right_button && !ctl_buttons) {
-            int sw = down_x - move_x;
-            int sh = down_y - move_y;
-            if (sw < 0) sw = -sw;
-            if (sh < 0) sh = -sh;
-
-            if (move_x < down_x) {
-                down_x = move_x;
-            }
-            if (move_y < down_y) {
-                down_y = move_y;
-            }
             if (enable_selection()) {
-                view_settings_->set_selected_area(down_x / getZoom(), down_y / getZoom(), sw / getZoom(), sh / getZoom());
+                auto zoom = getZoom();
+                int sx = view_settings_->cache()->get_scroll_x();
+                int sy = view_settings_->cache()->get_scroll_y();
+                int sw = down_x - move_x;
+                int sh = down_y - move_y;
+                if (sw < 0) sw = -sw;
+                if (sh < 0) sh = -sh;
+
+                if (move_x < down_x) {
+                    down_x = move_x;
+                }
+                if (move_y < down_y) {
+                    down_y = move_y;
+                }
+                down_x -= sx * zoom;
+                down_y -= sy * zoom;
+                view_settings_->set_selected_area(down_x / zoom, down_y / zoom, sw / zoom, sh / zoom);
             }
             return;
         }
@@ -1180,6 +1191,11 @@ namespace editorium
 
     void ImagePanel::cancel_refresh() {
         should_redraw_ = false;
+    }
+
+    void ImagePanel::clear_scroll() {
+        view_settings_->cache()->set_scroll(0, 0);
+        schedule_redraw(true);
     }
 
 } // namespace editorium

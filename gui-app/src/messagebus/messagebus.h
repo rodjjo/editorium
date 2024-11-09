@@ -23,6 +23,8 @@ typedef enum {
     event_main_menu_layers_duplicate,
     event_main_menu_layers_remove_selected,
     event_main_menu_layers_remove_background,
+    event_main_menu_layers_reset_zoom,
+    event_main_menu_layers_reset_scroll,
     event_main_menu_selection_generate,
     event_main_menu_exit,
     event_layer_count_changed,

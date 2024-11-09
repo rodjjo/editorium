@@ -38,9 +38,9 @@ void MainMenu::addItem(event_id_t event_id, const char *path, const char* label,
     items_.push_back(menuItem);
     this->add(menuItem->path.c_str(), shortcut, MainMenu::menuItemCb, menuItem.get(), flags);
 
-    if (icon == xpm::no_image) {
-        return;
-    }
+    //if (icon == xpm::no_image) {
+    //    return;
+    //}
 
     auto flItem = const_cast<Fl_Menu_Item *>(this->find_item((menuItem->path.c_str())));
 
