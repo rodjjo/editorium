@@ -167,8 +167,7 @@ def queue_processor(api_queue: Queue, ws_queue: Queue, api_out_queue: Queue, ws_
         remove_old_completed_task(ws_out_queue)
         task = pick_one_task(ws_queue, api_queue)
         if task is None:
-            # sleep for a while
-            time.sleep(1)
+            time.sleep(0.015)
             continue
            
         if task.source == 'ws':

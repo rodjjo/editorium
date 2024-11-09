@@ -92,7 +92,7 @@ def websocket_processor(ws_input_queue: Queue, ws_output_queue: Queue):
                     print(f'Error sending message to client {value["client"]}: {e}')
             
         if completed_task is None:
-            time.sleep(0.05)
+            time.sleep(0.015)
             continue
 
         response = {

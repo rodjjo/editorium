@@ -80,7 +80,7 @@ namespace editorium
         void replace_callback(callback_t callback)
         {
             while (!callback_mutex.try_lock()) {
-                Fl::wait(0.033);
+                Fl::wait(0.015);
             }
             current_callback = callback;
             callback_mutex.unlock();
@@ -100,7 +100,7 @@ namespace editorium
                 callback_mutex.unlock();
                 if (should_continue)
                 {
-                    Fl::wait(0.033);
+                    Fl::wait(0.015);
                 }
 
                 if (canceled_checker && *canceled_checker)
@@ -167,7 +167,7 @@ namespace editorium
                     if (result_set.load() || !ws_client->available()) {
                         break;
                     }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(33));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
                 }
 
                 { // scope to reset the listener
@@ -214,7 +214,7 @@ namespace editorium
             } // locking area
 
             if (!cb) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
                 return;
             }
 
@@ -250,7 +250,7 @@ namespace editorium
                     if (response.contains("id") && response.contains("result")) {
                         printf("Received response, id: %s \n", response["id"].get<std::string>().c_str());
                         response_callback(response["id"], response["result"]);
-                    } if (response.contains("current_task") && response.contains("pending_tasks")) {
+                    } else if (response.contains("current_task") && response.contains("pending_tasks")) {
                         std::unique_lock<std::mutex> lk(listener_mutex);
                         last_report_time = std::chrono::high_resolution_clock::now();
                         reported_task_ids.clear();

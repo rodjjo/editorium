@@ -550,8 +550,9 @@ namespace editorium
         if (*sy < -scroll_size_y) {
             *sy = -scroll_size_y;
         }
-       
+        #ifdef PRINT_SCROLL_COORDINATES
         printf("Scroll coordinate %d x %d max(%d x %d) zoom %03f\n", *sx, *sy, scroll_size_x, scroll_size_y, zoom);
+        #endif
     }
     
     void ViewSettings::scroll_again(float old_zoom) {
