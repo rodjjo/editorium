@@ -471,7 +471,7 @@ namespace editorium
             }
             ws::diffusion::control_image_t controlnet;
             controlnet.first.first = frame->getModeStr();
-            controlnet.first.second = 1.0; // TODO: get from config
+            controlnet.first.second = frame->getStrength();
             controlnet.second = frame->getImage();
             if (controlnet.second) {
                 params.controlnets.push_back(controlnet);
@@ -489,7 +489,7 @@ namespace editorium
             }
             ws::diffusion::control_image_t ip_adapter;
             ip_adapter.first.first = frame->getModeStr();
-            ip_adapter.first.second = 1.0; // TODO: get from config
+            ip_adapter.first.second = frame->getStrength();
             ip_adapter.second = frame->getImage();
             if (ip_adapter.second) {
                 params.ip_adapters.push_back(ip_adapter);
