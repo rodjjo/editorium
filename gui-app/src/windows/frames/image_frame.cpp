@@ -184,6 +184,8 @@ void ImageFrame::combobox_selected() {
         choice_inpaint_mode_->hide();
         if (choice_mode_->value() > 0) {
             strength_input_->show();
+        } else {
+            strength_input_->hide();
         }
     }
 
