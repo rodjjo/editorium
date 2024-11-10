@@ -5,10 +5,12 @@ import torch
 import random
 from tqdm import tqdm
 
-from PIL import Image, ImageFilter
+from PIL import  ImageFilter
 
+from pipelines.common.utils import ensure_image
 from pipelines.common.exceptions import StopException
 from pipelines.flux.managed_model import flux_models
+
 
 SHOULD_STOP = False
 PROGRESS_CALLBACK = None  # function(title: str, progress: float)
@@ -43,6 +45,10 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
         inpaint_image = input.get('image', {}).get('images', None)
     inpaint_mask = input.get('mask', {}).get('images', None) 
     control_image = input.get('control_image', {}).get('images', None) 
+    
+    inpaint_image = ensure_image(inpaint_image)
+    inpaint_mask = ensure_image(inpaint_mask)
+    control_image = ensure_image(control_image)
     
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:

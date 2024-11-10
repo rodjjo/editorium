@@ -8,6 +8,7 @@ from tqdm import tqdm
 from PIL import Image, ImageFilter
 
 from pipelines.common.exceptions import StopException
+from pipelines.common.utils import ensure_image
 from pipelines.sd35.managed_model import sd35_models
 
 SHOULD_STOP = False
@@ -43,6 +44,9 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
         inpaint_image = input.get('image', {}).get('images', None)
     inpaint_mask = input.get('mask', {}).get('images', None) 
     
+    inpaint_image = ensure_image(inpaint_image)
+    inpaint_mask = ensure_image(inpaint_mask)
+    
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:
         raise ValueError("It's required a image to inpaint")
@@ -70,7 +74,6 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
         inpaint_mask = [None]
     elif not inpaint_mask:
         inpaint_mask = [None] * len(inpaint_image)
-        
     
     steps = params.get('steps', 4)
     lora_repo_id = params.get('lora_repo_id', '')

@@ -42,4 +42,8 @@ class FluxTask(WorkflowTask):
 
 
 def register():
-    FluxTask.register("flux", "Generate images using a model based on Flux")
+    FluxTask.register(
+        "flux", 
+        "Generate images using a model based on Flux",
+        api_enabled=True
+    )

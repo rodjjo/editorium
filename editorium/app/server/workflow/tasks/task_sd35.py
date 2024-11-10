@@ -40,4 +40,8 @@ class Sd35Task(WorkflowTask):
 
 
 def register():
-    Sd35Task.register("sd35", "Generate images using a model based on SD 3.5")
+    Sd35Task.register(
+        "sd35", 
+        "Generate images using a model based on SD 3.5",
+        api_enabled=True
+    )
