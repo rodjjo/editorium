@@ -238,10 +238,10 @@ namespace editorium
                     if (image_frame_->enabled()) {
                         images_[where]->show();    
                     }
-                } else if (idx >= page_type_controlnet1 && idx <= page_type_controlnet4) {
+                } else if ((idx >= page_type_controlnet1 && idx <= page_type_controlnet4)||
+                            (idx >= page_type_ip_adapter1 && idx <= page_type_ip_adapter2)) {
                     images_[where]->show();
-                } else if (idx >= page_type_ip_adapter1 && idx <= page_type_ip_adapter2) {
-                    images_[where]->show();
+                    control_frames_[where]->alignComponents();
                 } else {
                     if (control_frames_[where]->enabled()) {
                         images_[where]->show();

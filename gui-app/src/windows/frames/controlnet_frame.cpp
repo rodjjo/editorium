@@ -7,7 +7,6 @@
 
 namespace editorium
 {
-
     namespace {
        std::vector<std::pair<std::string, std::string> > controlnet_modes;
        std::vector<std::pair<std::string, std::string> > ip_adapter_modes;
@@ -21,6 +20,7 @@ ControlnetFrame::ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *
     reference_ = reference;
     ip_adapter_ = ip_adapter;
     mode_ = new Fl_Choice(0, 0, 1, 1, ip_adapter ? "Adapter Model" : "Controlnet Model");
+    strength_input_ = new Fl_Float_Input(0, 0, 1, 1, "Strength");
     btnOpenMask_.reset(new Button(xpm::image(xpm::img_24x24_folder), [this] () {
         open_mask();
     }));
@@ -36,10 +36,13 @@ ControlnetFrame::ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *
     btnOpenMask_->tooltip("Open a pre-processed image");
     btnPreprocess_->tooltip("Pre-process the input image");
     btnSaveMask_->tooltip("Save the pre-processed image");
-    
+
     mode_->align(FL_ALIGN_TOP_LEFT);
     mode_->add("Disabled");
     mode_->value(0);
+
+    strength_input_->align(FL_ALIGN_TOP_LEFT);
+    strength_input_->value("1.0");
 
     alignComponents();
     load_modes();
@@ -55,12 +58,14 @@ void ControlnetFrame::alignComponents() {
     int h = parent_->h();
 
     mode_->resize(left + 5, top + 25, w - 10, 30);
-    btnPreprocess_->position(left +5 , mode_->y() + mode_->h() + 5);
+    strength_input_->resize(left + 5, mode_->y() + mode_->h() + 25, w - 10, 30);
+    btnPreprocess_->position(left +5 , strength_input_->y() + strength_input_->h() + 5);
     btnPreprocess_->size(w - 10, 30);
     btnOpenMask_->position(left +5 , btnPreprocess_->y() + btnPreprocess_->h() + 5);
     btnOpenMask_->size(w - 10, 30);
     btnSaveMask_->position(left +5 , btnOpenMask_->y() + btnOpenMask_->h() + 5);
     btnSaveMask_->size(w - 10, 30);
+    combobox_cb(mode_);
 }
 
 ControlnetFrame::~ControlnetFrame() {
@@ -79,6 +84,7 @@ void ControlnetFrame::combobox_cb(Fl_Widget* widget) {
     if (enabled()) {
         btnOpenMask_->show();
         btnSaveMask_->show();
+        strength_input_->show();
         if (!ip_adapter_) {
             btnPreprocess_->show();
         } else {
@@ -88,6 +94,7 @@ void ControlnetFrame::combobox_cb(Fl_Widget* widget) {
             img_->show();
         }
     } else {
+        strength_input_->hide();
         btnOpenMask_->hide();
         btnSaveMask_->hide();
         btnPreprocess_->hide();
@@ -99,6 +106,34 @@ void ControlnetFrame::combobox_cb(Fl_Widget* widget) {
 bool ControlnetFrame::enabled() {
     return mode_->value() > 0;
 }
+
+float ControlnetFrame::getStrength() {
+    float result = 1.0;
+    char buffer[25] = "";
+    bool changed = false;
+    sscanf(strength_input_->value(), "%f", &result);
+
+    if (result < 0.01) {
+        result = 0.01;
+        changed = true;
+    } else if (result > 2.0) {
+        result = 2.0;
+        changed = true;
+    }
+
+    if (ip_adapter_ && result > 1.0) {
+        result = 1.0;
+        changed = true;
+    }
+
+    if (changed) {
+        sprintf(buffer, "%.2f", result);
+        strength_input_->value(buffer);
+    }
+
+    return result;
+}
+
 
 void ControlnetFrame::load_modes() {
     if (controlnet_modes.empty()) {

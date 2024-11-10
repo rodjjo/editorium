@@ -186,7 +186,6 @@ def pre_process_image(control_type: str, im):
 
 
 def process_workflow_task(input: dict, config: dict):
-    
     images = input.get('default', {}).get('images', None)
     if not images:
         images = input.get('image', {}).get('images', None)

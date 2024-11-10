@@ -7,6 +7,7 @@
 
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Choice.H>
+#include <FL/Fl_Float_Input.H>
 
 #include "components/image_panel.h"
 #include "components/button.h"
@@ -23,9 +24,10 @@ public:
     void alignComponents();
     std::string getModeStr();
     image_ptr_t getImage();
+    float getStrength();
 
     void supported_modes(const std::set<std::string>& modes);
-    
+
 private:
     void pre_process();
     void open_mask();
@@ -46,6 +48,7 @@ private:
     ImagePanel *img_;
     ImagePanel *reference_;
     Fl_Choice *mode_;
+    Fl_Float_Input *strength_input_;
     std::unique_ptr<Button> btnPreprocess_;
     std::unique_ptr<Button> btnOpenMask_;
     std::unique_ptr<Button> btnSaveMask_;

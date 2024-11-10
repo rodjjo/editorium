@@ -176,7 +176,7 @@ void ImageFrame::combobox_selected() {
         btnOpenMask_->show();
         choice_brush_size_->show();
         choice_inpaint_mode_->show();
-        strength_input_->hide();
+        strength_input_->show();
     } else {
         btnNewMask_->hide();
         btnOpenMask_->hide();

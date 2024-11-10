@@ -456,7 +456,7 @@ std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, st
     inputs["default"]= to_input(payload);
 
     enable_progress_window(progress_preprocessor);
-    auto response = execute(type, inputs, config);
+    auto response = execute("image-preprocessor", inputs, config);
 
     if (response) {
         result = response->images;
