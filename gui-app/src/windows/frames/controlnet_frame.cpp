@@ -173,9 +173,17 @@ void ControlnetFrame::pre_process() {
 
 std::string ControlnetFrame::getModeStr() {
     if (mode_->value() > 0) {
-        for (const auto & c : controlnet_modes) {
-            if (c.second == mode_->text()) {
-                return c.first;
+        if (ip_adapter_) {
+            for (const auto & c : ip_adapter_modes) {
+                if (c.second == mode_->text()) {
+                    return c.first;
+                }
+            }
+        } else {
+            for (const auto & c : controlnet_modes) {
+                if (c.second == mode_->text()) {
+                    return c.first;
+                }
             }
         }
     }

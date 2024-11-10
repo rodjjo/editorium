@@ -390,6 +390,15 @@ namespace editorium
         }
     }
 
+    bool DiffusionWindow::page_visible(page_type_t page) {
+        for (auto & p : visible_pages_) {
+            if (p == page) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void DiffusionWindow::generate() {
         if (image_frame_->get_mode() != img2img_text) {
             if (images_[page_type_image]->view_settings()->layer_count() < 1) {
@@ -457,7 +466,7 @@ namespace editorium
         };
         for (int i = 0; i < sizeof(controlnet_pages) / sizeof(controlnet_pages[0]); i++) {
             auto & frame = control_frames_[controlnet_pages[i]];
-            if (!frame->enabled()) {
+            if (!frame->enabled() || !page_visible(controlnet_pages[i])) {
                 continue;
             }
             ws::diffusion::control_image_t controlnet;
@@ -466,6 +475,24 @@ namespace editorium
             controlnet.second = frame->getImage();
             if (controlnet.second) {
                 params.controlnets.push_back(controlnet);
+            }
+        }
+        
+        page_type_t ipadapter_pages[] = {
+            page_type_ip_adapter1, 
+            page_type_ip_adapter2, 
+        };
+        for (int i = 0; i < sizeof(ipadapter_pages) / sizeof(ipadapter_pages[0]); i++) {
+            auto & frame = control_frames_[ipadapter_pages[i]];
+            if (!frame->enabled() || !page_visible(ipadapter_pages[i])) {
+                continue;
+            }
+            ws::diffusion::control_image_t ip_adapter;
+            ip_adapter.first.first = frame->getModeStr();
+            ip_adapter.first.second = 1.0; // TODO: get from config
+            ip_adapter.second = frame->getImage();
+            if (ip_adapter.second) {
+                params.ip_adapters.push_back(ip_adapter);
             }
         }
 

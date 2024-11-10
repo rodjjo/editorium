@@ -83,6 +83,7 @@ namespace editorium
             };
 
             profiles_dir_ = load_key("directories", "profiles_dir");
+            server_url_ = load_key("urls", "server_url");
             sdxl_base_model_ = load_key("base_models", "sdxl_base_model");
             flux_base_model_ = load_key("base_models", "flux_base_model");
             sd35_base_model_ = load_key("base_models", "sd35_base_model");
@@ -120,6 +121,10 @@ namespace editorium
             json dirs;
             dirs["profiles_dir"] = profiles_dir_;
             cf["directories"] = dirs;
+
+            json urls;
+            urls["server_url"] = server_url_;
+            cf["urls"] = urls;
 
             json base_models;
             base_models["sdxl_base_model"] = sdxl_base_model_;
@@ -170,6 +175,14 @@ namespace editorium
 
     void Config::profiles_dir(const char *value) {
         profiles_dir_ = value;
+    }
+
+    std::string Config::server_url() {
+        return server_url_;
+    }
+
+    void Config::server_url(const char *value) {
+        server_url_ = value;
     }
 
     std::string Config::sdxl_base_model() {

@@ -413,6 +413,9 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
                 raise ValueError("Number of controlnet images must be the same as inpaint images")
         adapter_images.extend(image)
 
+    print(f"Generating SD 1.5 image with model {model_name}")
+    print(f"Adapter models: {adapter_models}")
+    
     sd15_models.load_models(
         model_name, 
         inpainting_mode=inpaint_mask is not None,

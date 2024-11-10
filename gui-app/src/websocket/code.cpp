@@ -12,6 +12,7 @@
 #include "websocket/uuid.h"
 #include "websocket/code.h"
 #include "misc/utils.h"
+#include "misc/config.h"
 
 namespace editorium
 {
@@ -35,6 +36,7 @@ namespace editorium
             std::chrono::_V2::system_clock::time_point last_report_time;
             std::chrono::_V2::system_clock::time_point last_check_time;
             size_t miss_count = 0;
+            std::string ws_address = "ws://localhost:5001/";
         }
 
         json to_input(const api_payload_t &payload) {
@@ -247,8 +249,7 @@ namespace editorium
         }
 
         void run_ws_client() {
-            std::string address = "ws://localhost:5001/";
-            ws_client->connect(address);
+            ws_client->connect(ws_address);
 
             ws_client->onMessage([&](WebsocketsClient&, WebsocketsMessage message){
                 try {
@@ -280,7 +281,7 @@ namespace editorium
                 if (!ws_client->available()) {
                     puts("Client not connected! trying to reconnect...");
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                    ws_client->connect(address);
+                    ws_client->connect(ws_address);
                     continue;
                 }
                 ws_client->poll();
@@ -290,6 +291,7 @@ namespace editorium
 
         void run_websocket()
         {
+            ws_address = get_config()->server_url();
             running = true;
             if (ws_callback) {
                 return;

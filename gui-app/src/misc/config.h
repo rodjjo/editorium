@@ -17,6 +17,8 @@ class Config {
         void last_open_directory(const char *scope, const char* value);
         std::string profiles_dir();
         void profiles_dir(const char *value);
+        std::string server_url();
+        void server_url(const char *value);
         std::string sdxl_base_model();
         std::string flux_base_model();
         std::string sd35_base_model();
@@ -36,6 +38,7 @@ class Config {
         std::map<std::string, std::string> last_save_dirs;
         std::map<std::string, std::string> last_open_dirs;
         std::string profiles_dir_;
+        std::string server_url_ = "ws://localhost:5001";
         std::string sdxl_base_model_;
         std::string flux_base_model_;
         std::string sd35_base_model_;

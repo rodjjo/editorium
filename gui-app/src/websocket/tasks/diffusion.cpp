@@ -112,7 +112,7 @@ std::pair<json, json> create_sd15_diffusion_request(const diffusion_request_t &r
         json data;
         data["data"] = ip_adapter;
 
-        sprintf(buffer, "ip_adapter_%lu", i + 1);
+        sprintf(buffer, "adapter_%lu", i + 1);
         inputs[buffer] = data;
     }
     
