@@ -83,6 +83,9 @@ namespace editorium
             };
 
             profiles_dir_ = load_key("directories", "profiles_dir");
+            sdxl_base_model_ = load_key("base_models", "sdxl_base_model");
+            flux_base_model_ = load_key("base_models", "flux_base_model");
+            sd35_base_model_ = load_key("base_models", "sd35_base_model");
 
             if (cf.contains("float16_enabled")) {
                 use_float16_ = cf["float16_enabled"];
@@ -117,6 +120,12 @@ namespace editorium
             json dirs;
             dirs["profiles_dir"] = profiles_dir_;
             cf["directories"] = dirs;
+
+            json base_models;
+            base_models["sdxl_base_model"] = sdxl_base_model_;
+            base_models["flux_base_model"] = flux_base_model_;
+            base_models["sd35_base_model"] = sd35_base_model_;
+            cf["base_models"] = base_models;
             
             cf["float16_enabled"] = use_float16_;
             cf["private_mode_enabled"] = private_mode_;
@@ -162,6 +171,31 @@ namespace editorium
     void Config::profiles_dir(const char *value) {
         profiles_dir_ = value;
     }
+
+    std::string Config::sdxl_base_model() {
+        return sdxl_base_model_;
+    }
+
+    std::string Config::flux_base_model() {
+        return flux_base_model_;
+    }
+
+    std::string Config::sd35_base_model() {
+        return sd35_base_model_;
+    }
+
+    void Config::sdxl_base_model(const char *value) {
+        sdxl_base_model_ = value;
+    }
+
+    void Config::flux_base_model(const char *value) {
+        flux_base_model_ = value;
+    }
+
+    void Config::sd35_base_model(const char *value) {
+        sd35_base_model_ = value;
+    }
+
 
     bool Config::use_float16() {
         return use_float16_;

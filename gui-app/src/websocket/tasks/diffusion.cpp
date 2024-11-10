@@ -1,13 +1,27 @@
+#include <FL/fl_ask.H>
 #include <nlohmann/json.hpp>
 
 #include "websocket/code.h"
 #include "websocket/tasks/diffusion.h"
-
-
+#include "windows/progress_ui.h"
+#include "misc/config.h"
 
 namespace editorium {
 namespace ws {
 namespace diffusion {
+
+
+std::vector<std::pair<std::string, std::string> > list_architectures() {
+    std::vector<std::pair<std::string, std::string> > result;
+    result = {
+        {"sd15", "Stable Diffusion 1.5"},
+        {"sdxl", "Stable Diffusion XL"},
+        {"sd35", "Stable Diffusion 3.5"},
+        {"flux", "Flux 1.0"},
+        {"omnigen", "Omnigen"},
+    };
+    return result;
+}   
 
 std::pair<json, json> create_sd15_diffusion_request(const diffusion_request_t &request) {
     std::pair<json, json> result;
@@ -36,19 +50,20 @@ std::pair<json, json> create_sd15_diffusion_request(const diffusion_request_t &r
     api_payload_t masks;
     masks.images = request.masks;
     api_payload_t loras;
-
-    char buffer[128] = "";
-    for (size_t i = 0; i < request.loras.size(); i++) {
-        sprintf(buffer, ":%0.3f", request.loras[i].first);
-        loras.texts.push_back(request.loras[i].second + buffer);
-    }
+    loras.texts = request.loras;
     
     json inputs;
-    
-    inputs["images"] = to_input(images);
-    inputs["masks"] = to_input(masks);
-    inputs["loras"] = to_input(loras);
-    
+    if (request.images.size() > 0) {
+        inputs["image"] = to_input(images);
+    }
+    if (request.masks.size() > 0) {
+        inputs["mask"] = to_input(masks);
+    }
+    if (request.loras.size() > 0) {
+        inputs["loras"] = to_input(loras);
+    }
+
+    char buffer[128] = "";
     for (size_t i = 0; i < 6 && i < request.ip_adapters.size(); i++) {
         sprintf(buffer, "ip_adapter_scale_%lu", i + 1);    
         config[buffer] = request.ip_adapters[i].first.second;
@@ -81,6 +96,97 @@ std::pair<json, json> create_sd15_diffusion_request(const diffusion_request_t &r
     return result;
 }
 
+std::pair<json, json> create_sdxl_diffusion_request(const diffusion_request_t &request) {
+    std::pair<json, json> result;
+
+    if (get_config()->sdxl_base_model().empty()) {
+        fl_alert("%s", "Please set the base model for SDXL in the settings");
+        return result;
+    }
+
+    json config;
+
+    float lora_scale = 1.0;
+    std::string lora_name;
+    if (!request.loras.empty() && request.loras[0].size() < 1024) {
+        char lora_name_cstr[1024];
+        if (sscanf(request.loras[1].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
+            lora_name = lora_name_cstr;
+        }
+    }
+
+    float controlnet_scale = 1.0;
+    image_ptr_t controlnet_image;
+    std::string controlnet_type;
+    if (!request.controlnets.empty()) {
+        controlnet_scale = request.controlnets[0].first.second;
+        controlnet_image = request.controlnets[0].second;
+        controlnet_type = request.controlnets[0].first.first;
+    }
+
+    float ip_adapter_scale = 0.6;
+    if (!request.ip_adapters.empty()) {
+        ip_adapter_scale = request.ip_adapters[0].first.second;
+    }
+
+    config["prompt"] = request.prompt;
+    config["negative_prompt"] = request.negative_prompt;
+    config["model_name"] = get_config()->sdxl_base_model();
+    config["cfg"] = request.cfg;
+    config["height"] = request.height;
+    config["width"] = request.width;
+    config["steps"] = request.steps;
+    config["seed"] = request.seed;
+    config["inpaint_mode"] = request.inpaint_mode;
+    config["mask_dilate_size"] = request.mask_dilate_size;
+    config["mask_blur_size"] = request.mask_blur_size;
+    config["unet_model"] = request.model_name;
+    config["lora_repo_id"] = lora_name;
+    config["lora_scale"] = lora_scale;
+    config["controlnet_conditioning_scale"] = controlnet_scale;
+    if (controlnet_image) {
+        config["controlnet_type"] = controlnet_type;
+    }
+    config["strength"] = request.image_strength;
+    config["ip_adapter_scale"] = ip_adapter_scale;
+
+    api_payload_t images;
+    images.images = request.images;
+    api_payload_t masks;
+    masks.images = request.masks;
+
+    json inputs;
+    if (request.images.size() > 0) {
+        inputs["image"] = to_input(images);
+    }
+    if (request.masks.size() > 0) {
+        inputs["mask"] = to_input(masks);
+    }
+    
+    if (controlnet_image) {
+        api_payload_t control_image;
+        control_image.images = {controlnet_image};
+        inputs["control_image"] = to_input(control_image);
+    }
+
+    for (size_t i = 0; i < 2 && i < request.ip_adapters.size(); i++) {
+        json ip_adapter;
+        ip_adapter["adapter_model"] = request.ip_adapters[i].first.first;
+        ip_adapter["image"] = request.ip_adapters[i].second->toJson();
+        json data;
+        data["data"] = ip_adapter;
+
+        char buffer[128] = "";
+        sprintf(buffer, "ip_adapter_%lu", i + 1);
+        inputs[buffer] = data;
+    }
+
+    result.first = inputs;
+    result.second = config;
+
+    return result;
+}
+
 std::vector<editorium::image_ptr_t> run_diffusion(const diffusion_request_t &request) {
     std::vector<editorium::image_ptr_t> result;
 
@@ -90,9 +196,13 @@ std::vector<editorium::image_ptr_t> run_diffusion(const diffusion_request_t &req
     if (request.model_type == "sd15") {
         task_name = "sd15";
         request_data = create_sd15_diffusion_request(request);
+    } else if (request.model_type == "sdxl") {
+        task_name = "sdxl";
+        request_data = create_sdxl_diffusion_request(request);
     }
 
     if (!task_name.empty()) {
+        enable_progress_window(progress_generation);
         auto response = execute(task_name, request_data.first, request_data.second);
         if (response) {
             result = response->images;
@@ -115,6 +225,7 @@ std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, st
     json inputs;
     inputs["default"]= to_input(payload);
 
+    enable_progress_window(progress_preprocessor);
     auto response = execute(type, inputs, config);
 
     if (response) {

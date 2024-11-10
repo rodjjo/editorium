@@ -42,6 +42,27 @@ class Sd35Models(ManagedModel):
     def get_sd35_model_dir(self):
         return os.path.join(self.model_dir('images', 'sd35'))
     
+    def sd35_lora_dir(self):
+        result = os.path.join(self.get_sd35_model_dir(), 'loras')
+        os.makedirs(result, exist_ok=True)
+        return result
+    
+    def list_models(self, list_loras):
+        if list_loras:
+            dir_contents = os.listdir(self.sd35_lora_dir())
+        else:
+            dir_contents = os.listdir(self.get_sd35_model_dir())
+
+        result = []
+        for f in dir_contents:
+            if not f.lower().endswith('.safetensors'):
+                continue
+            if list_loras:
+                f = f.rsplit('.', 1)[0]
+            result.append(f)
+        
+        return result
+    
     def load_models(self, model_name: str, pipeline_type : str, 
                     lora_repo_id: str, lora_scale: float, transformer2d_model: str = None,
                     offload_now=True):
@@ -188,7 +209,7 @@ class Sd35Models(ManagedModel):
                 
         if self.lora_repo_id:
             if self.lora_repo_id.endswith('.safetensors'):
-                dir_path = self.model_dir('images', 'sd35', 'loras')
+                dir_path = self.sd35_lora_dir()
                 lora_path = os.path.join(dir_path, self.lora_repo_id)
                 print(f"Loading lora weights from local path {self.lora_repo_id}")
                 state_dict = safetensors.torch.load_file(lora_path, device="cpu")

@@ -412,6 +412,8 @@ namespace editorium
         selected_ = NULL;
         layers_.clear();
         cache_.set_scroll(0, 0);
+        cache_.clear_hits();
+        cache_.gc();
         refresh(true);
         publish_event(parent_, event_layer_count_changed, NULL);
     }

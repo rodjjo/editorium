@@ -15,7 +15,6 @@ typedef struct {
     std::string model_name;
     std::string prompt;
     std::string negative_prompt;
-    std::string unet_model;
     std::string scheduler;
     bool use_lcm = false;
     bool free_lunch = false;
@@ -35,10 +34,10 @@ typedef struct {
     std::vector<editorium::image_ptr_t> masks;
     std::vector<control_image_t> controlnets;  // mode, scale, image
     std::vector<control_image_t> ip_adapters;  // mode, image
-    std::vector<std::pair<float, std::string> > loras; // strength, lora name
+    std::vector<std::string> loras; // a string that contains lora name and strength separated by ':'
 } diffusion_request_t;
 
-
+std::vector<std::pair<std::string, std::string> > list_architectures();
 std::vector<editorium::image_ptr_t> run_diffusion(const diffusion_request_t &request);
 std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, std::vector<editorium::image_ptr_t> images);
 

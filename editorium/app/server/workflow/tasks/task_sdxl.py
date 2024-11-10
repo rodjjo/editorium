@@ -42,4 +42,8 @@ class SDXLTask(WorkflowTask):
 
 
 def register():
-    SDXLTask.register("sdxl", "Generate images using a model based on SDXL")
+    SDXLTask.register(
+        "sdxl", 
+        "Generate images using a model based on SDXL",
+        api_enabled=True
+    )

@@ -2,6 +2,7 @@
 #include "base64/base64.h"
 #include "websocket/tasks/models.h"
 #include "websocket/code.h"
+#include "windows/progress_ui.h"
 
 namespace editorium
 {
@@ -12,6 +13,7 @@ namespace models {
         json config;
         config["list_lora"] = list_loras;
         config["model_type"] = model_type;
+        enable_progress_window(progress_list_models);
         auto result = execute("list-models", json(), config);
         if (!result) {
             return std::vector<std::string>();

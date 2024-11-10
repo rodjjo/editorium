@@ -7,6 +7,7 @@ import random
 from PIL import Image, ImageFilter 
 
 from pipelines.sdxl.managed_model import sdxl_models
+from pipelines.common.utils import ensure_image
 
 
 def generate_sdxl_image(model_name: str, input: dict, params: dict):
@@ -18,6 +19,10 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
     strength = params.get('strength', 0.75)
     if inpaint_mask is not None and inpaint_image is None:
         raise ValueError("It's required a image to inpaint")
+    
+    inpaint_image = ensure_image(inpaint_image)
+    inpaint_mask = ensure_image(inpaint_mask)
+    control_image = ensure_image(control_image)
     
     if inpaint_mask is not None:
         mode = 'inpaint'
@@ -55,7 +60,7 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
     adapter_images = []
     adapter_models = []
     adapter_scale  = []
-    for adapter_index in range(1, 2):
+    for adapter_index in range(1, 3):
         param_name = f'adapter_{adapter_index}'
         if param_name not in input:
             continue
@@ -66,11 +71,9 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
             adapter['adapter_model']
         )
         adapter_scale.append(params.get(f'ip_adapter_scale_{adapter_index}', 0.6))
-        image = adapter['image']
-        if type(image) is str:
-            image = [Image.open(image)]
-        elif type(image) is list:
-            image = [Image.open(i) if type(i) is str else i for i in image]
+        image = ensure_image(adapter['image'])
+        if type(image) is not list:
+            image = [image]
         if inpaint_image is not None and len(inpaint_image) > 0 and len(inpaint_image) != len(image):
             if len(inpaint_image) == 1:
                 image = [image[0]] * len(inpaint_image)
@@ -159,6 +162,7 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
         generator=generator,
         **add_args,
     )
+
     if hasattr(sdxl_models.pipe, 'generate'):
         result = sdxl_models.pipe.generate(**pipe_args) 
     else:
@@ -178,5 +182,5 @@ def process_workflow_task(input: dict, config: dict) -> dict:
 
     
 def process_workflow_list_model(list_loras: bool):
-    return []
+    return sdxl_models.list_models(list_loras)
 

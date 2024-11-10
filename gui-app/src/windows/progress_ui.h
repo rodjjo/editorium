@@ -12,6 +12,9 @@ namespace editorium
 {
 
 typedef enum {
+    progress_opening_file,
+    progress_saving_file,
+    progress_list_models,
     progress_downloader,
     progress_generation,
     progress_upscaler,

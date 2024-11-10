@@ -17,6 +17,12 @@ class Config {
         void last_open_directory(const char *scope, const char* value);
         std::string profiles_dir();
         void profiles_dir(const char *value);
+        std::string sdxl_base_model();
+        std::string flux_base_model();
+        std::string sd35_base_model();
+        void sdxl_base_model(const char *value);
+        void flux_base_model(const char *value);
+        void sd35_base_model(const char *value);
 
         bool use_float16();
         bool private_mode();
@@ -30,6 +36,9 @@ class Config {
         std::map<std::string, std::string> last_save_dirs;
         std::map<std::string, std::string> last_open_dirs;
         std::string profiles_dir_;
+        std::string sdxl_base_model_;
+        std::string flux_base_model_;
+        std::string sd35_base_model_;
         bool use_float16_ = true;
         bool private_mode_ = false;
         bool keep_in_memory_ = false;

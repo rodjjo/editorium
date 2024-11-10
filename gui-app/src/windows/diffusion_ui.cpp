@@ -385,7 +385,7 @@ namespace editorium
         
         ws::diffusion::diffusion_request_t params;
 
-        params.model_type = "sd15";
+        params.model_type = prompt_frame_->get_arch();
         params.prompt = prompt_frame_->positive_prompt();
         params.negative_prompt = prompt_frame_->negative_prompt();
         params.seed = prompt_frame_->get_seed();
@@ -397,7 +397,7 @@ namespace editorium
         params.width = prompt_frame_->get_width();
         params.height = prompt_frame_->get_height();
         params.use_lcm = prompt_frame_->use_lcm_lora();
-        params.use_float16 = true; // TODO: get from config
+        params.use_float16 = get_config()->use_float16(); 
         params.image_strength = image_frame_->get_strength();
         params.inpaint_mode = "original"; // TODO: get from config
 
@@ -425,6 +425,8 @@ namespace editorium
                 
             }
         }
+
+        params.loras = prompt_frame_->get_loras();
 
         page_type_t controlnet_pages[] = {
             page_type_controlnet1, 
@@ -479,7 +481,6 @@ namespace editorium
             char buffer[100];
             sprintf(buffer, "%d of %d", (int)result_index_ + 1, (int)results_.size());
             result_frame_->set_page_text(buffer);
-
         }
     }
 

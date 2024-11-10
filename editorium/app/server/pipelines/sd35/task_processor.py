@@ -154,5 +154,6 @@ def process_workflow_task(input: dict, config: dict) -> dict:
 
     
 def process_workflow_list_model(list_loras: bool):
-    return []
+    return sd35_models.list_models(list_loras)
+
 

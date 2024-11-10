@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 #include <string>
 
 #include <FL/Fl_Group.H>
@@ -35,6 +36,8 @@ public:
     std::string negative_prompt();
     std::string get_model();
     std::string get_scheduler();
+    std::string get_arch();
+    std::vector<std::string> get_loras();
     int get_seed();
     int get_batch_size();
     int get_steps();
@@ -56,6 +59,7 @@ protected:
     void dfe_handle_event(void *sender, event_id_t event, void *data) override;
 
 private:
+    std::vector<std::pair<std::string, std::string> > architectures_;
     std::unique_ptr<EmbeddingFrame> loras_;
     std::unique_ptr<EmbeddingFrame> embeddings_;
     Fl_Group             *parent_;
@@ -69,6 +73,7 @@ private:
     Fl_Float_Input       *guidance_input_;
     Fl_Int_Input         *width_input_;
     Fl_Int_Input         *height_input_;
+    Fl_Choice            *arch_input_;
     Fl_Choice            *models_input_;
     Fl_Choice            *schedulers_;
     Fl_Choice            *resizeModes_;

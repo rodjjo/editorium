@@ -24,7 +24,7 @@ class EmbeddingFrame {
   public:
     EmbeddingFrame(bool lora_embedding, Fl_Group *parent);
     virtual ~EmbeddingFrame();
-    void refresh_models();
+    void refresh_models(const std::string& architecture);
     void alignComponents();
     embedding_t getSelected();
 

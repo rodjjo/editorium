@@ -24,6 +24,13 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
     page_directories_ = new Fl_Group(0, 0, 1, 1, "Directories");
     profiles_dir_ = new Fl_Input(1, 1, 1, 1, "Directory to save the profiles");
     page_directories_->end();
+    
+    tabs_->begin();
+    page_base_models_ = new Fl_Group(0, 0, 1, 1, "Base models");
+    sdxl_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for SDXL");
+    flux_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for Flux");
+    sd35_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for SD35");
+    page_base_models_->end();
 
     wnd_->begin();
     btnOk_.reset(new Button(xpm::image(xpm::img_24x24_ok), [this] {
@@ -42,6 +49,9 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
     keep_models_->tooltip("Move the model to RAM when it exchanges between inpaint and normal model");
 
     profiles_dir_->align(FL_ALIGN_TOP_LEFT);
+    sd35_base_model_->align(FL_ALIGN_TOP_LEFT);
+    flux_base_model_->align(FL_ALIGN_TOP_LEFT);
+    sdxl_base_model_->align(FL_ALIGN_TOP_LEFT);
 
     alignComponents();
 }
@@ -52,6 +62,9 @@ SettingsWindow::~SettingsWindow() {
 void SettingsWindow::save_settings() {
     auto cfg = get_config();
     cfg->profiles_dir(profiles_dir_->value());
+    cfg->sdxl_base_model(sdxl_base_model_->value());
+    cfg->flux_base_model(flux_base_model_->value());
+    cfg->sd35_base_model(sd35_base_model_->value());
     cfg->use_float16(use_float16_->value() == 1);
     cfg->private_mode(private_mode_->value() == 1);
     cfg->keep_in_memory(keep_models_->value() == 1);
@@ -62,6 +75,9 @@ void SettingsWindow::load_settings() {
     auto cfg = get_config();
     cfg->load();
     profiles_dir_->value(cfg->profiles_dir().c_str());
+    sdxl_base_model_->value(cfg->sdxl_base_model().c_str());
+    flux_base_model_->value(cfg->flux_base_model().c_str());
+    sd35_base_model_->value(cfg->sd35_base_model().c_str());
     use_float16_->value((int) cfg->use_float16());
     private_mode_->value((int) cfg->private_mode());
     keep_models_->value((int) cfg->keep_in_memory());
@@ -88,6 +104,7 @@ void SettingsWindow::alignComponents() {
     
     page_params_->resize(tabs_->x(), tabs_->y() + 30, tabs_->w(), tabs_->h() - 22);
     page_directories_->resize(tabs_->x(), tabs_->y() + 30, tabs_->w(), tabs_->h() - 22);
+    page_base_models_->resize(tabs_->x(), tabs_->y() + 30, tabs_->w(), tabs_->h() - 22);
 
     int left = tabs_->x() + 10;
     int top = tabs_->y() + 55;
@@ -99,6 +116,10 @@ void SettingsWindow::alignComponents() {
     btnCancel_->size(100, 30);
 
     profiles_dir_->resize(left, top, page_directories_->w() - 20, height);
+
+    sdxl_base_model_->resize(left, top, page_base_models_->w() - 20, height);
+    flux_base_model_->resize(left, sdxl_base_model_->y() + sdxl_base_model_->h() + 25, page_base_models_->w() - 20, height);
+    sd35_base_model_->resize(left, flux_base_model_->y() + flux_base_model_->h() + 25, page_base_models_->w() - 20, height);
 
     use_float16_->resize(left, top, 200, height);
     private_mode_->resize(use_float16_->x() + use_float16_->w() + 5, top, 200, height);

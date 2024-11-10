@@ -118,6 +118,15 @@ void ProgressWindow::set_text(const char *text) {
 void init_progress_title(progress_type ptype) {
     switch (ptype)
     {
+    case progress_opening_file:
+        set_progress_title("Opening the file, please wait...");
+        break;
+    case progress_saving_file:
+        set_progress_title("Saving the file, please wait...");
+        break;
+    case progress_list_models:
+        set_progress_title("Listing models, please wait...");
+        break;
     case progress_background:
         set_progress_title("Removing the background, please wait...");
         break;

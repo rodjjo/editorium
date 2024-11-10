@@ -8,8 +8,9 @@ namespace editorium
 {
 
 namespace {
-        std::vector<embedding_t> text_inv_cache;
-        std::vector<embedding_t> loras_cache;
+    std::string cache_arch;
+    std::vector<embedding_t> text_inv_cache;
+    std::vector<embedding_t> loras_cache;
 }
 
 EmbeddingFrame::EmbeddingFrame(bool lora_embedding, Fl_Group *parent) {
@@ -164,9 +165,14 @@ embedding_t EmbeddingFrame::getSelected() {
     return result;
 }
 
-void EmbeddingFrame::refresh_models() {
+void EmbeddingFrame::refresh_models(const std::string& architecture) {
     embeddings_.clear();
     search_->clear();
+    if (cache_arch != architecture) {
+        cache_arch = architecture;
+        text_inv_cache.clear();
+        loras_cache.clear();
+    }
     if (lora_embedding_) {
         embeddings_ = loras_cache;
     } else {
@@ -178,8 +184,11 @@ void EmbeddingFrame::refresh_models() {
         }
         return;
     }
-
-    auto embeddings = ws::models::list_models("sd15", true);
+    if (!lora_embedding_) {
+        printf("Textual inversion embeddings are disabled for now\n");
+        return;
+    }
+    auto embeddings = ws::models::list_models(architecture, true);
     try{
         for (auto & e: embeddings) {
             embedding_t value;

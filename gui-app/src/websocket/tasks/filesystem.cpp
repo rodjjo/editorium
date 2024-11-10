@@ -2,6 +2,7 @@
 #include "base64/base64.h"
 #include "websocket/tasks/filesystem.h"
 #include "websocket/code.h"
+#include "windows/progress_ui.h"
 
 namespace editorium {
 namespace ws {
@@ -17,6 +18,7 @@ namespace filesystem {
         auto inputs = to_input(payload);
         json default_input;
         default_input["default"] = inputs;
+        enable_progress_window(progress_opening_file);
         auto result = execute("base64image", default_input, json());
 
         if (!result || result->images.empty()) {
@@ -36,6 +38,7 @@ namespace filesystem {
         config["png_format"] = png_format;
         json default_input;
         default_input["default"] = inputs;
+        enable_progress_window(progress_saving_file);
         auto result = execute("image2base64", default_input, config);
 
         if (!result || result->texts.empty()) {

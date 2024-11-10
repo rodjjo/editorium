@@ -8,7 +8,7 @@
 
 #include <FL/Fl.H>
 
-
+#include "windows/progress_ui.h"
 #include "websocket/uuid.h"
 #include "websocket/code.h"
 #include "misc/utils.h"
@@ -139,6 +139,8 @@ namespace editorium
         }
 
         std::shared_ptr<api_payload_t> execute(const std::string& task_type, const json &inputs, const json &config, bool *canceled_checker) {
+            show_progress_window();
+
             auto result = std::make_shared<api_payload_t>();
             std::string id = UUID::generate_uuid();
             std::shared_ptr<bool> interrupted = std::make_shared<bool>(false);
@@ -198,8 +200,11 @@ namespace editorium
                 std::unique_lock<std::mutex> lk(listener_mutex);
                 listener = listener_t();
             }
+            
+            hide_progress_window();
 
             if (result->boxes.empty() && result->images.empty() && result->texts.empty()) {
+
                 return std::shared_ptr<api_payload_t>();
             }
 

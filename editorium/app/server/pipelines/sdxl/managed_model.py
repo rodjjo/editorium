@@ -263,6 +263,27 @@ class SdxlModels(ManagedModel):
     @property
     def control_mode(self):
         return 0
+    
+    def sdxl_lora_dir(self):
+        result = os.path.join(self.get_sdxl_model_dir(), 'loras')
+        os.makedirs(result, exist_ok=True)
+        return result
+    
+    def list_models(self, list_loras):
+        if list_loras:
+            dir_contents = os.listdir(self.sdxl_lora_dir())
+        else:
+            dir_contents = os.listdir(self.get_sdxl_model_dir())
+
+        result = []
+        for f in dir_contents:
+            if not f.lower().endswith('.safetensors'):
+                continue
+            if list_loras:
+                f = f.rsplit('.', 1)[0]
+            result.append(f)
+        
+        return result
         
     def get_sdxl_model_dir(self):
         return os.path.join(self.model_dir('images', 'sdxl'))
@@ -275,6 +296,9 @@ class SdxlModels(ManagedModel):
         if model_name.startswith('./'):
             model_name = os.path.join(model_dir, model_name)
 
+        if unet_model and '.diffusers.' in unet_model:
+            load_lora_state_dict = True  # diffusers in the name indicates that the model is compatible with diffusers library and we need to load state dict insteead of calling from_single_file to avoid it trying to convert into diffusers format again
+            
         has_changes = any([
             self.pipe is None,
             self.model_name != model_name,

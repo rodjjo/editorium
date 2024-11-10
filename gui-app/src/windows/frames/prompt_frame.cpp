@@ -30,6 +30,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     guidance_input_ = new Fl_Float_Input(0, 0, 1, 1, "CFG");
     width_input_ = new Fl_Int_Input(0, 0, 1, 1, "Width");
     height_input_ = new Fl_Int_Input(0, 0, 1, 1, "Height");
+    arch_input_ = new Fl_Choice(0, 0, 1, 1, "Architecture");
     models_input_ = new Fl_Choice(0, 0, 1, 1, "Model");
     schedulers_ =  new Fl_Choice(0, 0, 1, 1, "Scheduler");
     resizeModes_ =  new Fl_Choice(0, 0, 1, 1, "Resize mode");
@@ -55,6 +56,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     width_input_->align(FL_ALIGN_TOP_LEFT);
     height_input_->align(FL_ALIGN_TOP_LEFT);
     models_input_->align(FL_ALIGN_TOP_LEFT);
+    arch_input_->align(FL_ALIGN_TOP_LEFT);
     schedulers_->align(FL_ALIGN_TOP_LEFT);
     resizeModes_->align(FL_ALIGN_TOP_LEFT);
     
@@ -65,14 +67,23 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     width_input_->value("512");
     height_input_->value("512");
 
-    use_lcm_lora_->callback(widget_cb, this);
-
     for (int i = 0; i < resize_mode_count; i++) {
         resizeModes_->add(resize_mode_texts[i]);
     }
     resizeModes_->value(resize_fit_1024x1024);
     resizeModes_->tooltip("Scale down the image before processing it");
     
+    architectures_ = ws::diffusion::list_architectures();
+    for (auto &arch: architectures_) {
+        arch_input_->add(arch.second.c_str());
+    }
+
+    arch_input_->value(0);
+    arch_input_->tooltip("Select the architecture to use");
+    
+    use_lcm_lora_->callback(widget_cb, this);
+    arch_input_->callback(widget_cb, this);
+   
     alignComponents();
 }
 
@@ -114,6 +125,8 @@ void PromptFrame::widget_cb(Fl_Widget* widget) {
             }
 
         }
+    } else if (widget == arch_input_) {
+        refresh_models();
     }
 }
 
@@ -132,7 +145,8 @@ void PromptFrame::alignComponents() {
     guidance_input_->resize(sx + 5, steps_input_->y() + 45, steps_input_->w(), steps_input_->h());
     width_input_->resize(guidance_input_->x() + guidance_input_->w() + 5, guidance_input_->y(), guidance_input_->w(), guidance_input_->h());
     height_input_->resize(width_input_->x() + width_input_->w() + 5, width_input_->y(), width_input_->w(), width_input_->h());
-    models_input_->resize(sx + 5, height_input_->y() + 45, (pw - 15) / 2, height_input_->h());
+    arch_input_->resize(sx + 5, height_input_->y() + 45, (pw - 15) / 2, height_input_->h());
+    models_input_->resize(arch_input_->x() + arch_input_->w() + 5, arch_input_->y(), (pw - 15) / 2, height_input_->h());
     use_lcm_lora_->resize(sx + 5, models_input_->y() + models_input_->h() + 5, 160, 20);
     use_tiny_vae_->resize(use_lcm_lora_->x() + use_lcm_lora_->w() + 5, use_lcm_lora_->y(), use_lcm_lora_->w(), use_lcm_lora_->h());
     schedulers_->resize(sx + 5, use_tiny_vae_->y() + use_tiny_vae_->h() + 20, models_input_->w(), models_input_->h());
@@ -148,7 +162,32 @@ void PromptFrame::alignComponents() {
 
 
 std::string PromptFrame::positive_prompt() {
-    return positive_input_->value();
+    std::string result = positive_input_->value();
+    size_t lpos = result.find("<lora:");
+    while (lpos != result.npos) {
+        size_t rpos = result.find(">", lpos);
+        if (rpos == result.npos) {
+            rpos = result.size()-1;
+        }
+        result = result.substr(0, lpos) + result.substr(rpos + 1);
+        lpos = result.find("<lora:");
+    }
+    return result;
+}
+
+std::vector<std::string> PromptFrame::get_loras() {
+    std::vector<std::string> result;
+    std::string text = positive_input_->value();
+    size_t lpos = text.find("<lora:");
+    while (lpos != text.npos) {
+        size_t rpos = text.find(">", lpos);
+        if (rpos == text.npos) {
+            rpos = text.size()-1;
+        }
+        result.push_back(text.substr(lpos + 6, rpos - lpos - 6));
+        lpos = text.find("<lora:", rpos);
+    }
+    return result;
 }
 
 std::string PromptFrame::negative_prompt() {
@@ -162,6 +201,12 @@ std::string PromptFrame::get_model() {
     return std::string();
 }
 
+std::string PromptFrame::get_arch() {
+    if (arch_input_->value() >= 0) {
+        return architectures_[arch_input_->value()].first;
+    }
+    return "sd15";
+}
 
 std::string PromptFrame::get_scheduler() {
     if (schedulers_->value() >= 0) {
@@ -230,12 +275,17 @@ bool PromptFrame::use_tiny_vae() {
 }
 
 void PromptFrame::refresh_models() {
-    auto model_list = ws::models::list_models("sd15", false);
+    auto model_list = ws::models::list_models(get_arch(), false);
     models_input_->clear();
     for (auto & m : model_list) {
         models_input_->add(m.c_str());
     }
-    models_input_->value(0);
+    if (models_input_->size() > 0) {
+        models_input_->value(0);
+    } else {
+        models_input_->value(-1);
+        models_input_->redraw();
+    }
 
     std::vector<std::string> scheduler_list = { "EulerAncestralDiscreteScheduler"};
     schedulers_->clear();
@@ -244,8 +294,8 @@ void PromptFrame::refresh_models() {
     }
     schedulers_->value(0);
 
-    embeddings_->refresh_models();
-    loras_->refresh_models();
+    embeddings_->refresh_models(get_arch());
+    loras_->refresh_models(get_arch());
 }
 
 void PromptFrame::dfe_handle_event(void *sender, event_id_t event, void *data) {

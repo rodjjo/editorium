@@ -27,7 +27,11 @@ private:
     Fl_Tabs *tabs_;
     Fl_Group *page_params_;
     Fl_Group *page_directories_;
+    Fl_Group *page_base_models_;
     Fl_Input *profiles_dir_;
+    Fl_Input *sdxl_base_model_;
+    Fl_Input *flux_base_model_;
+    Fl_Input *sd35_base_model_;
     Fl_Check_Button *use_float16_;
     Fl_Check_Button *private_mode_;
     Fl_Check_Button *keep_models_;

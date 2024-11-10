@@ -159,14 +159,24 @@ class Sd15Models(ManagedModel):
         return self.model_dir('images', 'sd15')
     
     def sd15_lora_dir(self):
-        return LORA_DIR
+        result = LORA_DIR
+        os.makedirs(result, exist_ok=True)
+        return result
     
     def list_models(self, list_loras):
         if list_loras:
-            result = os.listdir(self.sd15_lora_dir())
+            dir_contents = os.listdir(self.sd15_lora_dir())
         else:
-            result = os.listdir(self.sd15_model_dir())
-        result = [f for f in result if f.endswith('.safetensors')]
+            dir_contents = os.listdir(self.sd15_model_dir())
+        
+        result = []
+        for f in dir_contents:
+            if not f.lower().endswith('.safetensors'):
+                continue
+            if list_loras:
+                f = f.rsplit('.', 1)[0]
+            result.append(f)
+        
         return result
         
     def load_models(self, 
