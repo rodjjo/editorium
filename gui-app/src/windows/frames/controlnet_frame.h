@@ -16,7 +16,7 @@ namespace editorium
 
 class ControlnetFrame {
 public:
-    ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *reference);
+    ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *reference, bool ip_adapter=false);
     ~ControlnetFrame();
 
     bool enabled();
@@ -37,6 +37,7 @@ protected:
     void combobox_cb(Fl_Widget* widget);
 
 private:
+    bool ip_adapter_ = false;
     bool inside_cb_ = false;
     std::set<std::string>  supported_modes_;
 

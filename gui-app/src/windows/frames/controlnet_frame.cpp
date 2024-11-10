@@ -10,13 +10,17 @@ namespace editorium
 
     namespace {
        std::vector<std::pair<std::string, std::string> > controlnet_modes;
+       std::vector<std::pair<std::string, std::string> > ip_adapter_modes;
     }
 
-ControlnetFrame::ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *reference) {
+ControlnetFrame::ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *reference, bool ip_adapter) {
     parent_ = parent;
+    parent_->begin();
+
     img_ = img;
     reference_ = reference;
-    mode_ = new Fl_Choice(0, 0, 1, 1, "Controlnet mode");
+    ip_adapter_ = ip_adapter;
+    mode_ = new Fl_Choice(0, 0, 1, 1, ip_adapter ? "Adapter Model" : "Controlnet Model");
     btnOpenMask_.reset(new Button(xpm::image(xpm::img_24x24_folder), [this] () {
         open_mask();
     }));
@@ -26,6 +30,9 @@ ControlnetFrame::ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *
     btnPreprocess_.reset(new Button(xpm::image(xpm::img_24x24_pinion), [this] () {
         pre_process();
     }));
+
+    parent_->end();
+
     btnOpenMask_->tooltip("Open a pre-processed image");
     btnPreprocess_->tooltip("Pre-process the input image");
     btnSaveMask_->tooltip("Save the pre-processed image");
@@ -35,10 +42,10 @@ ControlnetFrame::ControlnetFrame(Fl_Group *parent, ImagePanel *img, ImagePanel *
     mode_->value(0);
 
     alignComponents();
-
     load_modes();
     mode_->callback(combobox_cb, this);
     combobox_cb(mode_);
+
 }
 
 void ControlnetFrame::alignComponents() {
@@ -72,7 +79,11 @@ void ControlnetFrame::combobox_cb(Fl_Widget* widget) {
     if (enabled()) {
         btnOpenMask_->show();
         btnSaveMask_->show();
-        btnPreprocess_->show();
+        if (!ip_adapter_) {
+            btnPreprocess_->show();
+        } else {
+            btnPreprocess_->hide();
+        }
         if (parent_->visible_r()) {
             img_->show();
         }
@@ -103,12 +114,33 @@ void ControlnetFrame::load_modes() {
             {"inpaint", "Inpainting"}
         };
     }
+    if (ip_adapter_modes.empty()) {
+        ip_adapter_modes = {
+            {"disabled", "Disabled"},
+            {"plus-face", "Plus Face"},
+            {"full-face", "Full Face"},
+            {"plus", "Plus"},
+            {"common", "Common"},
+            {"light", "Light"},
+            {"vit", "Vit"},
+        };
+    }
+
     mode_->clear();
-    for (const auto & c : controlnet_modes) {
-        if (supported_modes_.find(c.first) == supported_modes_.end() && c.first != "disabled") {
-            continue;
+    if (ip_adapter_) {
+        for (const auto & c : ip_adapter_modes) {
+            if (supported_modes_.find(c.first) == supported_modes_.end() && c.first != "disabled") {
+                continue;
+            }
+            mode_->add(c.second.c_str());
         }
-        mode_->add(c.second.c_str());
+    } else {
+        for (const auto & c : controlnet_modes) {
+            if (supported_modes_.find(c.first) == supported_modes_.end() && c.first != "disabled") {
+                continue;
+            }
+            mode_->add(c.second.c_str());
+        }
     }
     mode_->value(0);
 }

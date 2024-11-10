@@ -29,6 +29,8 @@ typedef enum {
     page_type_controlnet2,
     page_type_controlnet3,
     page_type_controlnet4,
+    page_type_ip_adapter1,
+    page_type_ip_adapter2,
     page_type_results,
     // keep page_type_count at the end
     page_type_count 
@@ -69,6 +71,7 @@ private:
     Fl_Group *right_panel_;
     Fl_Select_Browser *selector_;
     size_t result_index_ = 0;
+    std::vector<page_type_t> visible_pages_;
     std::vector<image_ptr_t> results_;
     std::unique_ptr<ImageFrame> image_frame_;
     std::unique_ptr<PromptFrame> prompt_frame_;

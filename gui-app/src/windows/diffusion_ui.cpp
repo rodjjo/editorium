@@ -22,7 +22,17 @@ namespace editorium
             event_prompt_architecture_selected
         };
 
-       
+       const char *page_names[page_type_count] = {
+            "Prompts",
+            "Image",
+            "Controlnet 1",
+            "Controlnet 2",
+            "Controlnet 3",
+            "Controlnet 4",
+            "Ip Adapter 1",
+            "Ip Adapter 2",
+            "Generate"
+        };
     }
 
     DiffusionWindow::DiffusionWindow() : Fl_Double_Window(
@@ -64,15 +74,6 @@ namespace editorium
         right_panel_->box(FL_DOWN_BOX);
         { // page selector
             right_panel_->begin();
-            const char *page_names[page_type_count] = {
-                "Prompts",
-                "Base Image",
-                "Controlnet 1",
-                "Controlnet 2",
-                "Controlnet 3",
-                "Controlnet 4",
-                "Generate"
-            };
             selector_ = new Fl_Select_Browser(0, 0, 1, 1);
             for (int i = 0; i < page_type_count; i++) {
                 selector_->add(page_names[i]);
@@ -112,12 +113,15 @@ namespace editorium
                     image_frame_.reset(new ImageFrame(pages_[where],  images_[where]));
                 } else if (i == page_type_results) {
                     result_frame_.reset(new ResultFrame(pages_[where],  images_[where]));
+                } else if (i >= page_type_controlnet1 && i <= page_type_controlnet4) {
+                    control_frames_[where] = std::unique_ptr<ControlnetFrame>(new ControlnetFrame(pages_[where],  images_[where], images_[page_type_image], false));
                 } else {
-                    control_frames_[where] = std::unique_ptr<ControlnetFrame>(new ControlnetFrame(pages_[where],  images_[where], images_[page_type_image]));
+                    control_frames_[where] = std::unique_ptr<ControlnetFrame>(new ControlnetFrame(pages_[where],  images_[where], images_[page_type_image], true));
                 }
             } else {
                 prompt_frame_.reset(new PromptFrame(pages_[where]));
             }
+
             pages_[where]->end();
             pages_[where]->hide();
         }
@@ -125,9 +129,9 @@ namespace editorium
 
         alignComponents();
         selector_->value(1);
-        show_current_page();
         prompt_frame_->refresh_models();
         set_architecture_view();
+        show_current_page();
     }
 
     DiffusionWindow::~DiffusionWindow() {
@@ -192,6 +196,10 @@ namespace editorium
             where = static_cast<page_type_t>(i);
             control_frames_[where]->alignComponents();
         }
+        for (int i = page_type_ip_adapter1; i < page_type_ip_adapter2 + 1; i++)  {
+            where = static_cast<page_type_t>(i);
+            control_frames_[where]->alignComponents();
+        }
     }
     
     void DiffusionWindow::page_cb(Fl_Widget* widget, void *cbdata) {
@@ -219,15 +227,20 @@ namespace editorium
             pages_[where]->hide();
         }
         int idx = selector_->value() - 1;
+        if (idx >= visible_pages_.size()) {
+            idx = visible_pages_.size() - 1;
+        }
         if (idx >= 0)  {
-            where = static_cast<page_type_t>(idx);
+            where = visible_pages_[idx];
             pages_[where]->show();
             if (images_[where] && !images_[where]->shown()) {
                 if (idx == page_type_image) {
                     if (image_frame_->enabled()) {
                         images_[where]->show();    
                     }
-                } else if (idx < page_type_controlnet1 || idx > page_type_controlnet4) {
+                } else if (idx >= page_type_controlnet1 && idx <= page_type_controlnet4) {
+                    images_[where]->show();
+                } else if (idx >= page_type_ip_adapter1 && idx <= page_type_ip_adapter2) {
                     images_[where]->show();
                 } else {
                     if (control_frames_[where]->enabled()) {
@@ -509,6 +522,40 @@ namespace editorium
             auto & frame = control_frames_[static_cast<page_type_t>(i)];
             if (frame) {
                 frame->supported_modes(caps.controlnet_types);
+            }
+        }
+        for (int i = page_type_ip_adapter1; i < page_type_ip_adapter2 + 1; i++) {
+            auto & frame = control_frames_[static_cast<page_type_t>(i)];
+            if (frame) {
+                frame->supported_modes(caps.ip_adapter_types);
+            }
+        }
+        visible_pages_.clear();
+        visible_pages_.push_back(page_type_prompt);
+        visible_pages_.push_back(page_type_image);
+        if (caps.controlnet_types.size() > 0) {
+            for (int i = 0; i < caps.controlnet_types.size() && i < 4; i++) {
+                visible_pages_.push_back(static_cast<page_type_t>(page_type_controlnet1 + i));
+            }
+        }
+        if (caps.ip_adapter_types.size() > 0) {
+            for (int i = 0; i < caps.ip_adapter_types.size() && i < 2; i++) {
+                visible_pages_.push_back(static_cast<page_type_t>(page_type_ip_adapter1 + i));
+            }
+        }
+        visible_pages_.push_back(page_type_results);
+        
+        auto selector_index = selector_->value();
+        auto selected_text = selector_->value() > 0 ? selector_->text(selector_index) : "";
+        selector_->clear();
+        for (auto & page : visible_pages_) {
+            selector_->add(page_names[page]);
+        }
+        selector_->value(1);
+        for (int i = 0; i < visible_pages_.size(); i++) {
+            if (selected_text == page_names[visible_pages_[i]]) {
+                selector_->value(i + 1);
+                break;
             }
         }
     }
