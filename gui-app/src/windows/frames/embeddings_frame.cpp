@@ -24,7 +24,7 @@ EmbeddingFrame::EmbeddingFrame(bool lora_embedding, Fl_Group *parent) {
     }));
 
     btnUse_.reset(new Button(xpm::image(xpm::img_24x24_green_pin), [this] {
-        publish_event(this, lora_embedding_ ? event_prompt_lora_selected_ : event_prompt_textual_selected_, NULL);
+        publish_event(this, lora_embedding_ ? event_prompt_lora_selected : event_prompt_textual_selected, NULL);
     }));
 
     btnSetImg_.reset(new Button(xpm::image(xpm::img_24x24_folder), [this] {

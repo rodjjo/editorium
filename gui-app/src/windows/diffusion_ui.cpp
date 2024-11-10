@@ -18,7 +18,8 @@ namespace editorium
             event_generator_save_current_image,
             event_image_frame_new_mask,
             event_image_frame_open_mask,
-            event_image_frame_mode_selected
+            event_image_frame_mode_selected,
+            event_prompt_architecture_selected
         };
 
        
@@ -126,6 +127,7 @@ namespace editorium
         selector_->value(1);
         show_current_page();
         prompt_frame_->refresh_models();
+        set_architecture_view();
     }
 
     DiffusionWindow::~DiffusionWindow() {
@@ -242,7 +244,13 @@ namespace editorium
     }
 
     void DiffusionWindow::dfe_handle_event(void *sender, event_id_t event, void *data) {
-        if (sender == result_frame_.get()) {
+        if (sender == prompt_frame_.get()) {
+            switch (event) {
+                case event_prompt_architecture_selected:
+                    set_architecture_view();
+                break;
+            }
+        } else if (sender == result_frame_.get()) {
             switch (event) {
                 case event_generator_next_image:
                     if (result_index_ + 1 < results_.size()) {
@@ -492,6 +500,17 @@ namespace editorium
             return "img2img";
         }
         return "inpaint";
+    }
+
+    void DiffusionWindow::set_architecture_view() {
+        auto caps = ws::diffusion::get_architecture_features(prompt_frame_->get_arch());
+        image_frame_->inpaint_enabled(caps.support_inpaint);
+        for (int i = page_type_controlnet1; i < page_type_controlnet4 + 1; i++) {
+            auto & frame = control_frames_[static_cast<page_type_t>(i)];
+            if (frame) {
+                frame->supported_modes(caps.controlnet_types);
+            }
+        }
     }
 
     image_ptr_t generate_image_(ViewSettings* view_settings) {

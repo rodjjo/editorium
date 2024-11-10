@@ -97,6 +97,28 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
 ImageFrame::~ImageFrame() {
 }
 
+bool ImageFrame::inpaint_enabled() {
+    return inpaint_enabled_;
+}
+
+void ImageFrame::inpaint_enabled(bool enabled) {
+    if (enabled == inpaint_enabled_) {
+        return;
+    }
+    inpaint_enabled_ = enabled;
+    if (enabled) {
+        choice_mode_->clear();
+        for (int i = 0; i < img2img_mode_max; i++) {
+            choice_mode_->add(modes_text[i]);
+        }
+    } else {
+        choice_mode_->clear();
+        choice_mode_->add(modes_text[0]);
+        choice_mode_->add(modes_text[1]);
+    }
+    choice_mode_->value(0);
+}
+
 img2img_mode_t ImageFrame::get_mode() {
     return mode_;
 }

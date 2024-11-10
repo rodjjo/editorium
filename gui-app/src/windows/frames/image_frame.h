@@ -63,6 +63,9 @@ public:
     void enable_mode();
     float get_strength();
 
+    bool inpaint_enabled();
+    void inpaint_enabled(bool enabled);
+
 private:
     void combobox_selected();
 protected:
@@ -71,7 +74,7 @@ protected:
 
 private:
     bool inside_cb_ = false;
-
+    bool inpaint_enabled_ = true;
 
 private:
     Fl_Group *parent_;

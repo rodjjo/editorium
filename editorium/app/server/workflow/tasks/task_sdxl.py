@@ -14,8 +14,8 @@ class SDXLSchema(Schema):
     steps = fields.Int(required=False, load_default=50)
     seed = fields.Int(required=False, load_default=-1)
     inpaint_mode = fields.Str(required=False, load_default="original")
-    mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
-    mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    mask_dilate_size = fields.Int(required=False, load_default=0)
+    mask_blur_size = fields.Int(required=False, load_default=0)
     unet_model = fields.Str(required=False)
     lora_repo_id = fields.Str(required=False)
     lora_scale = fields.Float(required=False, default=1.0)

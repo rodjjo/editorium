@@ -14,13 +14,11 @@ class Sd35TaskSchema(Schema):
     max_sequence_length = fields.Int(required=False, load_default=512)
     seed = fields.Int(required=False, load_default=-1)
     inpaint_mode = fields.Str(required=False, load_default="original")
-    mask_dilate_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
-    mask_blur_size = fields.Int(required=False, load_default=0) # defaults to 0 due other processor that can be used: see task blur image
+    mask_dilate_size = fields.Int(required=False, load_default=0)
+    mask_blur_size = fields.Int(required=False, load_default=0) 
     transformer2d_model = fields.Str(required=False)
     lora_repo_id = fields.Str(required=False)
     lora_scale = fields.Float(required=False, default=1.0)
-    # control_guidance_start = fields.Float(required=False, load_default=0.2)
-    # control_guidance_end = fields.Float(required=False, load_default=0.8)
     globals = fields.Dict(required=False, load_default={})
 
 

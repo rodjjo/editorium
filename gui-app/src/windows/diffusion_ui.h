@@ -59,7 +59,8 @@ private:
     const char *get_mode();
     void show_current_result();
     void accept_current_image();
-
+    void set_architecture_view();
+    
 private:
     bool confirm_ = false;
     bool selecting_page_ = false;

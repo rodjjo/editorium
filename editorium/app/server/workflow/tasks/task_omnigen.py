@@ -24,4 +24,8 @@ class OmnigenTask(WorkflowTask):
 
 
 def register():
-    OmnigenTask.register("omnigen", "Omnigen a multimodal model for image generation and editing")
+    OmnigenTask.register(
+        "omnigen", 
+        "Omnigen a multimodal model for image generation and editing",
+        api_enabled=True
+    )

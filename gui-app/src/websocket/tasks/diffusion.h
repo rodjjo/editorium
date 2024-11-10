@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <set>
 #include "images/image.h"
 
 namespace editorium {
@@ -37,10 +38,19 @@ typedef struct {
     std::vector<std::string> loras; // a string that contains lora name and strength separated by ':'
 } diffusion_request_t;
 
+typedef struct {
+    int controlnet_count = 0;
+    int ip_adapter_count = 0;
+    std::set<std::string> controlnet_types;
+    std::set<std::string> ip_adapter_types;
+    bool support_inpaint = false;
+} architecture_features_t;
+
 std::vector<std::pair<std::string, std::string> > list_architectures();
 std::vector<editorium::image_ptr_t> run_diffusion(const diffusion_request_t &request);
 std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, std::vector<editorium::image_ptr_t> images);
+architecture_features_t get_architecture_features(const std::string &architecture);
 
-} // namespace models
+} // namespace diffusion
 } // namespace ws
 } // namespace editorium

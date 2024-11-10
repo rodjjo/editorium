@@ -17,8 +17,8 @@ namespace {
 }
 
 PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
-    event_prompt_lora_selected_,
-    event_prompt_textual_selected_
+    event_prompt_lora_selected,
+    event_prompt_textual_selected
 })  {
     parent_ = parent;
 
@@ -127,6 +127,7 @@ void PromptFrame::widget_cb(Fl_Widget* widget) {
         }
     } else if (widget == arch_input_) {
         refresh_models();
+        publish_event(this, event_prompt_architecture_selected, nullptr);
     }
 }
 
@@ -301,11 +302,11 @@ void PromptFrame::refresh_models() {
 void PromptFrame::dfe_handle_event(void *sender, event_id_t event, void *data) {
     switch (event)
     {
-    case event_prompt_lora_selected_:
+    case event_prompt_lora_selected:
         insert_current_lora();
         break;
     
-    case event_prompt_textual_selected_:
+    case event_prompt_textual_selected:
         insert_current_textual();
         break;
     }

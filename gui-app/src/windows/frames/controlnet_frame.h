@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+#include <set>
 #include <memory>
 #include <vector>
 
@@ -21,6 +23,8 @@ public:
     void alignComponents();
     std::string getModeStr();
     image_ptr_t getImage();
+
+    void supported_modes(const std::set<std::string>& modes);
     
 private:
     void pre_process();
@@ -34,6 +38,7 @@ protected:
 
 private:
     bool inside_cb_ = false;
+    std::set<std::string>  supported_modes_;
 
 private:
     Fl_Group *parent_;

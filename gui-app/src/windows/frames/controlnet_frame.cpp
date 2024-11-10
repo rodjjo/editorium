@@ -90,23 +90,35 @@ bool ControlnetFrame::enabled() {
 }
 
 void ControlnetFrame::load_modes() {
-    // modes are:  'canny', 'depth', 'pose', 'scribble', 'segmentation', 'lineart', 'mangaline', 'inpaint'
     if (controlnet_modes.empty()) {
         controlnet_modes = {
-                            {"canny", "Canny Edge Detection"},
-                            {"depth", "Depth Estimation"},
-                            {"pose", "Pose Estimation"},
-                            {"scribble", "Scribble"},
-                            {"segmentation", "Segmentation"},
-                            {"lineart", "Line Art"},
-                            {"mangaline", "Manga Line"},
-                            {"inpaint", "Inpainting"}
-                        };
+            {"disabled", "Disabled"},
+            {"canny", "Canny Edge Detection"},
+            {"depth", "Depth Estimation"},
+            {"pose", "Pose Estimation"},
+            {"scribble", "Scribble"},
+            {"segmentation", "Segmentation"},
+            {"lineart", "Line Art"},
+            {"mangaline", "Manga Line"},
+            {"inpaint", "Inpainting"}
+        };
     }
+    mode_->clear();
     for (const auto & c : controlnet_modes) {
+        if (supported_modes_.find(c.first) == supported_modes_.end() && c.first != "disabled") {
+            continue;
+        }
         mode_->add(c.second.c_str());
     }
     mode_->value(0);
+}
+
+void ControlnetFrame::supported_modes(const std::set<std::string>& modes) {
+    if (modes == supported_modes_) {
+        return;
+    }
+    supported_modes_ = modes;
+    load_modes();
 }
 
 void ControlnetFrame::pre_process() {
@@ -129,7 +141,11 @@ void ControlnetFrame::pre_process() {
 
 std::string ControlnetFrame::getModeStr() {
     if (mode_->value() > 0) {
-        return controlnet_modes[mode_->value() - 1].first;
+        for (const auto & c : controlnet_modes) {
+            if (c.second == mode_->text()) {
+                return c.first;
+            }
+        }
     }
     return std::string();
 }
