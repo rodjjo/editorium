@@ -8,6 +8,7 @@ from pipelines.sd15.managed_model import sd15_models
 from pipelines.sd15.loader import LORA_DIR
 from pipelines.common.utils import ensure_image
 from pipelines.common.color_fixer import color_correction
+from task_helpers.progress_bar import ProgressBar
 
 
 def get_lora_path(lora: str, lora_dir_contents: list) -> str:
@@ -187,9 +188,10 @@ def run_pipeline(
     ]
 
     
-    print("started")
+    ProgressBar.set_title("started")
 
     def progress_preview(step, timestep, latents):
+        ProgressBar.set_progress(step * (100.0 / steps))
         # TODO: Implement progress callback
         pass
 
@@ -337,12 +339,12 @@ def run_pipeline(
         additional_args['prompt'] = prompt
         additional_args['negative_prompt'] = negative
         
-        print("generating the variation" if variation_enabled else "generating the image")
+        ProgressBar.set_title("generating the variation" if variation_enabled else "generating the image")
         result = pipeline(
             **additional_args,
         ).images 
    
-    print("image generated")
+    ProgressBar.set_title("image generated")
     return [r for r in result]
 
 

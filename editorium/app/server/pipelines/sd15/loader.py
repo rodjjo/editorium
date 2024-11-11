@@ -21,6 +21,7 @@ from diffusers import (
 from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
 from transformers import CLIPTextModel,  CLIPTokenizer, AutoFeatureExtractor
 from omegaconf import OmegaConf
+from task_helpers.progress_bar import ProgressBar
 
 CACHE_DIR = None
 EMBEDDING_DIR = "/home/editorium/models/images/sd15/embeddings"
@@ -513,7 +514,7 @@ def convert_ldm_unet_checkpoint(checkpoint, config):
 
 
 def report(message):
-    print(f'[Model Loader] - {message}')
+    ProgressBar.set_title(f'[Model Loader] - {message}')
 
 
 checkpoint_dict_replacements = {

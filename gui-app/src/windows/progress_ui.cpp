@@ -161,6 +161,8 @@ void show_progress_window(progress_type ptype,  checker_cb_t cancel_cb) {
 
 void show_progress_window() {
     if (progress_window_enabled && !window) {
+        set_progress(0, 100);
+        set_progress_text("");
         init_progress_title(current_type);
         window.reset(new ProgressWindow(current_type));
     }
@@ -180,13 +182,13 @@ bool should_cancel() {
     return canceled;
 }
 
-void set_progress_title(const char *title) {
+void set_progress_title(const std::string& title) {
     std::unique_lock<std::mutex> lk(progress_mutex);
     progress_title = title;
     progress_version += 1;
 }
 
-void set_progress_text(const char *text) {
+void set_progress_text(const std::string& text) {
     std::unique_lock<std::mutex> lk(progress_mutex);
     progress_text = text;
     progress_version += 1;

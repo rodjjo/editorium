@@ -6,6 +6,7 @@ import json
 import time
 
 from services.queue_server import Task, track_current_task
+from task_helpers.progress_bar import ProgressBar
 
 def new_client_handler(client, server):
     pass
@@ -60,11 +61,18 @@ def websocket_processor(ws_input_queue: Queue, ws_output_queue: Queue):
             reports = {}
             if current_task is not None:
                 client = current_task.custom_data['client']
+                progress_title, progress_percent, prog_task_id = ProgressBar.get_progress()
+                if prog_task_id != current_task.id:
+                    progress_title = ""
+                    progress_percent = 0.0
+                    
                 reports[client['id']] = {
                     'client': client,
                     'current_task': {
                         'id': current_task.id,
                         'status': 'processing',
+                        'progress_title': progress_title,
+                        'progress_percent': progress_percent
                     },
                     'pending_tasks': []
                 }

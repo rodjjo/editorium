@@ -90,7 +90,10 @@ def register_server(queue: Queue, completion_queue: Queue):
         is_task_in_progress = False
         current_task = get_current_task()
         is_task_in_progress = current_task is not None and current_task.id == task_id
-        progress_title, progress = ProgressBar.get_progress()
+        progress_title, progress, prog_task_id = ProgressBar.get_progress()
+        if prog_task_id != task_id:
+            progress = 0.0
+            progress_title = ""
         return jsonify({'in_queue': task_in_queue, 'in_progress': is_task_in_progress, 'progress_bar': progress, 'progress_title': progress_title})
     
     @app.route('/current-task', methods=['GET'])

@@ -258,12 +258,22 @@ namespace editorium
                         printf("Received response, id: %s \n", response["id"].get<std::string>().c_str());
                         response_callback(response["id"], response["result"]);
                     } else if (response.contains("current_task") && response.contains("pending_tasks")) {
+                        auto cur_task = response["current_task"];
                         std::unique_lock<std::mutex> lk(listener_mutex);
                         last_report_time = std::chrono::high_resolution_clock::now();
                         reported_task_ids.clear();
-                        reported_task_ids.insert(response["current_task"]["id"]);
+                        reported_task_ids.insert(cur_task["id"]);
                         for (const auto & task : response["pending_tasks"]) {
                             reported_task_ids.insert(task["id"]);
+                        }
+
+                        if (cur_task.contains("progress_title")) {
+                            set_progress_text(cur_task["progress_title"]);
+                        }
+
+                        if (cur_task.contains("progress_percent")) {
+                            float progress = cur_task["progress_percent"];
+                            set_progress((size_t)progress, 100);
                         }
                     } else {
                         puts("Received unexpected message!");

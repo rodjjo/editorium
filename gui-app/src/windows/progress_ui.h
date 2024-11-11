@@ -50,8 +50,8 @@ void show_progress_window();
 void enable_progress_window(progress_type ptype);
 void hide_progress_window();
 bool should_cancel();
-void set_progress_title(const char *title);
-void set_progress_text(const char *text);
+void set_progress_title(const std::string& title);
+void set_progress_text(const std::string& text);
 void set_progress(size_t value, size_t max);
 
 

@@ -21,7 +21,10 @@ class ProgressBar(tqdm):
     @classmethod
     def set_task_id(cls, task_id):
         ProgressBar.stop(False)
-        ProgressBar.global_task_id = task_id  # it's only accessed by one thread
+        with ProgressBar.global_lock:
+            ProgressBar.global_progress_title = ''
+            ProgressBar.global_progress_percent = 0.0
+            ProgressBar.global_task_id = task_id  
             
     @classmethod
     def set_title(cls, title):
@@ -29,6 +32,7 @@ class ProgressBar(tqdm):
             ProgressBar.global_progress_title = title
             if ProgressBar.global_should_stop:
                 StopException("Stopped by the user.")
+        print(title)
 
     @classmethod
     def set_progress(cls, progress):
@@ -45,7 +49,7 @@ class ProgressBar(tqdm):
     @classmethod
     def get_progress(cls):
         with ProgressBar.global_lock:
-            return ProgressBar.global_progress_title, ProgressBar.global_progress_percent
+            return ProgressBar.global_progress_title, ProgressBar.global_progress_percent, ProgressBar.global_task_id
 
     def update(self, n=1):
         result = super().update(n)
