@@ -35,7 +35,8 @@ protected:
     void resize(int x, int y, int w, int h) override;
     int handle(int event) override;
     void alignComponents();
-    
+    void resizeSelection(int width);
+
 private:
     static void update_status(void *cbdata);
     void update_status();

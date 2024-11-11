@@ -4,6 +4,7 @@
 #include "windows/progress_ui.h"
 #include "windows/settings_ui.h"
 #include "windows/diffusion_ui.h"
+#include "windows/size_ui.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
 #include "misc/utils.h"
@@ -30,7 +31,13 @@ namespace editorium
             event_main_menu_layers_remove_background,
             event_main_menu_layers_reset_zoom,
             event_main_menu_layers_reset_scroll,
-            event_main_menu_selection_generate,            
+            event_main_menu_selection_generate, 
+            event_main_menu_resizeSelection_0,
+            event_main_menu_resizeSelection_256,
+            event_main_menu_resizeSelection_512,
+            event_main_menu_resizeSelection_768,
+            event_main_menu_resizeSelection_1024,
+            event_main_menu_resizeSelection_2048,           
             event_layer_count_changed,
             event_layer_selected,
             event_layer_after_draw,
@@ -62,9 +69,13 @@ namespace editorium
             menu_->addItem(event_main_menu_layers_remove_selected, "", "Layers/Remove", "", 0, xpm::img_24x24_remove);
             menu_->addItem(event_main_menu_layers_reset_zoom, "", "Layers/Reset Zoom", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_reset_scroll, "", "Layers/Reset Scroll", "", 0, xpm::no_image);
-            menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "", 0, xpm::img_24x24_bee);
-            
-            
+            menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
+            menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
+            menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
+            menu_->addItem(event_main_menu_resizeSelection_512, "", "Selection/Expand/512x512", "^1");
+            menu_->addItem(event_main_menu_resizeSelection_768, "", "Selection/Expand/768x768", "^2");
+            menu_->addItem(event_main_menu_resizeSelection_1024, "", "Selection/Expand/1024x1024", "^3");
+            menu_->addItem(event_main_menu_resizeSelection_2048, "", "Selection/Expand/2048x2048", "^4");
         } // menu
 
         { // image panels
@@ -255,6 +266,24 @@ namespace editorium
         case event_main_menu_selection_generate:
             create_image(true);
             break;
+        case event_main_menu_resizeSelection_0:
+            resizeSelection(0);
+            break;
+        case event_main_menu_resizeSelection_256:
+            resizeSelection(256);
+            break;
+        case event_main_menu_resizeSelection_512:
+            resizeSelection(512);
+            break;
+        case event_main_menu_resizeSelection_768:
+            resizeSelection(768);
+            break;
+        case event_main_menu_resizeSelection_1024:
+            resizeSelection(1024);
+            break;
+        case event_main_menu_resizeSelection_2048:
+            resizeSelection(2048);
+            break;
         case event_main_menu_file_open:
             choose_file_and_open(true);
             break;
@@ -402,5 +431,63 @@ namespace editorium
             image_->view_settings()->fuse_image(img);
         } 
     }
+
+      void MainWindow::resizeSelection(int width) {
+        int x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        image_->view_settings()->get_selected_area(&x1, &y1, &x2, &y2);
+        x2 += x1;
+        y2 += y1;
+        if (x1 == x2 && y1 == y2) {
+            show_error("No selection");
+            return;
+        }
+
+        int w = x2 - x1;
+        int h = y2 - y1;
+        if (width > 0) {
+            int sx, sy, sw, sh;
+            image_->view_settings()->get_image_area(&sx, &sy, &sw, &sh);
+            if (width > sw) {
+                width = sw;
+            }
+            if (width > sh) {
+                width = sh;
+            }
+            printf("Resizing selection to %d x %d\n", width, width);
+            int diff_w = (width - w) / 2; 
+            int diff_h = (width - h) / 2;
+            x1 -= diff_w;
+            y1 -= diff_h;
+            image_->view_settings()->set_selected_area(x1, y1, width, width);
+            image_->view_settings()->get_selected_area(&x1, &y1, &x2, &y2);
+            x2 += x1;
+            y2 += y1;
+
+            if (x1 < 0) {
+                x2 += (-x1);
+                x1 = 0;
+            }
+            if (y1 < 0) {
+                y2 += (-y1);
+                y1 = 0;
+            }
+
+            if (x2 > sw) {
+                auto diff = x2 - sw;
+                x2 -= diff;
+                x1 -= diff;
+            }
+            if (y2 > sh) {
+                auto diff = y2 - sh;
+                y2 -= diff;
+                y1 -= diff;
+            }
+            printf("Moving selection to %d x %d\n", x1, y1);
+            printf("Resizing selection to %d x %d\n", x2 - x1, y2 - y1);
+            image_->view_settings()->set_selected_area(x1, y1, x2 - x1, y2 - y1);
+        } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
+            image_->view_settings()->set_selected_area(x1, y1, w, h);
+        } 
+      }
 
 } // namespace editorium
