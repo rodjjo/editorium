@@ -23,6 +23,7 @@ namespace editorium
 
         uint8_t red_color[4] = {255, 0, 0, 255};
         uint8_t gray_color[4] = {128, 128, 128, 255};
+        uint8_t pink_color[4] = {255, 128, 128, 255};
         
         int g_mouse_delta = 0;
 
@@ -977,6 +978,7 @@ namespace editorium
             draw_rectangle(ix, iy, iw, ih, gray_color, false);
             if (view_settings_->get_selected_area(&ix, &iy, &iw, &ih)) {
                 draw_rectangle(ix, iy, iw, ih, gray_color, true);
+                draw_rectangle(ix, iy, iw, ih, pink_color, false);
             }
             view_settings_->cache()->gc();
         }
@@ -1006,7 +1008,7 @@ namespace editorium
         y *= zoom;
         w *= zoom;
         h *= zoom;
-        image_->rectangle(x, y, w, h, gray_color, fill ? 0.1 : 0.0f);
+        image_->rectangle(x, y, w, h, color, fill ? 0.1 : 0.0f);
     }
 
     void ImagePanel::draw_layer(Layer *layer, bool mask) {
