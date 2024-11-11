@@ -47,12 +47,15 @@ public:
     bool use_lcm_lora();
     bool use_tiny_vae();
     bool get_correct_colors();
+    void save_profile();
 
     bool validate();
     void refresh_models();
 private:
     void insert_current_textual();
     void insert_current_lora();
+    void from_profile();
+    void to_profile();
     
 protected:
     static void widget_cb(Fl_Widget* widget, void *cbdata);

@@ -138,6 +138,12 @@ namespace editorium
         selector_->value(1);
         prompt_frame_->refresh_models();
         set_architecture_view();
+
+        if (reference_img) {
+            selector_->value(2);
+            image_frame_->enable_mode();
+        }
+
         show_current_page();
     }
 
@@ -562,6 +568,8 @@ namespace editorium
             }
             result_index_ = index;
             show_current_result();
+
+            prompt_frame_->save_profile();
         }
     }
 

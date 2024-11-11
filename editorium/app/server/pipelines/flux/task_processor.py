@@ -12,32 +12,10 @@ from pipelines.common.exceptions import StopException
 from pipelines.common.color_fixer import color_correction
 from pipelines.flux.managed_model import flux_models
 
+from task_helpers.progress_bar import ProgressBar
 
-SHOULD_STOP = False
-PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
-
-
-def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-
-class TqdmUpTo(tqdm):
-    def update(self, n=1):
-        result = super().update(n)
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
-            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
-        return result
+def report(text: str):
+    ProgressBar.set_title(f"[FLUX] {text}")
 
 
 def generate_flux_image(model_name: str, input: dict, params: dict):
@@ -118,6 +96,9 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
         generator=generator,
         **control_args,
     )
+    
+    report(f"Generating image with model {transformer2d_model if transformer2d_model else model_name}")
+    
     if mode == 'txt2img':
         result = flux_models.pipe(
            **additional_args
@@ -171,7 +152,6 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
             correct_colors = params.get('correct_colors', False)
             if mask:
                 for i, result in enumerate(results):
-                    mask = mask[i % len(mask)]
                     mask = mask.convert("RGBA")
                     mask.putalpha(mask.split()[0])
                     result = result.resize(image.size)

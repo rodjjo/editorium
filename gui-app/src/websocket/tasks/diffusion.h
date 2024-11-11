@@ -45,6 +45,8 @@ typedef struct {
     std::set<std::string> controlnet_types;
     std::set<std::string> ip_adapter_types;
     bool support_inpaint = false;
+    bool support_textual_inversion = false;
+    bool support_base_model = false;
 } architecture_features_t;
 
 std::vector<std::pair<std::string, std::string> > list_architectures();

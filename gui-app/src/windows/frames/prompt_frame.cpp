@@ -1,7 +1,7 @@
 #include "websocket/tasks.h"
 
 #include "windows/frames/prompt_frame.h"
-
+#include "misc/profiles.h"
 
 namespace editorium
 {
@@ -85,9 +85,12 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     
     use_lcm_lora_->callback(widget_cb, this);
     arch_input_->callback(widget_cb, this);
+    models_input_->callback(widget_cb, this);
 
     correct_colors_->tooltip("On inpaiting operation, correct colors in the output image");
     alignComponents();
+
+    prompt_load_profile();
 }
 
 PromptFrame::~PromptFrame() {
@@ -131,6 +134,9 @@ void PromptFrame::widget_cb(Fl_Widget* widget) {
     } else if (widget == arch_input_) {
         refresh_models();
         publish_event(this, event_prompt_architecture_selected, nullptr);
+    } else if (widget == models_input_) {
+        // publish_event(this, event_prompt_model_selected, nullptr);
+        from_profile();
     }
 }
 
@@ -200,7 +206,13 @@ std::string PromptFrame::negative_prompt() {
 }
 
 std::string PromptFrame::get_model() {
-    if (models_input_->value() >= 0) {
+    if (models_input_->value() == 0) {
+        ws::diffusion::architecture_features_t features = ws::diffusion::get_architecture_features(get_arch());
+        if (features.support_base_model) {
+            return "";
+        }
+    }
+    if (models_input_->value() >= 0 ) {
         return models_input_->text(models_input_->value());
     }
     return std::string();
@@ -285,7 +297,11 @@ bool PromptFrame::get_correct_colors() {
 
 void PromptFrame::refresh_models() {
     auto model_list = ws::models::list_models(get_arch(), false);
+    ws::diffusion::architecture_features_t features = ws::diffusion::get_architecture_features(get_arch());
     models_input_->clear();
+    if (features.support_base_model) {
+        models_input_->add("Base model (see settings)");
+    }
     for (auto & m : model_list) {
         models_input_->add(m.c_str());
     }
@@ -305,6 +321,17 @@ void PromptFrame::refresh_models() {
 
     embeddings_->refresh_models(get_arch());
     loras_->refresh_models(get_arch());
+
+    auto model_name = prompt_profile_get_string({get_arch(), "model_name"}, get_model());
+    // sets the model selected to the model name
+    if (!model_name.empty()) {
+        auto idx = models_input_->find_index(model_name.c_str());
+        if (idx >= 0) {
+            models_input_->value(idx);
+        }
+    }
+    
+    from_profile();
 }
 
 void PromptFrame::dfe_handle_event(void *sender, event_id_t event, void *data) {
@@ -348,6 +375,39 @@ void PromptFrame::insert_current_lora() {
     positive_input_->value(text.c_str());
 }
 
+void PromptFrame::from_profile() {
+    guidance_input_->value();
+    float cfg = prompt_profile_get_float({get_arch(), get_model(), "cfg"}, get_cfg());
+    char buffer[25] = "";
+    sprintf(buffer, "%.2f", cfg);
+    guidance_input_->value(buffer);
+    int steps = prompt_profile_get_int({get_arch(), get_model(), "steps"}, get_steps());
+    sprintf(buffer, "%d", steps);
+    steps_input_->value(buffer);
 
+    int width = prompt_profile_get_int({get_arch(), get_model(), "width"}, get_width());
+    sprintf(buffer, "%d", width);
+    width_input_->value(buffer);
+
+    int height = prompt_profile_get_int({get_arch(), get_model(), "height"}, get_height());
+    sprintf(buffer, "%d", height);
+    height_input_->value(buffer);
+
+    negative_input_->value(prompt_profile_get_string({get_arch(), get_model(), "negative_prompt"}, negative_prompt()).c_str());
+}
+
+void PromptFrame::to_profile() {
+    prompt_profile_set_string({get_arch(), "model_name"}, get_model());
+    prompt_profile_set_float({get_arch(), get_model(), "cfg"}, get_cfg());
+    prompt_profile_set_int({get_arch(), get_model(), "steps"}, get_steps());
+    prompt_profile_set_int({get_arch(), get_model(), "width"}, get_width());
+    prompt_profile_set_int({get_arch(), get_model(), "height"}, get_height());
+    prompt_profile_set_string({get_arch(), get_model(), "negative_prompt"}, negative_prompt());
+}
+
+void PromptFrame::save_profile() {
+    to_profile();
+    prompt_save_profile();
+}
 
 } // namespace editorium

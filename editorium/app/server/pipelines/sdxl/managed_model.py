@@ -28,6 +28,7 @@ from huggingface_hub import hf_hub_download
 from pipelines.common.model_manager import ManagedModel
 from pipelines.sdxl.custom_pipelines import StableDiffusionXLCustomPipeline
 from pipelines.sdxl.ip_adapter import IPAdapterPlusXL, IPAdapterXL
+from task_helpers.progress_bar import ProgressBar
 
 
 SCHEDULER_EULER_CONFIG_JSON = '''
@@ -228,6 +229,8 @@ SDXL_UNET_CONFIG_INPAINT = '''
 }
 '''
 
+def report(text: str):
+    ProgressBar.set_title(f'[SDXL Loader] {text}')
 
 def load_lora_state_dict(path):
     state_dict = safetensors.torch.load_file(path, device="cpu") 
@@ -297,7 +300,7 @@ class SdxlModels(ManagedModel):
             model_name = os.path.join(model_dir, model_name)
 
         if unet_model and '.diffusers.' in unet_model:
-            load_lora_state_dict = True  # diffusers in the name indicates that the model is compatible with diffusers library and we need to load state dict insteead of calling from_single_file to avoid it trying to convert into diffusers format again
+            load_state_dict = True  # diffusers in the name indicates that the model is compatible with diffusers library and we need to load state dict insteead of calling from_single_file to avoid it trying to convert into diffusers format again
             
         has_changes = any([
             self.pipe is None,
@@ -350,14 +353,17 @@ class SdxlModels(ManagedModel):
                 if self.lora_repo_id.endswith('.safetensors'):
                     dir_path = self.model_dir('images', 'sdxl', 'loras')
                     lora_path = os.path.join(dir_path, self.lora_repo_id)
-                    print(f"Loading lora weights from local path {self.lora_repo_id}")
+                    report(f"Loading lora weights from local path {self.lora_repo_id}")
                     state_dict = load_lora_state_dict(lora_path)
                     pipe.load_lora_weights(state_dict)    
                 else:
-                    print(f"Loading lora weights from {self.lora_repo_id}")
+                    report(f"Loading lora weights from {self.lora_repo_id}")
                     pipe.load_lora_weights(self.lora_repo_id)
                 pipe.fuse_lora(lora_scale=self.lora_scale)
         
+        def setup_progress(pipe):
+            if hasattr(pipe, 'progress_bar'):
+                pipe.progress_bar = lambda total: ProgressBar(total=total)
         
         if adapter_checkpoint:
             if 'plus' in adapter_checkpoint:
@@ -373,6 +379,7 @@ class SdxlModels(ManagedModel):
             def attach_adpater(pipe):
                 pipe.scheduler = scheduler
                 load_lora(pipe)
+                setup_progress(pipe)
                 gc.collect()
                 torch.cuda.empty_cache()
                 pipe.vae.enable_slicing()
@@ -387,6 +394,7 @@ class SdxlModels(ManagedModel):
             def attach_adpater(pipe):
                 pipe.scheduler = scheduler
                 load_lora(pipe)
+                setup_progress(pipe)
                 gc.collect()
                 torch.cuda.empty_cache()
                 pipe.vae.enable_slicing()
@@ -403,7 +411,7 @@ class SdxlModels(ManagedModel):
 
         if unet_model:
             if unet_model.startswith('./'):
-                print(f"Loading unet weights from local folder {unet_model}")
+                report(f"Loading unet weights from local folder {unet_model}")
                 unet_model = os.path.join(model_dir, unet_model)
                 unet = UNet2DConditionModel.from_pretrained(unet_model, subfolder='unet', torch_dtype=torch_dtype)
             else:
@@ -416,13 +424,13 @@ class SdxlModels(ManagedModel):
                     filename = group.group(3)
                     model_path = os.path.join(model_dir, filename)
                     if not os.path.exists(model_path):
-                        print("Loading unet weights http site...")
+                        report("Loading unet weights http site...")
                         hf_hub_download(repo_id=repo_id, filename=filename, local_dir=model_dir)
                 else:
                     model_path = os.path.join(model_dir, unet_model)
 
                 if load_state_dict:
-                    print("Loading unet from local state dict...")
+                    report("Loading unet from local state dict...")
                     state_dict = safetensors.torch.load_file(model_path, device="cpu")
                     unet = UNet2DConditionModel.from_config(json.loads(SDXL_UNET_CONFIG), torch_dtype=torch_dtype)
                     unet.load_state_dict(state_dict)
@@ -433,7 +441,7 @@ class SdxlModels(ManagedModel):
                 else:
                     unet = UNet2DConditionModel.from_single_file(model_path, config=config_path, torch_dtype=torch_dtype)
         else:
-            print(f"Loading unet weights from pretrained model {model_name}")
+            report(f"Loading unet weights from pretrained model {model_name}")
             unet = UNet2DConditionModel.from_pretrained(model_name, subfolder='unet', torch_dtype=torch_dtype)
                 
         vae = AutoencoderKL.from_pretrained(

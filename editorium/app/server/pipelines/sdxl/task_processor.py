@@ -9,6 +9,11 @@ from PIL import Image, ImageFilter
 from pipelines.sdxl.managed_model import sdxl_models
 from pipelines.common.color_fixer import color_correction
 from pipelines.common.utils import ensure_image
+from task_helpers.progress_bar import ProgressBar
+
+
+def report(text: str):
+    ProgressBar.set_title(f"[SDXL] {text}")
 
 
 def generate_sdxl_image(model_name: str, input: dict, params: dict):
@@ -122,7 +127,9 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
         pipe = lambda *args, **kwargs:  sdxl_models.pipe.generate(*args, **kwargs) 
     else:
         pipe = lambda *args, **kwargs: sdxl_models.pipe(*args, **kwargs).images 
-        
+    
+    report(f"Generating image with model {unet_model if unet_model else model_name}")
+    
     if mode == 'inpaint':
         mask_dilate_size = params.get('mask_dilate_size', 0)
         mask_blur_size = params.get('mask_blur_size', 0)

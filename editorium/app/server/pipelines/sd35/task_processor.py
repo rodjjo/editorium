@@ -11,32 +11,11 @@ from pipelines.common.exceptions import StopException
 from pipelines.common.utils import ensure_image
 from pipelines.common.color_fixer import color_correction
 from pipelines.sd35.managed_model import sd35_models
-
-SHOULD_STOP = False
-PROGRESS_CALLBACK = None  # function(title: str, progress: float)
-CURRENT_TITLE = ""
+from task_helpers.progress_bar import ProgressBar
 
 
-def set_title(title):
-    global CURRENT_TITLE
-    CURRENT_TITLE = f'CogVideoX: {title}'
-    print(CURRENT_TITLE)    
-
-
-def call_callback(title):
-    set_title(title)
-    if PROGRESS_CALLBACK is not None:
-        PROGRESS_CALLBACK(CURRENT_TITLE, 0.0)
-
-
-class TqdmUpTo(tqdm):
-    def update(self, n=1):
-        result = super().update(n)
-        if SHOULD_STOP:
-            raise StopException("Stopped by user.")
-        if PROGRESS_CALLBACK is not None and self.total is not None and self.total > 0:
-            PROGRESS_CALLBACK(CURRENT_TITLE, self.n / self.total)
-        return result
+def report(text: str):
+    ProgressBar.set_title(f"[SD35] {text}")
 
 
 def generate_sd35_image(model_name: str, input: dict, params: dict):
@@ -93,14 +72,17 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
         prompt=params['prompt'],
         prompt_2=params['prompt'],
         guidance_scale=params.get('cfg', 3.5),
-        height=params.get('height', 1024),
-        width=params.get('width', 1024),
         num_inference_steps=steps,
         max_sequence_length=params.get('max_sequence_length', 256),
         generator=generator
     )
+    
+    report(f"Generating image with model {transformer2d_model if transformer2d_model else model_name}")
+
     if mode == 'txt2img':
         result = sd35_models.pipe(
+            height=params.get('height', 1024),
+            width=params.get('width', 1024),
            **additional_args
         ).images
     elif mode == 'img2img':

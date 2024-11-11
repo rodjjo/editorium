@@ -13,7 +13,11 @@ from diffusers import (
 )
 
 from pipelines.common.model_manager import ManagedModel
+from task_helpers.progress_bar import ProgressBar
 
+
+def report(text: str):
+    ProgressBar.set_title(f"[FLUX] {text}")
 
 # https://github.com/huggingface/diffusers/blob/main/docs/source/en/api/pipelines/flux.md
    
@@ -109,9 +113,9 @@ class FluxModels(ManagedModel):
                     # save the json config
                     with open(config_path, 'w') as f:
                         json.dump(transformer_config, f)
-                print("Loading state dict from local path...")                
+                report("Loading state dict from local path...")                
                 transformer  = FluxTransformer2DModel.from_single_file(transformer2d_model, config=config_path, torch_dtype=torch.bfloat16)
-                print("transformer created ...")
+                report("transformer created ...")
                 gc.collect()
                 torch.cuda.empty_cache()
             elif transformer2d_model.startswith('./'):
@@ -222,13 +226,16 @@ class FluxModels(ManagedModel):
             if self.lora_repo_id.endswith('.safetensors'):
                 dir_path = self.flux_lora_dir()
                 lora_path = os.path.join(dir_path, self.lora_repo_id)
-                print(f"Loading lora weights from local path {self.lora_repo_id}")
+                report(f"Loading lora weights from local path {self.lora_repo_id}")
                 state_dict = safetensors.torch.load_file(lora_path, device="cpu")
                 self.pipe.load_lora_weights(state_dict)    
             else:
-                print(f"Loading lora weights from {self.lora_repo_id}")
+                report(f"Loading lora weights from {self.lora_repo_id}")
                 self.pipe.load_lora_weights(self.lora_repo_id)
             self.pipe.fuse_lora(lora_scale=self.lora_scale)
+
+        if hasattr(self.pipe, 'progress_bar'):
+            self.pipe.progress_bar = lambda total: ProgressBar(total=total)
 
         if offload_now:
             self.pipe.vae.enable_slicing()

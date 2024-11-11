@@ -14,17 +14,16 @@ class ProgressBar(tqdm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         with ProgressBar.global_lock:
-            ProgressBar.global_progress_title = ''
             ProgressBar.global_progress_percent = 0.0
-            ProgressBar.global_should_stop = False
+            
             
     @classmethod
     def set_task_id(cls, task_id):
-        ProgressBar.stop(False)
         with ProgressBar.global_lock:
             ProgressBar.global_progress_title = ''
             ProgressBar.global_progress_percent = 0.0
             ProgressBar.global_task_id = task_id  
+            ProgressBar.global_should_stop = False
             
     @classmethod
     def set_title(cls, title):
@@ -57,9 +56,10 @@ class ProgressBar(tqdm):
         result = super().update(n)
         if self.total is not None and self.total > 0:
             with ProgressBar.global_lock:
-                ProgressBar.global_progress_percent = self.n / self.total
-                if ProgressBar.global_should_stop:
-                    StopException("Stopped by the user.")
+                ProgressBar.global_progress_percent = self.n * (100.0 / self.total)
+        with ProgressBar.global_lock:
+            if ProgressBar.global_should_stop:
+                raise StopException("Stopped by the user.")
         return result
 
 

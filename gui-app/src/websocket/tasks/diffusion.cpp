@@ -19,30 +19,40 @@ architecture_features_t get_architecture_features(const std::string &architectur
         result.controlnet_types = {"canny", "depth", "pose", "scribble", "segmentation", "lineart", "mangaline", "inpaint"};
         result.ip_adapter_types = {"plus-face", "full-face", "plus", "common", "light", "vit"};
         result.support_inpaint = true;
+        result.support_textual_inversion = true;
+        result.support_base_model = false;
     } else if (architecture == "sdxl") {
         result.controlnet_count = 1;
         result.ip_adapter_count = 2;
         result.controlnet_types = {"pose", "canny", "depth"};
         result.ip_adapter_types = {"plus-face", "plus", "common"};
         result.support_inpaint = true;
+        result.support_textual_inversion = false;
+        result.support_base_model = true;
     } else if (architecture == "flux") {
         result.controlnet_count = 1;
         result.ip_adapter_count = 2;
         result.controlnet_types = {"pose", "canny", "depth"};
         result.ip_adapter_types = {};
         result.support_inpaint = true;
+        result.support_textual_inversion = false;
+        result.support_base_model = true;
     } else if (architecture == "sd35") {
         result.controlnet_count = 0;
         result.ip_adapter_count = 0;
         result.controlnet_types = {};
         result.ip_adapter_types = {};
         result.support_inpaint = true;
+        result.support_textual_inversion = false;
+        result.support_base_model = true;
     } else if (architecture == "omnigen") {
         result.controlnet_count = 0;
         result.ip_adapter_count = 0;
         result.controlnet_types = {};
         result.ip_adapter_types = {};
         result.support_inpaint = false;
+        result.support_textual_inversion = false;
+        result.support_base_model = false;
     }
     return result;
 
@@ -149,7 +159,7 @@ std::pair<json, json> create_sdxl_diffusion_request(const diffusion_request_t &r
     std::string lora_name;
     if (!request.loras.empty() && request.loras[0].size() < 1024) {
         char lora_name_cstr[1024];
-        if (sscanf(request.loras[1].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
+        if (sscanf(request.loras[0].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
             lora_name = lora_name_cstr;
         }
     }
@@ -239,7 +249,7 @@ std::pair<json, json> create_flux_diffusion_request(const diffusion_request_t &r
     std::string lora_name;
     if (!request.loras.empty() && request.loras[0].size() < 1024) {
         char lora_name_cstr[1024];
-        if (sscanf(request.loras[1].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
+        if (sscanf(request.loras[0].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
             lora_name = lora_name_cstr;
         }
     }
@@ -315,7 +325,7 @@ std::pair<json, json> create_sd35_diffusion_request(const diffusion_request_t &r
     std::string lora_name;
     if (!request.loras.empty() && request.loras[0].size() < 1024) {
         char lora_name_cstr[1024];
-        if (sscanf(request.loras[1].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
+        if (sscanf(request.loras[0].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
             lora_name = lora_name_cstr;
         }
     }

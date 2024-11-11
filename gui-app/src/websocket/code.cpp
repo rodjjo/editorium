@@ -306,6 +306,9 @@ namespace editorium
                     puts("Client not connected! trying to reconnect...");
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                     ws_client->connect(ws_address);
+                    if (ws_client->available()) {
+                        puts("Connected to websocket server!");
+                    }
                     continue;
                 }
                 ws_client->poll();
