@@ -36,6 +36,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     resizeModes_ =  new Fl_Choice(0, 0, 1, 1, "Resize mode");
     use_lcm_lora_ = new Fl_Check_Button(0, 0, 1, 1, "Use LCM lora");
     use_tiny_vae_ = new Fl_Check_Button(0, 0, 1, 1, "Use Tiny AutoEncoder");
+    correct_colors_ = new Fl_Check_Button(0, 0, 1, 1, "Correct colors");
 
     lora_gp_ = new Fl_Group(0, 0, 1, 1);
     loras_.reset(new EmbeddingFrame(true, lora_gp_));
@@ -66,6 +67,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     guidance_input_->value("7.5");
     width_input_->value("512");
     height_input_->value("512");
+    correct_colors_->value(1);
 
     for (int i = 0; i < resize_mode_count; i++) {
         resizeModes_->add(resize_mode_texts[i]);
@@ -83,7 +85,8 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     
     use_lcm_lora_->callback(widget_cb, this);
     arch_input_->callback(widget_cb, this);
-   
+
+    correct_colors_->tooltip("On inpaiting operation, correct colors in the output image");
     alignComponents();
 }
 
@@ -150,6 +153,7 @@ void PromptFrame::alignComponents() {
     models_input_->resize(arch_input_->x() + arch_input_->w() + 5, arch_input_->y(), (pw - 15) / 2, height_input_->h());
     use_lcm_lora_->resize(sx + 5, models_input_->y() + models_input_->h() + 5, 160, 20);
     use_tiny_vae_->resize(use_lcm_lora_->x() + use_lcm_lora_->w() + 5, use_lcm_lora_->y(), use_lcm_lora_->w(), use_lcm_lora_->h());
+    correct_colors_->resize(use_tiny_vae_->x() + use_tiny_vae_->w() + 5, use_tiny_vae_->y(), use_tiny_vae_->w(), use_tiny_vae_->h());
     schedulers_->resize(sx + 5, use_tiny_vae_->y() + use_tiny_vae_->h() + 20, models_input_->w(), models_input_->h());
     resizeModes_->resize(schedulers_->x() +  schedulers_->w() + 5, schedulers_->y(), models_input_->w(), models_input_->h());
 
@@ -273,6 +277,10 @@ bool PromptFrame::use_lcm_lora() {
 
 bool PromptFrame::use_tiny_vae() {
     return use_tiny_vae_->value() != 0;
+}
+
+bool PromptFrame::get_correct_colors() {
+    return correct_colors_->value() != 0;
 }
 
 void PromptFrame::refresh_models() {

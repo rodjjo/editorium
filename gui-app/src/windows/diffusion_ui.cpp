@@ -470,6 +470,7 @@ namespace editorium
         params.negative_prompt = prompt_frame_->negative_prompt();
         params.seed = prompt_frame_->get_seed();
         params.steps = prompt_frame_->get_steps();
+        params.correct_colors = prompt_frame_->get_correct_colors();
         params.batch_size = prompt_frame_->get_batch_size();
         params.model_name = prompt_frame_->get_model();
         params.cfg = prompt_frame_->get_cfg();

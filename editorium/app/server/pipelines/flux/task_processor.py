@@ -5,10 +5,11 @@ import torch
 import random
 from tqdm import tqdm
 
-from PIL import  ImageFilter
+from PIL import Image, ImageFilter
 
 from pipelines.common.utils import ensure_image
 from pipelines.common.exceptions import StopException
+from pipelines.common.color_fixer import color_correction
 from pipelines.flux.managed_model import flux_models
 
 
@@ -122,14 +123,18 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
            **additional_args
         ).images
     elif mode == 'img2img':
-        additional_args = {
-            **additional_args,
-            'image': inpaint_image,
-            'strength': strength,
-        }
-        result = flux_models.pipe(
-           **additional_args
-        ).images
+        all_results = []
+        for image in inpaint_image:
+            additional_args = {
+                **additional_args,
+                'image': inpaint_image,
+                'strength': strength,
+            }
+            result = flux_models.pipe(
+            **additional_args
+            ).images
+            all_results += result
+        result = all_results
     else: # mode == 'inpaint'
         mask_dilate_size = params.get('mask_dilate_size', 0)
         mask_blur_size = params.get('mask_blur_size', 0)
@@ -139,12 +144,13 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
             kernel_size_dilate = 5
         if mask_blur_size > 3:
             kernel_size_blur = 5
-       
+
+        all_results = []
         for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
             if mask is not None and mask_dilate_size > 0:
                 index = 0
                 while index < mask_dilate_size:
-                    image = image.filter(ImageFilter.MaxFilter(kernel_size_dilate))
+                    mask = mask.filter(ImageFilter.MaxFilter(kernel_size_dilate))
                     index += kernel_size_dilate
             if mask is not None and mask_blur_size > 0:
                 index = 0
@@ -152,15 +158,32 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
                     mask = mask.filter(ImageFilter.GaussianBlur(kernel_size_blur))
                     index += kernel_size_blur
 
-        additional_args = {
-            **additional_args,
-            'image': image,
-            'mask_image': mask,
-            'strength': strength,
-        }
-        result = flux_models.pipe(
-           **additional_args
-        ).images
+            additional_args = {
+                **additional_args,
+                'image': image,
+                'mask_image': mask,
+                'strength': strength,
+            }
+            results = flux_models.pipe(
+                **additional_args
+            ).images
+        
+            correct_colors = params.get('correct_colors', False)
+            if mask:
+                for i, result in enumerate(results):
+                    mask = mask[i % len(mask)]
+                    mask = mask.convert("RGBA")
+                    mask.putalpha(mask.split()[0])
+                    result = result.resize(image.size)
+                    try:
+                        results[i] = Image.composite(result, image, mask)
+                        if correct_colors:
+                            results[i] = color_correction(results[i], image)
+                    except:
+                        print(f"\n\n!!!\n\n {input} - image: {image} - mask: {mask} - result: {result}")
+                        raise
+            all_results += results
+        result = all_results
  
     return {
         'images': result

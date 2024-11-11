@@ -19,6 +19,7 @@ def color_correction(new_img, original_image):
 
     return image.convert('RGB')
 
+
 def color_correction_mask(new_img, original_image, mask):
     # convert the pil image new_img into a numpy array
     new_img = np.array(new_img)

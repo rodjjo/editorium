@@ -7,6 +7,7 @@ import random
 from PIL import Image, ImageFilter 
 
 from pipelines.sdxl.managed_model import sdxl_models
+from pipelines.common.color_fixer import color_correction
 from pipelines.common.utils import ensure_image
 
 
@@ -104,42 +105,7 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
             add_args['image'] = control_image
         else:
             add_args['control_image'] = control_image
-    
-    if mode == 'inpaint':
-        mask_dilate_size = params.get('mask_dilate_size', 0)
-        mask_blur_size = params.get('mask_blur_size', 0)
-        kernel_size_dilate = 3
-        kernel_size_blur = 3
-        if mask_dilate_size > 3:
-            kernel_size_dilate = 5
-        if mask_blur_size > 3:
-            kernel_size_blur = 5
-       
-        for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
-            if mask is not None and mask_dilate_size > 0:
-                index = 0
-                while index < mask_dilate_size:
-                    image = image.filter(ImageFilter.MaxFilter(kernel_size_dilate))
-                    index += kernel_size_dilate
-            if mask is not None and mask_blur_size > 0:
-                index = 0
-                while index < mask_blur_size:
-                    mask = mask.filter(ImageFilter.GaussianBlur(kernel_size_blur))
-                    index += kernel_size_blur
-        
-        add_args = {
-            'image': image, 
-            'mask_image': mask,
-            'strength': strength,
-            **add_args,
-        }
-    elif mode == 'img2img':
-        add_args = {
-            'image': inpaint_image,
-            'strength': strength,
-            **add_args,
-        }
-    
+            
     seed = params.get('seed', -1)
     if seed == -1:
         seed = random.randint(0, 1000000)
@@ -151,22 +117,89 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
         negative_prompt = ''
     else:
         negative_prompt = params.get('negative_prompt', '')
-
-    pipe_args = dict(
-        prompt=params['prompt'],
-        negative_prompt=negative_prompt,
-        guidance_scale=cfg,
-        height=params.get('height', None),
-        width=params.get('width', None),
-        num_inference_steps=params.get('steps', 50),
-        generator=generator,
-        **add_args,
-    )
-
+    
     if hasattr(sdxl_models.pipe, 'generate'):
-        result = sdxl_models.pipe.generate(**pipe_args) 
+        pipe = lambda *args, **kwargs:  sdxl_models.pipe.generate(*args, **kwargs) 
     else:
-        result = sdxl_models.pipe(**pipe_args).images 
+        pipe = lambda *args, **kwargs: sdxl_models.pipe(*args, **kwargs).images 
+        
+    if mode == 'inpaint':
+        mask_dilate_size = params.get('mask_dilate_size', 0)
+        mask_blur_size = params.get('mask_blur_size', 0)
+        kernel_size_dilate = 3
+        kernel_size_blur = 3
+        if mask_dilate_size > 3:
+            kernel_size_dilate = 5
+        if mask_blur_size > 3:
+            kernel_size_blur = 5
+        all_results = []
+        for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
+            if mask is not None and mask_dilate_size > 0:
+                index = 0
+                while index < mask_dilate_size:
+                    mask = mask.filter(ImageFilter.MaxFilter(kernel_size_dilate))
+                    index += kernel_size_dilate
+            if mask is not None and mask_blur_size > 0:
+                index = 0
+                while index < mask_blur_size:
+                    mask = mask.filter(ImageFilter.GaussianBlur(kernel_size_blur))
+                    index += kernel_size_blur
+            results = pipe(
+                prompt=params['prompt'],
+                negative_prompt=negative_prompt,
+                guidance_scale=cfg,
+                height=params.get('height', None),
+                width=params.get('width', None),
+                num_inference_steps=params.get('steps', 50),
+                generator=generator,
+                image=image,
+                mask_image=mask,
+                strength= strength,
+                **add_args,
+            )
+            correct_colors = params.get('correct_colors', False)
+            for i, result in enumerate(results):
+                mask = mask.convert("RGBA")
+                mask.putalpha(mask.split()[0])
+                result = result.resize(image.size)
+                try:
+                    results[i] = Image.composite(result, image, mask)
+                    if correct_colors:
+                        results[i] = color_correction(results[i], image)
+                except:
+                    print(f"\n\n!!!\n\n {input} - image: {image} - mask: {mask} - result: {result}")
+                    raise
+            all_results += results
+        result = all_results
+    elif mode == 'img2img':
+        all_results = []
+        for  image in inpaint_image:
+            result = pipe(
+                prompt=params['prompt'],
+                negative_prompt=negative_prompt,
+                guidance_scale=cfg,
+                height=params.get('height', None),
+                width=params.get('width', None),
+                num_inference_steps=params.get('steps', 50),
+                generator=generator,
+                image= inpaint_image,
+                strength= strength,
+                **add_args,
+            )
+            all_results += result
+        result = all_results
+    else:
+        result = pipe(
+            prompt=params['prompt'],
+            negative_prompt=negative_prompt,
+            guidance_scale=cfg,
+            height=params.get('height', None),
+            width=params.get('width', None),
+            num_inference_steps=params.get('steps', 50),
+            generator=generator,
+            **add_args,
+        )
+
 
     return {
         'images': result

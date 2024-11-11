@@ -46,6 +46,7 @@ public:
     int get_height();
     bool use_lcm_lora();
     bool use_tiny_vae();
+    bool get_correct_colors();
 
     bool validate();
     void refresh_models();
@@ -79,6 +80,7 @@ private:
     Fl_Choice            *resizeModes_;
     Fl_Check_Button      *use_lcm_lora_;
     Fl_Check_Button      *use_tiny_vae_;
+    Fl_Check_Button      *correct_colors_;
 };
 
 } // namespace editorium

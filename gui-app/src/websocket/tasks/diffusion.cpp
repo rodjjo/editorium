@@ -72,6 +72,7 @@ std::pair<json, json> create_sd15_diffusion_request(const diffusion_request_t &r
     config["scheduler_name"] = "EulerAncestralDiscreteScheduler";
     config["use_float16"] = request.use_float16;
     config["free_lunch"] = request.free_lunch;
+    config["correct_colors"] = request.correct_colors;
     config["seed"] = request.seed;
     config["cfg"] = request.cfg;
     config["steps"] = request.steps;
@@ -174,6 +175,7 @@ std::pair<json, json> create_sdxl_diffusion_request(const diffusion_request_t &r
     config["height"] = request.height;
     config["width"] = request.width;
     config["steps"] = request.steps;
+    config["correct_colors"] = request.correct_colors;
     config["seed"] = request.seed;
     config["inpaint_mode"] = request.inpaint_mode;
     config["mask_dilate_size"] = request.mask_dilate_size;
@@ -259,6 +261,7 @@ std::pair<json, json> create_flux_diffusion_request(const diffusion_request_t &r
     config["height"] = request.height;
     config["width"] = request.width;
     config["steps"] = request.steps;
+    config["correct_colors"] = request.correct_colors;
     config["max_sequence_length"] = 512;
     config["seed"] = request.seed;
     config["inpaint_mode"] = request.inpaint_mode;
@@ -334,6 +337,7 @@ std::pair<json, json> create_sd35_diffusion_request(const diffusion_request_t &r
     config["height"] = request.height;
     config["width"] = request.width;
     config["steps"] = request.steps;
+    config["correct_colors"] = request.correct_colors;
     config["max_sequence_length"] = 512;
     config["seed"] = request.seed;
     config["inpaint_mode"] = request.inpaint_mode;

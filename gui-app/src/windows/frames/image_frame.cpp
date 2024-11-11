@@ -48,7 +48,7 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
     choice_mode_ = new Fl_Choice(0 , 0, 1, 1, "Image usage mode");
     choice_brush_size_ = new Fl_Choice(0 , 0, 1, 1, "Editor brush size");
     choice_inpaint_mode_ = new Fl_Choice(0 , 0, 1, 1, "Inpainting mode");
-    strength_input_ = new Fl_Float_Input(0 , 0, 1, 1, "Similarity");
+    strength_input_ = new Fl_Float_Input(0 , 0, 1, 1, "Strenght");
 
     btnNewMask_.reset(new Button(xpm::image(xpm::img_24x24_new_document),
         [this] () {
@@ -92,7 +92,7 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
     choice_mode_->value(0);
     choice_brush_size_->value(5);
     choice_inpaint_mode_->value(0);
-    strength_input_->value(75.0);
+    strength_input_->value(25.0);
 
     choice_mode_->callback(combobox_cb, this);
     choice_brush_size_->callback(combobox_cb, this);
@@ -236,7 +236,7 @@ float ImageFrame::get_strength() {
     char buffer[100] = { 0, };
     sprintf(buffer, "%0.1f", value);
     strength_input_->value(buffer);
-    return (100.0 - value) / 100.0; 
+    return value / 100.0; 
 }
 
 } // namespace editorium

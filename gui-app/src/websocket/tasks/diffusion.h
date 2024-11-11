@@ -20,6 +20,7 @@ typedef struct {
     bool use_lcm = false;
     bool free_lunch = false;
     bool use_float16 = true;
+    bool correct_colors = true;
     unsigned char steps = 4;
     float cfg = 3.0; 
     float image_strength = 0.75;

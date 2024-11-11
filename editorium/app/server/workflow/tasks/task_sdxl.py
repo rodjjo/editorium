@@ -13,6 +13,7 @@ class SDXLSchema(Schema):
     width = fields.Int(required=False)
     steps = fields.Int(required=False, load_default=50)
     seed = fields.Int(required=False, load_default=-1)
+    correct_colors = fields.Bool(required=False, load_default=False)
     inpaint_mode = fields.Str(required=False, load_default="original")
     mask_dilate_size = fields.Int(required=False, load_default=0)
     mask_blur_size = fields.Int(required=False, load_default=0)

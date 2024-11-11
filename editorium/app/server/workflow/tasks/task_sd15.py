@@ -12,6 +12,7 @@ class Sd15PayloadSchema(Schema):
     scheduler_name = fields.Str(required=False, load_default='EulerAncestralDiscreteScheduler')
     use_float16 = fields.Bool(required=False, load_default=True)
     free_lunch = fields.Bool(required=False, load_default=False)
+    correct_colors = fields.Bool(required=False, load_default=False)
     seed = fields.Int(required=False, load_default=-1)
     cfg = fields.Float(required=False, load_default=7.5)
     steps = fields.Int(required=False, load_default=50)

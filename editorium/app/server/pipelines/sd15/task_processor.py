@@ -7,6 +7,7 @@ import random
 from pipelines.sd15.managed_model import sd15_models
 from pipelines.sd15.loader import LORA_DIR
 from pipelines.common.utils import ensure_image
+from pipelines.common.color_fixer import color_correction
 
 
 def get_lora_path(lora: str, lora_dir_contents: list) -> str:
@@ -469,7 +470,7 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
         if mask is not None and mask_dilate_size > 0:
             index = 0
             while index < mask_dilate_size:
-                image = image.filter(ImageFilter.MaxFilter(kernel_size_dilate))
+                mask = mask.filter(ImageFilter.MaxFilter(kernel_size_dilate))
                 index += kernel_size_dilate
         if mask is not None and mask_blur_size > 0:
             index = 0
@@ -509,14 +510,16 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
             adapter_images=adapter_images
         )
 
+        correct_colors = params.get('correct_colors', False)
         if mask:
             for i, result in enumerate(current_results):
                 mask = mask.convert("RGBA")
                 mask.putalpha(mask.split()[0])
-                
                 result = result.resize(image.size)
                 try:
                     current_results[i] = Image.composite(result, image, mask)
+                    if correct_colors:
+                        current_results[i] = color_correction(current_results[i], image)
                 except:
                     print(f"\n\n!!!\n\n {input} - image: {image} - mask: {mask} - result: {result}")
                     raise

@@ -11,6 +11,7 @@ class Sd35TaskSchema(Schema):
     height = fields.Int(required=False)
     width = fields.Int(required=False)
     steps = fields.Int(required=False, load_default=8)
+    correct_colors = fields.Bool(required=False, load_default=False)
     max_sequence_length = fields.Int(required=False, load_default=512)
     seed = fields.Int(required=False, load_default=-1)
     inpaint_mode = fields.Str(required=False, load_default="original")
