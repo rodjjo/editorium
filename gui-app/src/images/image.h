@@ -44,6 +44,8 @@ class RawImage {
     void rectangle(int x, int y, int w, int h, uint8_t color[4], float fill_opacity=0);
     image_ptr_t duplicate();
     image_ptr_t removeBackground(bool white);
+    image_ptr_t black_white_into_rgba_mask();
+    image_ptr_t rgba_mask_into_black_white(bool invert_colors=false);
     image_ptr_t removeAlpha();
     image_ptr_t addAlpha();
     image_ptr_t resizeCanvas(uint32_t x, uint32_t y);

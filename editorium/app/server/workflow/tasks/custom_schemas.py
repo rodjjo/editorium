@@ -24,16 +24,31 @@ class ImageField(fields.Field):
         if self.context.get("from_api", False):
             return pil_as_dict(value)
         return value
+    
 
-class BoxSchema(Schema):
-    x = fields.Int(required=True)
-    y = fields.Int(required=True)
-    x2 = fields.Int(required=True)
-    y2 = fields.Int(required=True)
+class BoxField(fields.Field):
+    def _deserialize(self, value, attr, data):
+        if not value:
+            return None
+        if self.context.get("from_api", False):
+            if type(value) is dict:
+                return  [value['x'], value['y'], value['x2'], value['y2']]
+            else:
+                raise ValidationError("Image must be a dictionary with 'x', 'y', 'x2' and 'y2' keys.")
+        return value
+        
+    
+    def _serialize(self, value, attr, obj):
+        if not value:
+            return None
+        if self.context.get("from_api", False):
+            return {'x': value[0], 'y': value[1], 'x2': value[2], 'y2': value[3]}
+        return value
+
 
 class InputOutputSchema(Schema):
     images = fields.List(ImageField(), required=False, load_default=[])
-    boxes = fields.List(fields.Nested(BoxSchema), required=False, load_default=[])
+    boxes = fields.List(BoxField(), required=False, load_default=[])
     texts = fields.List(fields.Str(), required=False, load_default=[])
     data = fields.Dict(required=False, load_default={})
     data_list = fields.List(fields.Dict(), required=False, load_default=[])

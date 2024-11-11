@@ -49,6 +49,8 @@ typedef struct {
 std::vector<std::pair<std::string, std::string> > list_architectures();
 std::vector<editorium::image_ptr_t> run_diffusion(const diffusion_request_t &request);
 std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, std::vector<editorium::image_ptr_t> images);
+std::vector<editorium::image_ptr_t> run_seg_ground_dino(const std::string& tags, std::vector<editorium::image_ptr_t> images); 
+std::vector<editorium::image_ptr_t> run_seg_sapiens(const std::string& tags, std::vector<editorium::image_ptr_t> images); 
 architecture_features_t get_architecture_features(const std::string &architecture);
 
 } // namespace diffusion

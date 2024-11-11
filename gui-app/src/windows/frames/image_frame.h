@@ -85,6 +85,8 @@ private:
     Fl_Float_Input *strength_input_;
     std::unique_ptr<Button> btnNewMask_;
     std::unique_ptr<Button> btnOpenMask_;
+    std::unique_ptr<Button> btnSegGDino_;
+    std::unique_ptr<Button> btnSegSapiens_;
 
     img2img_mode_t mode_ = img2img_text;
     int brush_size_ = 16;

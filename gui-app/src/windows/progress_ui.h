@@ -19,7 +19,8 @@ typedef enum {
     progress_generation,
     progress_upscaler,
     progress_background,
-    progress_preprocessor
+    progress_preprocessor,
+    progress_segmentation
 } progress_type;
 
 typedef std::function<bool()> checker_cb_t;

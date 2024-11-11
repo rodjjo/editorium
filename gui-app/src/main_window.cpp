@@ -397,7 +397,7 @@ namespace editorium
                 return;
             }
         }
-        auto img = selection ? generate_image(image_->view_settings()) : generate_image();
+        auto img = selection ? generate_image(true, image_->view_settings()) : generate_image(true);
         if (img) {
             image_->view_settings()->fuse_image(img);
         } 

@@ -34,6 +34,8 @@ typedef enum {
     img_24x24_green_pin,
     img_24x24_heart,
     img_24x24_medium_rating,
+    img_24x24_female,
+    img_24x24_alien,
     // keep no_image at the end
     no_image
 } xpm_t;

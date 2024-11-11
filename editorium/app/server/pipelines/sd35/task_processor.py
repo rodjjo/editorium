@@ -130,7 +130,7 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
             if mask is not None and mask_blur_size > 0:
                 index = 0
                 while index < mask_blur_size:
-                    image = image.filter(ImageFilter.GaussianBlur(kernel_size_blur))
+                    mask = mask.filter(ImageFilter.GaussianBlur(kernel_size_blur))
                     index += kernel_size_blur
 
         additional_args = {

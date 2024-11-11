@@ -10,6 +10,7 @@ from PIL import Image
 import numpy as np
 
 from pipelines.common.exceptions import StopException
+from pipelines.common.utils import ensure_image
 from pipelines.segmentation_sapiens.managed_model import segmentation_models, SEGMENTATION_CLASSES_NUMBERS
 from pipelines.segmentation_gsam.task_processor import refine_mask_uint8
 
@@ -138,13 +139,15 @@ def fake_pad_images_to_batchsize(imgs, batch_size=8):
     return F.pad(imgs, (0, 0, 0, 0, 0, 0, 0, batch_size - imgs.shape[0]), value=0)
 
 
-def generate_segmentation(task_name: str, base_dir: str, input: dict, params: dict):
+def generate_segmentation(input: dict, params: dict):
     segmentation_models.load_models()
     
     images = input.get('default', {}).get('images', None) 
     if not images:
         images = input.get('image', {}).get('images', None) 
-        
+    
+    images = ensure_image(images)
+    
     if not images:
         raise ValueError("It's required a image to segment")
     

@@ -92,6 +92,57 @@ image_ptr_t RawImage::duplicate() {
     );
 }
 
+image_ptr_t RawImage::black_white_into_rgba_mask() {
+    image_ptr_t result;
+    result.reset(new RawImage(NULL, w_, h_, img_rgba, false));
+    
+    int src_channels = format_channels[format_];
+
+    unsigned char *d = result->buffer_;
+    unsigned char *s = this->buffer_;
+    if (src_channels == 4) { // if source is rgba, use the alpha channel instead of red channel
+        s = s + 3;  
+    }
+    unsigned char color = 0;
+    for (int i = 0; i < result->buffer_len_; i += 4) {
+        color = *s ? 255 : 0;
+        *d = color; ++d;
+        *d = color; ++d;
+        *d = color; ++d;
+        *d = color; s += src_channels;
+        ++d;
+    }
+
+    return result;
+}
+
+image_ptr_t RawImage::rgba_mask_into_black_white(bool invert) {
+    image_ptr_t result;
+    result.reset(new RawImage(NULL, w_, h_, img_rgb, false));
+    
+    int src_channels = format_channels[format_];
+
+    unsigned char *d = result->buffer_;
+    unsigned char *s = this->buffer_;
+    
+    if (src_channels == 4) { // if source is rgba, use the alpha channel instead of red channel
+        s = s + 3;  
+    }
+
+    unsigned char color = 0;
+    unsigned char color_1 = invert ?  0 : 255;
+    unsigned char color_2 = invert ?  255 : 0;
+    for (size_t i = 0; i < result->buffer_len_; i += 3) {
+        color = *s ? color_1 : color_2;
+        *d = color; ++d;
+        *d = color; ++d;
+        *d = color; ++d;
+        s += src_channels;
+    }
+
+    return result;
+}
+
 image_ptr_t RawImage::removeBackground(bool white) {
     image_ptr_t r;
     r.reset(new RawImage(NULL, w_, h_, img_rgba, false));

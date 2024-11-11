@@ -33,6 +33,8 @@
 #include "components/xpm/data/24x24/new_document.xpm"
 #include "components/xpm/data/24x24/flash_drive.xpm"
 #include "components/xpm/data/24x24/green_pin.xpm"
+#include "components/xpm/data/24x24/female.xpm"
+#include "components/xpm/data/24x24/alien.xpm"
 
 #pragma GCC diagnostic pop
 
@@ -63,7 +65,9 @@ std::map<xpm_t, const char * const*> xpm_db = {
     { img_24x24_back, xpm_back },
     { img_24x24_forward, xpm_forward },
     { img_24x24_heart, xpm_heart },
-    { img_24x24_medium_rating, xpm_medium_rating }
+    { img_24x24_medium_rating, xpm_medium_rating },
+    { img_24x24_female, xpm_female },
+    { img_24x24_alien, xpm_alien }
 
 };
 

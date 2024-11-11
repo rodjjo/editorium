@@ -86,7 +86,7 @@ private:
     std::unique_ptr<Button> btnCancel_;
 };
 
-image_ptr_t generate_image();
-image_ptr_t generate_image(ViewSettings* view_settings);
+image_ptr_t generate_image(bool modal);
+image_ptr_t generate_image(bool modal, ViewSettings* view_settings);
 
 } // namespace editorium

@@ -36,4 +36,8 @@ class SegmentationTask(WorkflowTask):
 
 
 def register():
-    SegmentationTask.register("sapiens-segmentation", "Segment a image based on lables like: person, car, etc.")
+    SegmentationTask.register(
+        "sapiens-segmentation", 
+        "Segment a image based on lables like: person, car, etc.",
+        api_enabled=True
+    )

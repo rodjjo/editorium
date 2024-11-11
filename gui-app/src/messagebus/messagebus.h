@@ -37,6 +37,8 @@ typedef enum {
     event_generator_save_current_image,
     event_image_frame_new_mask,
     event_image_frame_open_mask,
+    event_image_frame_seg_gdino,
+    event_image_frame_seg_sapiens,
     event_image_frame_mode_selected,
     event_prompt_lora_selected,
     event_prompt_textual_selected,

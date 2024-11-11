@@ -60,6 +60,17 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
             publish_event(this, event_image_frame_open_mask, NULL);
         }
     ));
+    btnSegGDino_.reset(new Button(xpm::image(xpm::img_24x24_alien),
+        [this] () {
+            publish_event(this, event_image_frame_seg_gdino, NULL);
+        }
+    ));
+
+    btnSegSapiens_.reset(new Button(xpm::image(xpm::img_24x24_female),
+        [this] () {
+            publish_event(this, event_image_frame_seg_sapiens, NULL);
+        }
+    ));
 
     for (int i = 0; i < img2img_mode_max; i++) {
         choice_mode_->add(modes_text[i]);
@@ -89,6 +100,8 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
 
     btnNewMask_->tooltip("Create a new mask");
     btnOpenMask_->tooltip("Open a image to use as a mask");
+    btnSegGDino_->tooltip("Create mask using Grounding Dino segmentation");
+    btnSegSapiens_->tooltip("Create mask using Sapiens segmentation (from facebook)");
 
     alignComponents();
     combobox_selected();
@@ -143,9 +156,13 @@ void ImageFrame::alignComponents() {
     strength_input_->resize(left + 5, choice_brush_size_->h() + choice_brush_size_->y() + 25, w - 10, 30);
 
     btnNewMask_->size((w - 15) / 2, 30);
+    btnSegGDino_->size((w - 15) / 2, 30);
+    btnSegSapiens_->size((w - 15) / 2, 30);
     btnOpenMask_->size(btnNewMask_->w(), btnNewMask_->h());
     btnNewMask_->position(left + 5, strength_input_->y() + strength_input_->h() + 5);
     btnOpenMask_->position(btnNewMask_->x() + btnNewMask_->w() + 5, btnNewMask_->y());
+    btnSegGDino_->position(left + 5, btnNewMask_->y() + btnNewMask_->h() + 5);
+    btnSegSapiens_->position(btnSegGDino_->x() + btnSegGDino_->w() + 5, btnSegGDino_->y());
 }
 
 void ImageFrame::combobox_cb(Fl_Widget* widget, void *cbdata) {
@@ -174,12 +191,16 @@ void ImageFrame::combobox_selected() {
     if (choice_mode_->value() > 1) {
         btnNewMask_->show();
         btnOpenMask_->show();
+        btnSegGDino_->show();
+        btnSegSapiens_->show();
         choice_brush_size_->show();
         choice_inpaint_mode_->show();
         strength_input_->show();
     } else {
         btnNewMask_->hide();
         btnOpenMask_->hide();
+        btnSegGDino_->hide();
+        btnSegSapiens_->hide();
         choice_brush_size_->hide();
         choice_inpaint_mode_->hide();
         if (choice_mode_->value() > 0) {

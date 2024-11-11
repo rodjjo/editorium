@@ -1,11 +1,16 @@
+#include <FL/fl_ask.H>
 
 #include "misc/utils.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
 #include "components/xpm/xpm.h"
 
-#include "windows/diffusion_ui.h"
 #include "websocket/tasks.h"
+#include "windows/sapiens_ui.h"
+
+#include "windows/diffusion_ui.h"
+
+
 
 namespace editorium
 {
@@ -19,7 +24,9 @@ namespace editorium
             event_image_frame_new_mask,
             event_image_frame_open_mask,
             event_image_frame_mode_selected,
-            event_prompt_architecture_selected
+            event_prompt_architecture_selected,
+            event_image_frame_seg_gdino,
+            event_image_frame_seg_sapiens
         };
 
        const char *page_names[page_type_count] = {
@@ -324,10 +331,53 @@ namespace editorium
                         show_error("Open or generate an image first!");
                     } else {
                         auto r = choose_and_open_image("inpaint_mask");
+                        if (!r) {
+                            return;
+                        }
                         if (images_[page_type_image]->view_settings()->layer_count() < 2) {
                             images_[page_type_image]->view_settings()->add_layer(r);
                         } else {
                             images_[page_type_image]->view_settings()->at(1)->replace_image(r);
+                        }
+                    }
+                break;
+
+                case event_image_frame_seg_gdino:
+                    if (images_[page_type_image]->view_settings()->layer_count() < 1) {
+                        show_error("Open or generate an image first!");
+                    } else {
+                        auto classes = fl_input("Enter the classes to segment (comma separated)", "");
+                        if (!classes) {
+                            return;
+                        }
+                        auto r = ws::diffusion::run_seg_ground_dino(classes, {images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate()});
+                        if (r.empty()) {
+                            return;
+                        }
+                        if (images_[page_type_image]->view_settings()->layer_count() < 2) {
+                            images_[page_type_image]->view_settings()->add_layer(r[0]);
+                        } else {
+                            images_[page_type_image]->view_settings()->at(1)->replace_image(r[0]);
+                        }
+                    }
+                break;
+
+                case event_image_frame_seg_sapiens:
+                    if (images_[page_type_image]->view_settings()->layer_count() < 1) {
+                        show_error("Open or generate an image first!");
+                    } else {
+                        std::string classes = select_sapien_classes();
+                        if (classes.empty()) {
+                            return;
+                        }
+                        auto r = ws::diffusion::run_seg_sapiens(classes, {images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate()});
+                        if (r.empty()) {
+                            return;
+                        }
+                        if (images_[page_type_image]->view_settings()->layer_count() < 2) {
+                            images_[page_type_image]->view_settings()->add_layer(r[0]);
+                        } else {
+                            images_[page_type_image]->view_settings()->at(1)->replace_image(r[0]);
                         }
                     }
                 break;
@@ -433,7 +483,6 @@ namespace editorium
 
         int original_width = params.width;
         int original_height = params.height;
-        image_ptr_t original_mask;
 
         if (image_frame_->get_mode() != img2img_text) {
             params.images = {images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate()};
@@ -444,15 +493,13 @@ namespace editorium
             params.height = params.images[0]->h();
 
             if (image_frame_->get_mode() == img2img_inpaint_masked) {
-                params.masks = {images_[page_type_image]->view_settings()->at(1)->getImage()->removeAlpha()};
+                params.masks = {images_[page_type_image]->view_settings()->at(1)->getImage()->rgba_mask_into_black_white()};
             } else if (image_frame_->get_mode() == img2img_inpaint_not_masked) {
-                params.masks = {images_[page_type_image]->view_settings()->at(1)->getImage()->duplicate()};
+                params.masks = {images_[page_type_image]->view_settings()->at(1)->getImage()->rgba_mask_into_black_white(true)};
             }
             
             if (!params.masks.empty()) {
-                original_mask = params.masks[0]->duplicate();
                 params.masks[0] = params.masks[0]->ensureMultipleOf8();
-                
             }
         }
 
@@ -501,12 +548,6 @@ namespace editorium
         if (!result.empty()) {
             if (image_frame_->get_mode() == img2img_inpaint_masked || 
                 image_frame_->get_mode() == img2img_inpaint_not_masked) {
-                for (auto & img : result) {
-                    params.masks = {original_mask->removeAlpha()->blur(4.0)->resizeCanvas(img->w(), img->h())};
-                    img->pasteAt(0, 0, params.masks[0].get(), params.images[0].get());
-                    img = img->getCrop(0, 0, original_width, original_height);
-                    img.swap(img);
-                }
             }
             size_t index = results_.size();
             for (auto & img : result) {
@@ -587,9 +628,12 @@ namespace editorium
         }
     }
 
-    image_ptr_t generate_image_(ViewSettings* view_settings) {
+    image_ptr_t generate_image_(bool modal, ViewSettings* view_settings) {
         image_ptr_t r;
         DiffusionWindow *window = view_settings ? new DiffusionWindow(view_settings) : new DiffusionWindow();
+        if (modal) {
+            window->set_modal();
+        }
         window->show();
         while (true) {
             if (!window->visible_r()) {
@@ -606,12 +650,12 @@ namespace editorium
     }
 
 
-    image_ptr_t generate_image() {
-        return generate_image_(NULL);
+    image_ptr_t generate_image(bool modal) {
+        return generate_image_(modal, NULL);
     }
 
-    image_ptr_t generate_image(ViewSettings* view_settings) {
-        return generate_image_(view_settings);
+    image_ptr_t generate_image(bool modal, ViewSettings* view_settings) {
+        return generate_image_(modal, view_settings);
     }
 
     

@@ -9,6 +9,7 @@ from PIL import Image
 import numpy as np
 
 from pipelines.common.exceptions import StopException
+from pipelines.common.utils import ensure_image
 from pipelines.segmentation_gsam.managed_model import segmentation_models
 
 SHOULD_STOP = False
@@ -207,6 +208,8 @@ def generate_segmentation(model_name_det: str, model_name_seg: str, input: dict,
     images = input.get('default', {}).get('images', [])
     if not images:
         images = input.get('image', {}).get('images', [])
+    
+    images = ensure_image(images)
     
     if not images:
         raise Exception("Invalid input data expected a not empty list")

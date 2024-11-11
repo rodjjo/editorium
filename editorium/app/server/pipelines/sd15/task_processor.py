@@ -474,9 +474,8 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
         if mask is not None and mask_blur_size > 0:
             index = 0
             while index < mask_blur_size:
-                image = image.filter(ImageFilter.GaussianBlur(kernel_size_blur))
+                mask = mask.filter(ImageFilter.GaussianBlur(kernel_size_blur))
                 index += kernel_size_blur
-            
         cnet = []
         for c in controlnets:
             c = {**c}
@@ -514,6 +513,7 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
             for i, result in enumerate(current_results):
                 mask = mask.convert("RGBA")
                 mask.putalpha(mask.split()[0])
+                
                 result = result.resize(image.size)
                 try:
                     current_results[i] = Image.composite(result, image, mask)

@@ -465,6 +465,62 @@ std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, st
     return result;
 }
 
+std::vector<editorium::image_ptr_t> run_seg_ground_dino(const std::string& tags, std::vector<editorium::image_ptr_t> images) {
+    std::vector<editorium::image_ptr_t> result;
+
+    json config;
+    config["prompt"] = tags;
+    config["model_name_segmentation"] = "facebook/sam-vit-base";
+    config["model_name_detection"] = "IDEA-Research/grounding-dino-tiny";
+    config["margin"] = 5;
+    config["selection_type"] = "detected-square";
+
+    api_payload_t payload;
+    payload.images = images;
+
+    json inputs;
+    inputs["default"] = to_input(payload);
+
+    enable_progress_window(progress_segmentation);
+    auto response = execute("sam-dino-segmentation", inputs, config);
+
+    if (response) {
+        result = response->images;
+        for (size_t i = 0; i < result.size(); i++) {
+            result[i] = result[i]->black_white_into_rgba_mask();
+        }
+    }
+    
+    return result;
+}
+
+std::vector<editorium::image_ptr_t> run_seg_sapiens(const std::string& tags, std::vector<editorium::image_ptr_t> images) {
+    std::vector<editorium::image_ptr_t> result;
+
+    json config;
+    config["classes"] = tags;
+    config["margin"] = 5;
+    config["selection_type"] = "detected-square";
+
+    api_payload_t payload;
+    payload.images = images;
+
+    json inputs;
+    inputs["default"] = to_input(payload);
+
+    enable_progress_window(progress_segmentation);
+    auto response = execute("sapiens-segmentation", inputs, config);
+
+    if (response) {
+        result = response->images;
+        for (size_t i = 0; i < result.size(); i++) {
+            result[i] = result[i]->black_white_into_rgba_mask();
+        }
+    }
+
+    return result;
+}
+
     
 } // namespace models
 } // namespace ws
