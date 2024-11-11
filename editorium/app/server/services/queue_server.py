@@ -3,6 +3,7 @@ from threading import Thread, Lock
 from queue import Queue, Empty
 import time
 from task_helpers.progress_bar import ProgressBar
+from task_helpers.exceptions import StopException
 
 
 class TaskType:
@@ -138,7 +139,9 @@ def work_on_task(task: Task) -> CompletedTask:
             config = task.parameters.get('config', {})
             result = execute_task(task.task_type, input, config)
         else:
-            raise ValueError(f'Task type {task.task_type} not supported')                
+            raise ValueError(f'Task type {task.task_type} not supported')       
+    except StopException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -186,9 +189,41 @@ def queue_processor(api_queue: Queue, ws_queue: Queue, api_out_queue: Queue, ws_
                 else:
                     print("Putting result in api_out_queue: ", result.source)
                     api_out_queue.put(result)
+        except StopException:
+            try:
+                result = CompletedTask(
+                    task.id,
+                    task.source,
+                    task.task_type,
+                    task.parameters,
+                    { "error": "Task was stopped by the user" },
+                    custom_data=task.custom_data,
+                )
+                if result.source == 'ws':
+                    ws_out_queue.put(result)
+                else:
+                    api_out_queue.put(result)
+            except:
+                print("Error reporting the error on the task")
+                pass
         except Exception as e:
             print(f'Error processing task {task.id}: {e}')
-        
+            try:
+                result = CompletedTask(
+                    task.id,
+                    task.source,
+                    task.task_type,
+                    task.parameters,
+                    { "error": "A runtime error happened at the server, see the server logs." },
+                    custom_data=task.custom_data,
+                )
+                if result.source == 'ws':
+                    ws_out_queue.put(result)
+                else:
+                    api_out_queue.put(result)
+            except:
+                print("Error reporting the error on the task")
+                pass
         with current_task_lock:
             current_task = None
 

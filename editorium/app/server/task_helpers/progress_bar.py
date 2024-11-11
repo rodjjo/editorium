@@ -31,7 +31,7 @@ class ProgressBar(tqdm):
         with ProgressBar.global_lock:
             ProgressBar.global_progress_title = title
             if ProgressBar.global_should_stop:
-                StopException("Stopped by the user.")
+                raise StopException("Stopped by the user.")
         print(title)
 
     @classmethod
@@ -39,11 +39,13 @@ class ProgressBar(tqdm):
         with ProgressBar.global_lock:
             ProgressBar.global_progress_percent = progress
             if ProgressBar.global_should_stop:
-                StopException("Stopped by the user.")    
+                raise StopException("Stopped by the user.")    
+                
     @classmethod
     def stop(cls, value=True, id=None):
         with ProgressBar.global_lock:
             if id is None or ProgressBar.global_task_id == id:
+                print(f"Canceling task {id}")
                 ProgressBar.global_should_stop = value
 
     @classmethod

@@ -16,6 +16,11 @@ def create_message_handler(queue: Queue):
     def message_received_handler(client, server, message):
         try:
             message = json.loads(message)
+            
+            if message.get("cancel_task_id", None):
+                ProgressBar.stop(True, id=message["cancel_task_id"])
+                return
+
             task = Task.from_dict({
                 'id': message['id'],
                 'custom_data': {

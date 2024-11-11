@@ -23,13 +23,14 @@ namespace editorium
             std::vector<editorium::image_ptr_t> images;
             std::vector<std::string> texts;
             std::vector<box_t> boxes;
+            std::string server_error;
         } api_payload_t;
 
         typedef std::function<void()> callback_t;
         typedef std::function<void(const std::string& id, const api_payload_t & response)> listener_t;
 
         json to_input(const api_payload_t &payload);
-        std::shared_ptr<api_payload_t> execute(const std::string& task_type,  const json &inputs,  const json &config, bool *canceled_checker=NULL);
+        std::shared_ptr<api_payload_t> execute(const std::string& task_type,  const json &inputs,  const json &config);
 
         void run_websocket();
         void stop_websocket();

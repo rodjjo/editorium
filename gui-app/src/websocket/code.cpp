@@ -12,6 +12,7 @@
 #include "websocket/uuid.h"
 #include "websocket/code.h"
 #include "misc/utils.h"
+#include "misc/dialogs.h"
 #include "misc/config.h"
 
 namespace editorium
@@ -63,18 +64,23 @@ namespace editorium
 
         void response_callback(const std::string& id, const json& response) {
             api_payload_t payload;
-            if (response.contains("images"))
-                payload.images = newImageList(response["images"]);
-            if (response.contains("texts"))
-                payload.texts = response["texts"];
-            if (response.contains("boxes")) {
-                for (const auto & item : response["boxes"]) {
-                    box_t box;
-                    box.x = item["x"];
-                    box.y = item["y"];
-                    box.x2 = item["x2"];
-                    box.y2 = item["y2"];
-                    payload.boxes.push_back(box);
+            if (response.contains("error")) {
+                printf("Server error: %s\n", response["error"].get<std::string>().c_str());
+                payload.server_error = response["error"];
+            } else {
+                if (response.contains("images"))
+                    payload.images = newImageList(response["images"]);
+                if (response.contains("texts"))
+                    payload.texts = response["texts"];
+                if (response.contains("boxes")) {
+                    for (const auto & item : response["boxes"]) {
+                        box_t box;
+                        box.x = item["x"];
+                        box.y = item["y"];
+                        box.x2 = item["x2"];
+                        box.y2 = item["y2"];
+                        payload.boxes.push_back(box);
+                    }
                 }
             }
             std::unique_lock<std::mutex> lk(listener_mutex);
@@ -91,7 +97,7 @@ namespace editorium
             callback_mutex.unlock();
         }
 
-        void wait_callback(bool wait_report=false, bool *canceled_checker=NULL)
+        void wait_callback(bool wait_report=false)
         {
             bool should_continue = true;
             bool locked = false;
@@ -108,12 +114,11 @@ namespace editorium
                     Fl::wait(0.015);
                 }
 
-                if (canceled_checker && *canceled_checker)
-                {
-                    should_continue = false;
-                }
-
                 if (wait_report) {
+                     if (should_cancel()) {
+                        should_continue = false;
+                        continue;
+                    }
                     std::unique_lock<std::mutex> lk(listener_mutex);
                     auto last_report_was = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - last_report_time).count();
 
@@ -140,7 +145,7 @@ namespace editorium
             }
         }
 
-        std::shared_ptr<api_payload_t> execute(const std::string& task_type, const json &inputs, const json &config, bool *canceled_checker) {
+        std::shared_ptr<api_payload_t> execute(const std::string& task_type, const json &inputs, const json &config) {
             show_progress_window();
 
             auto result = std::make_shared<api_payload_t>();
@@ -194,19 +199,27 @@ namespace editorium
 
             replace_callback(callback_send);
 
-            wait_callback(true, canceled_checker);
+            wait_callback(true);
 
             *interrupted = true;
 
             { // scope to reset the listener
                 std::unique_lock<std::mutex> lk(listener_mutex);
                 listener = listener_t();
+                if (should_cancel()) {
+                    printf("Cancelling task: %s \n", id.c_str());
+                    json cancel_payload;
+                    cancel_payload["cancel_task_id"] = id;
+                    ws_client->send(cancel_payload.dump());
+                }
             }
             
             hide_progress_window();
 
             if (result->boxes.empty() && result->images.empty() && result->texts.empty()) {
-
+                if (!result->server_error.empty()) {
+                    show_error(result->server_error.c_str());
+                }
                 return std::shared_ptr<api_payload_t>();
             }
 
@@ -266,14 +279,15 @@ namespace editorium
                         for (const auto & task : response["pending_tasks"]) {
                             reported_task_ids.insert(task["id"]);
                         }
+                        if (cur_task["id"] == current_task_id) {
+                            if (cur_task.contains("progress_title")) {
+                                set_progress_text(cur_task["progress_title"]);
+                            }
 
-                        if (cur_task.contains("progress_title")) {
-                            set_progress_text(cur_task["progress_title"]);
-                        }
-
-                        if (cur_task.contains("progress_percent")) {
-                            float progress = cur_task["progress_percent"];
-                            set_progress((size_t)progress, 100);
+                            if (cur_task.contains("progress_percent")) {
+                                float progress = cur_task["progress_percent"];
+                                set_progress((size_t)progress, 100);
+                            }
                         }
                     } else {
                         puts("Received unexpected message!");
