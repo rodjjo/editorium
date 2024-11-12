@@ -40,6 +40,7 @@ typedef enum {
     img_24x24_left_right,
     img_24x24_up_down,
     img_24x24_redo,
+    img_24x24_zoom,
 
     // keep no_image at the end
     no_image

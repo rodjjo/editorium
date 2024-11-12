@@ -4,6 +4,7 @@
 #include "windows/progress_ui.h"
 #include "windows/settings_ui.h"
 #include "windows/diffusion_ui.h"
+#include "windows/upscaler_ui.h"
 #include "windows/size_ui.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
@@ -37,6 +38,7 @@ namespace editorium
             event_main_menu_layers_rotate_clock,
             event_main_menu_layers_reset_zoom,
             event_main_menu_layers_reset_scroll,
+            event_main_menu_enhance_upscaler,
             event_main_menu_selection_generate, 
             event_main_menu_layers_from_selection,
             event_main_menu_layers_from_generated,
@@ -86,6 +88,7 @@ namespace editorium
             menu_->addItem(event_main_menu_layers_flip_horizontal, "", "Layers/Flip/Horizontal", "", 0, xpm::img_24x24_left_right);
             menu_->addItem(event_main_menu_layers_flip_vertical, "", "Layers/Flip/Vertical", "", 0, xpm::img_24x24_up_down);
             menu_->addItem(event_main_menu_layers_rotate_clock, "", "Layers/Flip/Rotate", "", 0, xpm::img_24x24_redo);
+            menu_->addItem(event_main_menu_enhance_upscaler, "", "Enhancements/Upscaler", "", 0, xpm::img_24x24_zoom);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
@@ -360,7 +363,6 @@ namespace editorium
         case event_main_menu_layers_reset_scroll:
             image_->clear_scroll();
             break;
-
         case event_main_menu_layers_flip_horizontal:
             image_->view_settings()->flip_horizoltal_selected();
             break;
@@ -369,6 +371,9 @@ namespace editorium
             break;
         case event_main_menu_layers_rotate_clock:
             image_->view_settings()->rotate_selected();
+            break;
+        case event_main_menu_enhance_upscaler:
+            upscale_current_image();
             break;
         case event_main_menu_exit:
             this->hide();
@@ -481,6 +486,28 @@ namespace editorium
             image_->view_settings()->at(image_->view_settings()->layer_count() - 1)->y(sy);
         } else {
             fl_alert("No selection to create a layer");
+        }
+    }
+
+    void MainWindow::upscale_current_image() {
+        if (image_->view_settings()->layer_count() < 1) {
+            show_error("Open an image first!");
+            return;
+        } else if (image_->view_settings()->layer_count() > 1) {
+            show_error("Upscaling is only available for single layer images!\nMerge all the layers first!");
+            return;
+        }
+        image_->view_settings()->clear_selected_area();
+        auto img = image_->view_settings()->merge_layers_to_image();
+        float scale = 2.0;
+        float weight = 1.0;
+        bool restore_bg = true;
+        if (get_gfpgan_upscaler_params(scale, weight, restore_bg)) {
+            auto img_list = ws::upscalers::upscale_gfpgan(scale, weight, restore_bg, {img});
+            if (img_list.size() > 0) {
+                image_->view_settings()->clear_layers();
+                image_->view_settings()->add_layer(img_list[0]);
+            }
         }
     }
 

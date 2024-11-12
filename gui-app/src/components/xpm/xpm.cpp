@@ -39,6 +39,7 @@
 #include "components/xpm/data/24x24/left-right.xpm"
 #include "components/xpm/data/24x24/up-down.xpm"
 #include "components/xpm/data/24x24/redo.xpm"
+#include "components/xpm/data/24x24/zoom.xpm"
 
 #pragma GCC diagnostic pop
 
@@ -75,7 +76,8 @@ std::map<xpm_t, const char * const*> xpm_db = {
     { img_24x24_load, xpm_load },
     { img_24x24_left_right, xpm_left_right },
     { img_24x24_up_down, xpm_up_down },
-    { img_24x24_redo,  xpm_redo }
+    { img_24x24_redo,  xpm_redo },
+    { img_24x24_zoom, xpm_zoom }
 
 };
 

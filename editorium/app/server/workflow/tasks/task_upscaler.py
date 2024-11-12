@@ -21,4 +21,8 @@ class GfpGanUpscalerTask(WorkflowTask):
 
 
 def register():
-    GfpGanUpscalerTask.register("gfpgan-upscaler", "Upscale an image and restore faces")
+    GfpGanUpscalerTask.register(
+        "gfpgan-upscaler", 
+        "Upscale an image and restore faces",
+        api_enabled=True
+    )

@@ -52,6 +52,7 @@ private:
     void update_layer_list();
     void convert_selection_into_layer();
     void layer_generate_in_selection();
+    void upscale_current_image();
     void create_image(bool selection);
 
 private:

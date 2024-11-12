@@ -5,7 +5,9 @@ import cv2
 from gfpgan import GFPGANer  
 from contextlib import contextmanager
 from PIL import Image
+
 from pipelines.upscaler.managed_model import upscaler_models
+from pipelines.common.utils import ensure_image
 
 
 def report(message):
@@ -51,13 +53,17 @@ def gfpgan_upscale(scale, restore_bg):
         yield restorer
 
 
-def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -> dict:
-    images = input.get('image', {}).get('output', None) or input.get('image', {}).get('result', None)
+def process_workflow_task(input: dict, config: dict) -> dict:
+    images = input.get('default', {}).get('images', None)
+    if not images:
+        images = input.get('image', {}).get('images', None)
+    
     if images is None:
         raise ValueError("It's required a image pre-process the image #config.input=value")
+
+    images = ensure_image(images)
+
     results = []
-    paths = []
-    debug_enabled = config.get('globals', {}).get('debug', False)
     with gfpgan_upscale(config['scale'], config['restore_background']) as restorer:
         for index, image in enumerate(images):
             if type(image) is str:
@@ -71,14 +77,9 @@ def process_workflow_task(base_dir: str, name: str, input: dict, config: dict) -
                     weight=config['face_weight'],
             )
             restored_img = Image.fromarray(cv2.cvtColor(restored_img, cv2.COLOR_BGR2RGB))
-            
-            if debug_enabled:
-                path = os.path.join(base_dir, f"{name}_{index}.jpg")
-                restored_img.save(path)
-            else:
-                path = ''
-            
             results.append(restored_img)
-            paths.append(path)
+            
     
-    return TaskResult(results, paths).to_dict()
+    return {
+        'images': results,
+    }

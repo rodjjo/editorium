@@ -139,6 +139,9 @@ void init_progress_title(progress_type ptype) {
     case progress_preprocessor:
         set_progress_title("Pre-processing the image, please wait...");
         break;
+    case progress_upscaler:
+        set_progress_title("Upscaling the image, please wait...");
+        break;
     case progress_segmentation:
         set_progress_title("Segmenting the image, please wait...");
         break;
