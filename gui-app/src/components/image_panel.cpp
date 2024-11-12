@@ -278,20 +278,22 @@ namespace editorium
     image_ptr_t ViewSettings::get_selected_image() {
         image_ptr_t r;
         int sx, sy, sw, sh;
-        if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
+        if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh, false)) {
             auto merged = merge_layers_to_image();
             r = merged->getCrop(sx, sy, sw, sh);
         }
         return r;
     }
 
-    bool ViewSettings::selected_coords_to_image_coords(int *x, int *y, int *w, int *h) {
+    bool ViewSettings::selected_coords_to_image_coords(int *x, int *y, int *w, int *h, bool consider_scroll) {
         int sx, sy, sw, sh;
         // get the selected area...
         if (get_selected_area(&sx, &sy, &sw, &sh)) {
             // apply the scroll
-            sx -= cache_.get_scroll_x();
-            sy -= cache_.get_scroll_y();
+            if (consider_scroll) {
+                sx -= cache_.get_scroll_x();
+                sy -= cache_.get_scroll_y();
+            }
             
             // get the final image area
             int iax, iay, iaw, iah;
