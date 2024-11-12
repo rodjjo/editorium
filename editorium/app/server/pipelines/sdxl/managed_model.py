@@ -13,7 +13,6 @@ from diffusers import (
         StableDiffusionXLPipeline, 
         StableDiffusionXLImg2ImgPipeline, 
         StableDiffusionXLInpaintPipeline, 
-        EulerDiscreteScheduler, 
         EulerAncestralDiscreteScheduler,
         UNet2DConditionModel,
         AutoencoderKL,
@@ -299,7 +298,7 @@ class SdxlModels(ManagedModel):
         if model_name.startswith('./'):
             model_name = os.path.join(model_dir, model_name)
 
-        if unet_model and '.diffusers.' in unet_model:
+        if unet_model and ('.diffusers.' in unet_model):
             load_state_dict = True  # diffusers in the name indicates that the model is compatible with diffusers library and we need to load state dict insteead of calling from_single_file to avoid it trying to convert into diffusers format again
             
         has_changes = any([

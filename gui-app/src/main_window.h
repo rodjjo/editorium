@@ -47,9 +47,11 @@ private:
     void choose_file_and_open(bool clear_layers);
     void choose_file_and_save();
     void remove_selected_layer();
+    void merge_all_layers();
     void clear_layers();
     void update_layer_list();
-
+    void convert_selection_into_layer();
+    void layer_generate_in_selection();
     void create_image(bool selection);
 
 private:

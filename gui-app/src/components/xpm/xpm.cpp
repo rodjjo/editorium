@@ -35,6 +35,10 @@
 #include "components/xpm/data/24x24/green_pin.xpm"
 #include "components/xpm/data/24x24/female.xpm"
 #include "components/xpm/data/24x24/alien.xpm"
+#include "components/xpm/data/24x24/load.xpm"
+#include "components/xpm/data/24x24/left-right.xpm"
+#include "components/xpm/data/24x24/up-down.xpm"
+#include "components/xpm/data/24x24/redo.xpm"
 
 #pragma GCC diagnostic pop
 
@@ -67,7 +71,11 @@ std::map<xpm_t, const char * const*> xpm_db = {
     { img_24x24_heart, xpm_heart },
     { img_24x24_medium_rating, xpm_medium_rating },
     { img_24x24_female, xpm_female },
-    { img_24x24_alien, xpm_alien }
+    { img_24x24_alien, xpm_alien },
+    { img_24x24_load, xpm_load },
+    { img_24x24_left_right, xpm_left_right },
+    { img_24x24_up_down, xpm_up_down },
+    { img_24x24_redo,  xpm_redo }
 
 };
 

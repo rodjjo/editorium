@@ -28,16 +28,25 @@ namespace editorium
             event_main_menu_edit_settings,
             event_main_menu_layers_duplicate,
             event_main_menu_layers_remove_selected,
+            event_main_menu_layers_merge_all,
             event_main_menu_layers_remove_background,
+            event_main_menu_layers_remove_background_sapiens,
+            event_main_menu_layers_remove_background_gdino,
+            event_main_menu_layers_flip_horizontal,
+            event_main_menu_layers_flip_vertical,
+            event_main_menu_layers_rotate_clock,
             event_main_menu_layers_reset_zoom,
             event_main_menu_layers_reset_scroll,
             event_main_menu_selection_generate, 
+            event_main_menu_layers_from_selection,
+            event_main_menu_layers_from_generated,
             event_main_menu_resizeSelection_0,
             event_main_menu_resizeSelection_256,
             event_main_menu_resizeSelection_512,
             event_main_menu_resizeSelection_768,
             event_main_menu_resizeSelection_1024,
-            event_main_menu_resizeSelection_2048,           
+            event_main_menu_resizeSelection_2048,
+            event_main_menu_resizeSelection_all,           
             event_layer_count_changed,
             event_layer_selected,
             event_layer_after_draw,
@@ -65,10 +74,18 @@ namespace editorium
             menu_->addItem(event_main_menu_exit, "", "File/Exit", "", 0, xpm::img_24x24_exit);
             menu_->addItem(event_main_menu_edit_settings, "", "Edit/Settings", "", 0, xpm::img_24x24_settings);
             menu_->addItem(event_main_menu_layers_duplicate, "", "Layers/Duplicate", "^d", 0, xpm::img_24x24_copy);
-            menu_->addItem(event_main_menu_layers_remove_background, "", "Layers/Remove background", "", 0, xpm::img_24x24_picture);
+            menu_->addItem(event_main_menu_layers_from_selection, "", "Layers/From selection", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_layers_from_generated, "", "Layers/From generation", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_remove_selected, "", "Layers/Remove", "", 0, xpm::img_24x24_remove);
+            menu_->addItem(event_main_menu_layers_merge_all, "", "Layers/Merge", "^m", 0, xpm::img_24x24_load);
             menu_->addItem(event_main_menu_layers_reset_zoom, "", "Layers/Reset Zoom", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_reset_scroll, "", "Layers/Reset Scroll", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_layers_remove_background, "", "Layers/Background/Remove", "", 0, xpm::img_24x24_picture);
+            menu_->addItem(event_main_menu_layers_remove_background_sapiens, "", "Layers/Background/Extract human", "", 0, xpm::img_24x24_picture);
+            menu_->addItem(event_main_menu_layers_remove_background_gdino, "", "Layers/Background/Extract object", "", 0, xpm::img_24x24_picture);
+            menu_->addItem(event_main_menu_layers_flip_horizontal, "", "Layers/Flip/Horizontal", "", 0, xpm::img_24x24_left_right);
+            menu_->addItem(event_main_menu_layers_flip_vertical, "", "Layers/Flip/Vertical", "", 0, xpm::img_24x24_up_down);
+            menu_->addItem(event_main_menu_layers_rotate_clock, "", "Layers/Flip/Rotate", "", 0, xpm::img_24x24_redo);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
@@ -76,6 +93,7 @@ namespace editorium
             menu_->addItem(event_main_menu_resizeSelection_768, "", "Selection/Expand/768x768", "^2");
             menu_->addItem(event_main_menu_resizeSelection_1024, "", "Selection/Expand/1024x1024", "^3");
             menu_->addItem(event_main_menu_resizeSelection_2048, "", "Selection/Expand/2048x2048", "^4");
+            menu_->addItem(event_main_menu_resizeSelection_all, "", "Selection/Expand/Select All", "^a");
         } // menu
 
         { // image panels
@@ -266,6 +284,12 @@ namespace editorium
         case event_main_menu_selection_generate:
             create_image(true);
             break;
+        case event_main_menu_layers_from_selection:
+            convert_selection_into_layer();
+            break;
+        case event_main_menu_layers_from_generated:
+            layer_generate_in_selection();
+            break;
         case event_main_menu_resizeSelection_0:
             resizeSelection(0);
             break;
@@ -283,6 +307,9 @@ namespace editorium
             break;
         case event_main_menu_resizeSelection_2048:
             resizeSelection(2048);
+            break;
+        case event_main_menu_resizeSelection_all:
+            resizeSelection(-1);
             break;
         case event_main_menu_file_open:
             choose_file_and_open(true);
@@ -313,16 +340,35 @@ namespace editorium
             image_->view_settings()->duplicate_selected();
             break;
         case event_main_menu_layers_remove_background:
-            image_->view_settings()->remove_background_selected();
+            image_->view_settings()->remove_background_selected(remove_using_default);
+            break;
+        case event_main_menu_layers_remove_background_sapiens:
+            image_->view_settings()->remove_background_selected(remove_using_sapiens);
+            break;
+        case event_main_menu_layers_remove_background_gdino:
+            image_->view_settings()->remove_background_selected(remove_using_gdino);
             break;
         case event_main_menu_layers_remove_selected:
             remove_selected_layer();
+            break;
+        case event_main_menu_layers_merge_all:
+            merge_all_layers();
             break;
         case event_main_menu_layers_reset_zoom:
             image_->view_settings()->setZoom(100);
             break;
         case event_main_menu_layers_reset_scroll:
             image_->clear_scroll();
+            break;
+
+        case event_main_menu_layers_flip_horizontal:
+            image_->view_settings()->flip_horizoltal_selected();
+            break;
+        case event_main_menu_layers_flip_vertical:
+            image_->view_settings()->flip_vertical_selected();
+            break;
+        case event_main_menu_layers_rotate_clock:
+            image_->view_settings()->rotate_selected();
             break;
         case event_main_menu_exit:
             this->hide();
@@ -408,10 +454,49 @@ namespace editorium
         }
     }
 
+    void MainWindow::merge_all_layers() {
+        if (ask("Do you want to merge all the layers ?")) {
+            auto img = image_->view_settings()->merge_layers_to_image();
+            if (img) {
+                image_->view_settings()->clear_layers();
+                image_->view_settings()->add_layer(img);
+            }
+        }
+    }
+
     void MainWindow::clear_layers() {
         const char *message = image_->view_settings()->layer_count() > 1 ? "Do you want to close all the layers ?" : "Do you want to close the image ?";
         if (ask(message)) {
             image_->view_settings()->clear_layers();
+        }
+    }
+
+    void MainWindow::convert_selection_into_layer() {
+        if (image_->view_settings()->has_selected_area()) {
+            int sx, sy, unused;
+            image_->view_settings()->get_selected_area(&sx, &sy, &unused, &unused);
+            image_->view_settings()->add_layer(image_->view_settings()->get_selected_image());
+            image_->view_settings()->clear_selected_area();
+            image_->view_settings()->at(image_->view_settings()->layer_count() - 1)->x(sx);
+            image_->view_settings()->at(image_->view_settings()->layer_count() - 1)->y(sy);
+        } else {
+            fl_alert("No selection to create a layer");
+        }
+    }
+
+    void MainWindow::layer_generate_in_selection() {
+        if (image_->view_settings()->has_selected_area()) {
+            int sx, sy, unused;
+            image_->view_settings()->get_selected_area(&sx, &sy, &unused, &unused);
+            auto img = generate_image(true, image_->view_settings());
+            if (img) {
+                image_->view_settings()->add_layer(img);
+                image_->view_settings()->clear_selected_area();
+                image_->view_settings()->at(image_->view_settings()->layer_count() - 1)->x(sx);
+                image_->view_settings()->at(image_->view_settings()->layer_count() - 1)->y(sy);
+            }
+        } else {
+            fl_alert("No selection to generate a layer");
         }
     }
 
@@ -437,7 +522,7 @@ namespace editorium
         image_->view_settings()->get_selected_area(&x1, &y1, &x2, &y2);
         x2 += x1;
         y2 += y1;
-        if (x1 == x2 && y1 == y2) {
+        if (x1 == x2 && y1 == y2 && width != -1) {
             show_error("No selection");
             return;
         }
@@ -485,6 +570,11 @@ namespace editorium
             printf("Moving selection to %d x %d\n", x1, y1);
             printf("Resizing selection to %d x %d\n", x2 - x1, y2 - y1);
             image_->view_settings()->set_selected_area(x1, y1, x2 - x1, y2 - y1);
+        } else if (width == -1) {
+            int x = 0, y = 0;
+            int w = 0, h = 0;
+            image_->view_settings()->get_image_area(&x, &y, &w, &h);
+            image_->view_settings()->set_selected_area(0, 0, w, h);
         } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
             image_->view_settings()->set_selected_area(x1, y1, w, h);
         } 

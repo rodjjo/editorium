@@ -10,6 +10,12 @@
 
 namespace editorium
 {
+    typedef enum{
+        remove_using_default,
+        remove_using_sapiens,
+        remove_using_gdino
+    } background_removal_type_t;
+
     class ImagePanel;
     class ViewSettings;
 
@@ -88,7 +94,7 @@ namespace editorium
         size_t layer_count();
         Layer* add_layer(const char *path);
         Layer* add_layer(int w, int h, bool transparent);
-        Layer* add_layer(image_ptr_t image);
+        Layer* add_layer(image_ptr_t image, bool in_front=false);
         Layer* at(size_t position);
         void remove_layer(size_t position);
         void refresh(bool force=false);
@@ -106,7 +112,10 @@ namespace editorium
         void constraint_scroll(float zoom, int view_w, int view_h, int *sx, int *sy);
         void get_image_area(int *x, int *y, int *w, int *h);
         void duplicate_selected();
-        void remove_background_selected();
+        void remove_background_selected(background_removal_type_t technique=remove_using_default);
+        void flip_horizoltal_selected();
+        void flip_vertical_selected();
+        void rotate_selected();
         image_ptr_t get_selected_image();
         bool selected_coords_to_image_coords(int *x, int *y, int *w, int *h);
         bool get_selected_area(int *x, int *y, int *w, int *h);
@@ -121,7 +130,7 @@ namespace editorium
         void fuse_image(image_ptr_t value);
 
     private:
-        Layer* add_layer(std::shared_ptr<Layer> l);
+        Layer* add_layer(std::shared_ptr<Layer> l, bool in_front=false);
         void scroll_again(float old_zoom);
         void compact_image_area();
 

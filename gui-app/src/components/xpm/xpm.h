@@ -36,6 +36,11 @@ typedef enum {
     img_24x24_medium_rating,
     img_24x24_female,
     img_24x24_alien,
+    img_24x24_load,
+    img_24x24_left_right,
+    img_24x24_up_down,
+    img_24x24_redo,
+
     // keep no_image at the end
     no_image
 } xpm_t;

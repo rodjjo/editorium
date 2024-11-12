@@ -67,7 +67,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     guidance_input_->value("7.5");
     width_input_->value("512");
     height_input_->value("512");
-    correct_colors_->value(1);
+    correct_colors_->value(0);
 
     for (int i = 0; i < resize_mode_count; i++) {
         resizeModes_->add(resize_mode_texts[i]);

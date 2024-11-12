@@ -2,6 +2,7 @@
 #include <GL/gl.h>
 #include <FL/gl.h>
 #include <FL/Fl.H>
+#include <FL/fl_ask.H>
 
 #include "misc/config.h"
 #include "misc/utils.h"
@@ -9,6 +10,7 @@
 #include "messagebus/messagebus.h"
 #include "websocket/code.h"
 #include "websocket/tasks.h"
+#include "windows/sapiens_ui.h"
 
 namespace editorium
 {
@@ -53,7 +55,6 @@ namespace editorium
         }
 
     }
-
 
     Layer::Layer(ViewSettings *parent, const char *path) : parent_(parent), image_(ws::filesystem::load_image(path)) {
         if (image_) {
@@ -235,7 +236,7 @@ namespace editorium
         return layers_.size();
     }
 
-    Layer* ViewSettings::add_layer(std::shared_ptr<Layer> l) {
+    Layer* ViewSettings::add_layer(std::shared_ptr<Layer> l, bool in_front) {
         if (l->getImage()) {
             if (strlen(l->name()) == 0) {
                 char buffer[128] = "";
@@ -243,7 +244,11 @@ namespace editorium
                 l->name(buffer);
             }
             name_index_ += 1;
-            layers_.push_back(l);
+            if (in_front) {
+                layers_.insert(layers_.begin(), l);
+            } else {
+                layers_.push_back(l);
+            }
             selected_ = l.get();
             refresh(true);
             publish_event(parent_, event_layer_count_changed, NULL);
@@ -261,8 +266,8 @@ namespace editorium
         return add_layer(std::make_shared<Layer>(this, w, h, transparent));
     }
 
-    Layer* ViewSettings::add_layer(image_ptr_t image) {
-        return add_layer(std::make_shared<Layer>(this, image));
+    Layer* ViewSettings::add_layer(image_ptr_t image, bool in_front) {
+        return add_layer(std::make_shared<Layer>(this, image), in_front);
     }
 
     Layer* ViewSettings::at(size_t position) {
@@ -322,14 +327,33 @@ namespace editorium
         return false;
     }
 
-    void ViewSettings::remove_background_selected() {
+    void ViewSettings::remove_background_selected(background_removal_type_t technique) {
         if (selected_) {
+            std::vector<image_ptr_t> mask_list;
 
-            auto mask_list = ws::diffusion::run_preprocessor("background", {selected_->getImage()->duplicate()});
+            if (technique == remove_using_default) {
+                mask_list = ws::diffusion::run_preprocessor("background", {selected_->getImage()->duplicate()});
+            } else if (technique == remove_using_sapiens) {
+                auto classes = select_sapien_classes();
+                if (classes.empty()) {
+                    return;
+                }
+                mask_list = ws::diffusion::run_seg_sapiens(classes, {selected_->getImage()->duplicate()});
+            } else if (technique == remove_using_gdino) {
+                auto classes = fl_input("Enter the classes to segment (comma separated)", "");
+                if (!classes) {
+                    return;
+                }
+
+                mask_list = ws::diffusion::run_seg_ground_dino(classes, {selected_->getImage()->duplicate()});
+            }
+
             if (!mask_list.empty()) {
                 auto mask = mask_list[0];
                 // mask = mask->rgba_mask_into_black_white();
-                mask = mask->invert_mask();
+                if (technique == remove_using_default) {
+                    mask = mask->invert_mask();
+                }
                 auto fg =  selected_->duplicate();
                 auto mask_copy = mask;
                 mask = mask->removeBackground(true);
@@ -346,6 +370,34 @@ namespace editorium
                 add_layer(fg);
             }
         }
+    }
+
+
+    void ViewSettings::flip_horizoltal_selected() {
+        if (!selected_) {
+            return;
+        }
+        auto img  = selected_->getImage()->flip(false);
+        selected_->replace_image(img);
+        refresh(true);
+    }
+
+    void ViewSettings::flip_vertical_selected() {
+        if (!selected_) {
+            return;
+        }
+        auto img  = selected_->getImage()->flip(true);
+        selected_->replace_image(img);
+        refresh(true);
+    }
+
+    void ViewSettings::rotate_selected() {
+        if (!selected_) {
+            return;
+        }
+        auto img  = selected_->getImage()->rotate();
+        selected_->replace_image(img);
+        refresh(true);
     }
 
     void ViewSettings::remove_layer(size_t position) {
@@ -663,7 +715,12 @@ namespace editorium
         int sx0, sy0;
         get_image_area(&iax, &iay, &unused, &unused);
         value = value->addAlpha();
+        auto clean_value = value->duplicate();
         if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
+            bool x1_in_layer = false;
+            bool y1_in_layer = false;
+            bool x2_in_layer = false;
+            bool y2_in_layer = false;
             //image_ptr_t negative_mask;
             for (size_t i = layer_count(); i > 0; i--) {
                 auto ly = at(i - 1);
@@ -675,13 +732,38 @@ namespace editorium
                 sx0 = sx - ly->x();
                 sy0 = sy - ly->y();
 
+                if (sx0 >= 0) {
+                    x1_in_layer = true;
+                }
+                if (sy0 >= 0) {
+                    y1_in_layer = true;
+                }
+                if (sx0 + value->w() < limg->w()) {
+                    x2_in_layer = true;
+                }
+                if (sy0 + value->h() < limg->h()) {
+                    y2_in_layer = true;
+                }
+
                 // px = ly->x() - iax;
                 // py = ly->y() - iay;
-                printf("Fusing at %d x %d\n", sx0, sy0);
                 limg->fuseAt(sx0, sy0, value.get());
+                ly->set_modified();
                 // mask = mask->negative_mask();
             }
+            if (!x1_in_layer || !y1_in_layer || !x2_in_layer || !y2_in_layer) {
+                // add a new layer with the image
+                auto img = std::make_shared<RawImage>((const unsigned char *)0, clean_value->w(), clean_value->h(), img_rgba, false);
+                img->clear(255, 255, 255, 255);
+                img->pasteAt(0, 0, clean_value.get());
+                auto l = std::make_shared<Layer>(this, img);
+                l->x(sx);
+                l->y(sy);
+                add_layer(l, true);
+            }
         }
+
+        refresh(true);
     }
     
     void ViewSettings::set_mask() {

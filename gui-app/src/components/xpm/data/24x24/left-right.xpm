@@ -1,5 +1,5 @@
 /* XPM */
-static char * xpm_left-right[] = {
+static char * xpm_left_right[] = {
 "24 24 194 2",
 "  	c None",
 "XX	c #1d78cc",

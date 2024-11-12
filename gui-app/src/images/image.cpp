@@ -379,6 +379,12 @@ void RawImage::fuseAt(int x, int y, RawImage *image) {
     if (cy + hh > image->w()) {
         hh = image->h() - (cy + hh);
     }
+    if (x + ww > this->w()) {
+        ww = this->w() - x;
+    }
+    if (y + hh > this->h()) {
+        hh = this->h() - y;
+    }
     if (ww < 1 || hh < 1) {
         printf("No Image to past 2\n");
         return;
@@ -386,9 +392,17 @@ void RawImage::fuseAt(int x, int y, RawImage *image) {
     
     printf("Image paste at %d x %d\n", x, y);
     auto crop = image->getCrop(cx, cy, ww, hh);
-    auto mask = this->format() == img_rgba ? this->getCrop(x, y,  ww, hh) : std::make_shared<RawImage>((const unsigned char *)0, ww, hh, img_rgba, false);
-    pasteAt(x, y, mask.get(), crop.get());
-    image->clear_pixels(cx, cy, ww, hh);
+    if (this->format() != img_rgba) {
+        pasteAt(x, y, crop.get());    
+        image->clear_pixels(cx, cy, ww, hh);
+    } else {
+        auto mask = this->getCrop(x, y, ww, hh);
+        mask = mask->black_white_into_rgba_mask();
+        pasteAt(x, y, mask.get(), crop.get());
+        image->clear_pixels(cx, cy, ww, hh);
+        mask = mask->invert_mask();
+        image->pasteAt(cx, cy, mask.get(), crop.get());
+    }
 }
 
 image_ptr_t RawImage::resize_down_alpha() {
@@ -653,7 +667,12 @@ image_ptr_t RawImage::flip(bool vertically) {
 
 image_ptr_t RawImage::rotate() {
     image_ptr_t result = this->duplicate();
-    // CImg<unsigned char> self(result->buffer(), format_channels[result->format()], result->w(), result->h(), 1, true);
+    CImg<unsigned char> self(result->buffer(), format_channels[result->format()], result->w(), result->h(), 1, true);
+    self.permute_axes("yzcx");
+    self.rotate(90);
+    self.permute_axes("cxyz");
+    result->w_ = this->h_;
+    result->h_ = this->w_;
     return result;
 }
 

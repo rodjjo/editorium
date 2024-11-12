@@ -1,5 +1,5 @@
 /* XPM */
-static char * xpm_up-down[] = {
+static char * xpm_up_down[] = {
 "24 24 207 2",
 "  	c None",
 "XX	c #0b7fd6",
