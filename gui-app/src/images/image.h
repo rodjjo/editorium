@@ -74,6 +74,7 @@ class RawImage {
     void drawCircleColor(int x, int y, int radius, uint8_t color[4], uint8_t bgcolor[4], bool clear);
     void drawCircle(int x, int y, int radius, bool clear);
     void fillWithMask(int x, int y, RawImage *mask);
+    void clear_pixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
  private:
     unsigned char *buffer_;

@@ -84,6 +84,8 @@ private:
     std::unique_ptr<Button> btnGenerate_;
     std::unique_ptr<Button> btnOk_;
     std::unique_ptr<Button> btnCancel_;
+    int last_size_w_ = 0;
+    int last_size_h_ = 0;
 };
 
 image_ptr_t generate_image(bool modal);

@@ -278,23 +278,17 @@ namespace editorium
     image_ptr_t ViewSettings::get_selected_image() {
         image_ptr_t r;
         int sx, sy, sw, sh;
-        if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh, false)) {
+        if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
             auto merged = merge_layers_to_image();
             r = merged->getCrop(sx, sy, sw, sh);
         }
         return r;
     }
 
-    bool ViewSettings::selected_coords_to_image_coords(int *x, int *y, int *w, int *h, bool consider_scroll) {
+    bool ViewSettings::selected_coords_to_image_coords(int *x, int *y, int *w, int *h) {
         int sx, sy, sw, sh;
         // get the selected area...
         if (get_selected_area(&sx, &sy, &sw, &sh)) {
-            // apply the scroll
-            if (consider_scroll) {
-                sx -= cache_.get_scroll_x();
-                sy -= cache_.get_scroll_y();
-            }
-            
             // get the final image area
             int iax, iay, iaw, iah;
             get_image_area(&iax, &iay, &iaw, &iah);
@@ -666,20 +660,25 @@ namespace editorium
         }
         int iax, iay, unused;
         int sx, sy, sw, sh;
-        int px, py;
+        int sx0, sy0;
         get_image_area(&iax, &iay, &unused, &unused);
         value = value->addAlpha();
         if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
-            image_ptr_t negative_mask;
+            //image_ptr_t negative_mask;
             for (size_t i = layer_count(); i > 0; i--) {
                 auto ly = at(i - 1);
                 auto limg = ly->getImage();
                 if (!limg) {
                     continue;
                 }
-                px = ly->x() - iax;
-                py = ly->y() - iay;
-                limg->fuseAt(-px, -py, value.get());
+                
+                sx0 = sx - ly->x();
+                sy0 = sy - ly->y();
+
+                // px = ly->x() - iax;
+                // py = ly->y() - iay;
+                printf("Fusing at %d x %d\n", sx0, sy0);
+                limg->fuseAt(sx0, sy0, value.get());
                 // mask = mask->negative_mask();
             }
         }

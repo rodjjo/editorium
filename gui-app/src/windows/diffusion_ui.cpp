@@ -169,7 +169,11 @@ namespace editorium
 
     void DiffusionWindow::resize(int x, int y, int w, int h) {
         Fl_Double_Window::resize(x, y, w, h);
-        alignComponents();
+        if (last_size_w_ != w || last_size_h_ != h) {
+            last_size_w_ = w;
+            last_size_h_ = h;
+            alignComponents();
+        }
     }
 
     void DiffusionWindow::alignComponents() {

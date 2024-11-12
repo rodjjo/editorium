@@ -108,7 +108,7 @@ namespace editorium
         void duplicate_selected();
         void remove_background_selected();
         image_ptr_t get_selected_image();
-        bool selected_coords_to_image_coords(int *x, int *y, int *w, int *h, bool consider_scroll=true);
+        bool selected_coords_to_image_coords(int *x, int *y, int *w, int *h);
         bool get_selected_area(int *x, int *y, int *w, int *h);
         void set_selected_area(int x, int y, int w, int h);
         bool has_selected_area();

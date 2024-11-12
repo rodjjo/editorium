@@ -158,10 +158,15 @@ std::pair<json, json> create_sdxl_diffusion_request(const diffusion_request_t &r
     float lora_scale = 1.0;
     std::string lora_name;
     if (!request.loras.empty() && request.loras[0].size() < 1024) {
-        char lora_name_cstr[1024];
-        if (sscanf(request.loras[0].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
-            lora_name = lora_name_cstr;
+        
+        size_t sep_pos = request.loras[0].find(':');
+        if (sep_pos != std::string::npos) {
+            lora_name = request.loras[0].substr(0, sep_pos);
+            lora_scale = std::stof(request.loras[0].substr(sep_pos + 1));
+        } else {
+            lora_name = request.loras[0];
         }
+        lora_name += ".safetensors";
     }
 
     float controlnet_scale = 1.0;

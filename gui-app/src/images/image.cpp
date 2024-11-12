@@ -352,32 +352,43 @@ void RawImage::fuseAt(int x, int y, RawImage *image) {
     if (image->format() != img_rgba) {
         return;
     }
-    //
-    int ww = image->w();
-    int hh = image->h();
+
+    int ww = this->w();
+    int hh = this->h();
+    int cx = 0;
+    int cy = 0;
     if (x >= ww || y >= hh) {
+        printf("No Image to past 1\n");
         return;
     }
+    ww = image->w();
+    hh = image->h();
     if (x < 0) {
         ww = ww - (-x);
-        x = 0;        
+        cx = -x;
+        x = 0;
     }
     if (y < 0) {
         hh = hh - (-y);
+        cy = -y;
         y = 0;
     }
-    if (x + ww > image->w()) {
-        ww = image->w() - (x + ww);
+    if (cx + ww > image->w()) {
+        ww = image->w() - (cx + ww);
     }
-    if (y + hh > image->w()) {
-        hh = image->h() - (y + hh);
+    if (cy + hh > image->w()) {
+        hh = image->h() - (cy + hh);
     }
     if (ww < 1 || hh < 1) {
+        printf("No Image to past 2\n");
         return;
     }
-    auto crop = image->getCrop(x, y, ww, hh);
-    auto mask = this->getCrop(0, 0,  ww, hh);
-    pasteAt(0, 0, mask.get(), crop.get());
+    
+    printf("Image paste at %d x %d\n", x, y);
+    auto crop = image->getCrop(cx, cy, ww, hh);
+    auto mask = this->format() == img_rgba ? this->getCrop(x, y,  ww, hh) : std::make_shared<RawImage>((const unsigned char *)0, ww, hh, img_rgba, false);
+    pasteAt(x, y, mask.get(), crop.get());
+    image->clear_pixels(cx, cy, ww, hh);
 }
 
 image_ptr_t RawImage::resize_down_alpha() {
@@ -576,6 +587,16 @@ image_ptr_t RawImage::getCrop(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     self.permute_axes("cxyz");
     src.permute_axes("cxyz");
     return result;
+}
+
+void RawImage::clear_pixels(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+    if (this->format() != img_rgba) {
+        return;
+    }
+    CImg<unsigned char> self(this->buffer(), format_channels[this->format()], this->w(), this->h(), 1, true);
+    self.permute_axes("yzcx");
+    self.draw_rectangle(x, y, x + w, y + h, no_color_rgba);
+    self.permute_axes("cxyz");
 }
 
 image_ptr_t RawImage::blur(int size) {
