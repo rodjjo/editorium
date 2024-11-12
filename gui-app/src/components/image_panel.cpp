@@ -330,13 +330,15 @@ namespace editorium
 
     void ViewSettings::remove_background_selected() {
         if (selected_) {
-            /*
-            py11::dict empty;
-            auto mask = remove_background(selected_->getImage(), empty);
-            if (mask) {
+
+            auto mask_list = ws::diffusion::run_preprocessor("background", {selected_->getImage()->duplicate()});
+            if (!mask_list.empty()) {
+                auto mask = mask_list[0];
+                // mask = mask->rgba_mask_into_black_white();
+                mask = mask->invert_mask();
                 auto fg =  selected_->duplicate();
                 auto mask_copy = mask;
-                mask = mask->removeBackground(false);
+                mask = mask->removeBackground(true);
 
                 // clear the foreground at the background image layer
                 auto white = newImage(selected_->getImage()->w(), selected_->getImage()->h(), true);
@@ -349,7 +351,6 @@ namespace editorium
                 fg->replace_image(fg_img->resize_down_alpha());
                 add_layer(fg);
             }
-            */
         }
     }
 

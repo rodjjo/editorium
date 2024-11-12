@@ -151,8 +151,6 @@ def background2mask(input_image):
         input_image,
         session=new_session('u2net_human_seg'),
         only_mask=False,
-        # alpha_matting=True,
-        # alpha_matting_erode_size=15
     )
     background_image = Image.new('RGB', result.size, (255, 255, 255))
     background_image.paste(Image.new('RGB', result.size, (0, 0, 0)), (0, 0), result)
