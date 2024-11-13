@@ -35,9 +35,9 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
 
     tabs_->begin();
     page_chat_bot_ = new Fl_Group(0, 0, 1, 1, "Chatbot");
-    chat_bot_repo_id_ = new Fl_Input(1, 1, 1, 1, "Repository ID");
+    chat_bot_repo_id_ = new Fl_Input(1, 1, 1, 1, "Repository ID (GPTQ)");
     chat_bot_model_name_ = new Fl_Input(1, 1, 1, 1, "Model name");
-    chat_bot_template_ = new Fl_Input(1, 1, 1, 1, "Template");
+    chat_bot_template_ = new Fl_Multiline_Input(1, 1, 1, 1, "Template");
     chat_bot_max_new_tokens_ = new Fl_Int_Input(1, 1, 1, 1, "Max new tokens");
     chat_bot_temperature_ = new Fl_Float_Input(1, 1, 1, 1, "Temperature");
     chat_bot_top_p_ = new Fl_Float_Input(1, 1, 1, 1, "Top P");
@@ -103,6 +103,25 @@ void SettingsWindow::save_settings() {
     cfg->use_float16(use_float16_->value() == 1);
     cfg->private_mode(private_mode_->value() == 1);
     cfg->keep_in_memory(keep_models_->value() == 1);
+    cfg->chat_bot_repo_id(chat_bot_repo_id_->value());
+    cfg->chat_bot_model_name(chat_bot_model_name_->value());
+    cfg->chat_bot_template(chat_bot_template_->value());
+    int max_new_tokens = 512;
+    sscanf(chat_bot_max_new_tokens_->value(), "%d", &max_new_tokens);
+    cfg->chat_bot_max_new_tokens(max_new_tokens);
+    cfg->chat_bot_temperature(atof(chat_bot_temperature_->value()));
+    cfg->chat_bot_top_p(atof(chat_bot_top_p_->value()));
+    float top_k = 0;
+    sscanf(chat_bot_top_k_->value(), "%f", &top_k);
+    cfg->chat_bot_top_k(top_k);
+    float repetition_penalty = 1;
+    sscanf(chat_bot_repetition_penalty_->value(), "%f", &repetition_penalty);
+    cfg->chat_bot_repetition_penalty(repetition_penalty);
+    cfg->chat_bot_response_after(chat_bot_response_after_->value());
+    cfg->chat_vision_repo_id(chat_vision_repo_id_->value());
+    cfg->chat_vision_temperature(atof(chat_vision_temperature_->value()));
+
+
     cfg->save();
 }
 
@@ -117,6 +136,25 @@ void SettingsWindow::load_settings() {
     use_float16_->value((int) cfg->use_float16());
     private_mode_->value((int) cfg->private_mode());
     keep_models_->value((int) cfg->keep_in_memory());
+    char buffer[25] = "";
+    sprintf(buffer, "%d", cfg->chat_bot_max_new_tokens());
+    chat_bot_max_new_tokens_->value(buffer);
+    sprintf(buffer, "%0.3f", cfg->chat_bot_temperature());
+    chat_bot_temperature_->value(buffer);
+    sprintf(buffer, "%0.3f", cfg->chat_bot_top_p());
+    chat_bot_top_p_->value(buffer);
+    sprintf(buffer, "%d", cfg->chat_bot_top_k());
+    chat_bot_top_k_->value(buffer);
+    sprintf(buffer, "%0.3f", cfg->chat_bot_repetition_penalty());
+    chat_bot_repetition_penalty_->value(buffer);
+    chat_bot_repo_id_->value(cfg->chat_bot_repo_id().c_str());
+    chat_bot_model_name_->value(cfg->chat_bot_model_name().c_str());
+    chat_bot_template_->value(cfg->chat_bot_template().c_str());
+    chat_bot_response_after_->value(cfg->chat_bot_response_after().c_str());
+    chat_vision_repo_id_->value(cfg->chat_vision_repo_id().c_str());
+    sprintf(buffer, "%0.3f", cfg->chat_vision_temperature());
+    chat_vision_temperature_->value(buffer);
+
 }
 
 int SettingsWindow::handle(int event) {
@@ -166,16 +204,16 @@ void SettingsWindow::alignComponents() {
 
     chat_bot_repo_id_->resize(left, top, page_chat_bot_->w() - 20, height);
     chat_bot_model_name_->resize(left, chat_bot_repo_id_->y() + chat_bot_repo_id_->h() + 25, page_chat_bot_->w() - 20, height);
-    chat_bot_template_->resize(left, chat_bot_model_name_->y() + chat_bot_model_name_->h() + 25, page_chat_bot_->w() - 20, height);
+    chat_bot_template_->resize(left, chat_bot_model_name_->y() + chat_bot_model_name_->h() + 25, page_chat_bot_->w() - 20, height * 3);
     chat_bot_max_new_tokens_->resize(left, chat_bot_template_->y() + chat_bot_template_->h() + 25, (page_chat_bot_->w() - 20) / 3, height);
     chat_bot_temperature_->resize(chat_bot_max_new_tokens_->x() + chat_bot_max_new_tokens_->w() + 5, chat_bot_max_new_tokens_->y(), chat_bot_max_new_tokens_->w(), height);
-    chat_bot_top_p_->resize(chat_bot_temperature_->x() + chat_bot_temperature_->w() + 5, chat_bot_temperature_->y(), chat_bot_temperature_->w(), height);
+    chat_bot_top_p_->resize(chat_bot_temperature_->x() + chat_bot_temperature_->w() + 5, chat_bot_temperature_->y(), chat_bot_temperature_->w() - 10, height);
     chat_bot_top_k_->resize(left, chat_bot_max_new_tokens_->y() + chat_bot_max_new_tokens_->h() + 25, (page_chat_bot_->w() - 20) / 3, height);
     chat_bot_repetition_penalty_->resize(chat_bot_top_k_->x() + chat_bot_top_k_->w() + 5, chat_bot_top_k_->y(), chat_bot_top_k_->w(), height);
-    chat_bot_response_after_->resize(chat_bot_repetition_penalty_->x() + chat_bot_repetition_penalty_->w() + 5, chat_bot_repetition_penalty_->y(),page_chat_bot_->w() - 20, height);
+    chat_bot_response_after_->resize(chat_bot_top_k_->x(), chat_bot_repetition_penalty_->y() + chat_bot_repetition_penalty_->h() + 25, page_chat_bot_->w() - 20, height);
 
-    chat_vision_repo_id_->resize(left, top, (page_chat_vision_->w() - 20) / 3, height);
-    chat_vision_temperature_->resize(chat_vision_repo_id_->x() + chat_vision_repo_id_->w() + 5, chat_vision_repo_id_->y(), chat_vision_repo_id_->w(), height);
+    chat_vision_repo_id_->resize(left, top, (page_chat_vision_->w() - 20) / 2, height);
+    chat_vision_temperature_->resize(chat_vision_repo_id_->x(), chat_vision_repo_id_->y() + chat_vision_repo_id_->h() + 25, chat_vision_repo_id_->w(), height);
 }
 
 void edit_settings() {

@@ -67,11 +67,12 @@ namespace editorium
                     }
                 }
             };
+
             load_map("open_history", last_open_dirs);
             load_map("save_history", last_save_dirs);
 
-            auto load_key = [&cf] (const char *key, const char *sub_key) -> std::string {
-                std::string r;
+            auto load_key = [&cf] (const char *key, const char *sub_key, const char *default_value="") -> std::string {
+                std::string r = default_value;
                 if (!cf.contains(key)) {
                     return r;
                 }
@@ -87,6 +88,38 @@ namespace editorium
             sdxl_base_model_ = load_key("base_models", "sdxl_base_model");
             flux_base_model_ = load_key("base_models", "flux_base_model");
             sd35_base_model_ = load_key("base_models", "sd35_base_model");
+
+            chat_bot_repo_id_ = load_key("chat_bot", "repo_id", chat_bot_repo_id_.c_str());
+            chat_bot_model_name_ = load_key("chat_bot", "model_name", chat_bot_model_name_.c_str());
+            chat_bot_template_ = load_key("chat_bot", "template", chat_bot_template_.c_str());
+            chat_bot_response_after_ = load_key("chat_bot", "response_after", chat_bot_response_after_.c_str());
+
+            if (cf.contains("chat_bot")) {
+                json value = cf["chat_bot"];
+                if (value.contains("max_new_tokens")) {
+                    chat_bot_max_new_tokens_ = value["max_new_tokens"];
+                }
+                if (value.contains("temperature")) {
+                    chat_bot_temperature_ = value["temperature"];
+                }
+                if (value.contains("top_p")) {
+                    chat_bot_top_p_ = value["top_p"];
+                }
+                if (value.contains("top_k")) {
+                    chat_bot_top_k_ = value["top_k"];
+                }
+                if (value.contains("repetition_penalty")) {
+                    chat_bot_repetition_penalty_ = value["repetition_penalty"];
+                }
+            }
+
+            chat_vision_repo_id_ = load_key("chat_vision", "repo_id", chat_vision_repo_id_.c_str());
+            if (cf.contains("chat_vision")) {
+                json value = cf["chat_vision"];
+                if (value.contains("temperature")) {
+                    chat_vision_temperature_ = value["temperature"];
+                }
+            }
 
             if (cf.contains("float16_enabled")) {
                 use_float16_ = cf["float16_enabled"];
@@ -135,6 +168,23 @@ namespace editorium
             cf["float16_enabled"] = use_float16_;
             cf["private_mode_enabled"] = private_mode_;
             cf["keep_in_memory"] = keep_in_memory_;
+
+            json chat_bot;
+            chat_bot["repo_id"] = chat_bot_repo_id_;
+            chat_bot["model_name"] = chat_bot_model_name_;
+            chat_bot["template"] = chat_bot_template_;
+            chat_bot["response_after"] = chat_bot_response_after_;
+            chat_bot["max_new_tokens"] = chat_bot_max_new_tokens_;
+            chat_bot["temperature"] = chat_bot_temperature_;
+            chat_bot["top_p"] = chat_bot_top_p_;
+            chat_bot["top_k"] = chat_bot_top_k_;
+            chat_bot["repetition_penalty"] = chat_bot_repetition_penalty_;
+            cf["chat_bot"] = chat_bot;
+
+            json chat_vision;
+            chat_vision["repo_id"] = chat_vision_repo_id_;
+            chat_vision["temperature"] = chat_vision_temperature_;
+            cf["chat_vision"] = chat_vision;
         } catch(std::exception e) {
             printf("Failed to save the config: %s", e.what());
             return false;
@@ -232,6 +282,94 @@ namespace editorium
 
     bool Config::keep_in_memory() {
         return keep_in_memory_;
+    }
+
+    void Config::chat_bot_repo_id(const char *value) {
+        chat_bot_repo_id_ = value;
+    }
+
+    void Config::chat_bot_model_name(const char *value) {
+        chat_bot_model_name_ = value;
+    }
+
+    void Config::chat_bot_template(const char *value) {
+        chat_bot_template_ = value;
+    }
+
+    void Config::chat_bot_response_after(const char *value) {
+        chat_bot_response_after_ = value;
+    }
+
+    void Config::chat_bot_max_new_tokens(int value) {
+        chat_bot_max_new_tokens_ = value;
+    }
+
+    void Config::chat_bot_temperature(float value) {
+        chat_bot_temperature_ = value;
+    }
+
+    void Config::chat_bot_top_p(float value) {
+        chat_bot_top_p_ = value;
+    }
+
+    void Config::chat_bot_top_k(int value) {
+        chat_bot_top_k_ = value;
+    }
+
+    void Config::chat_bot_repetition_penalty(float value) {
+        chat_bot_repetition_penalty_ = value;
+    }
+
+    std::string Config::chat_bot_repo_id() {
+        return chat_bot_repo_id_;
+    }
+
+    std::string Config::chat_bot_model_name() {
+        return chat_bot_model_name_;
+    }
+
+    std::string Config::chat_bot_template() {
+        return chat_bot_template_;
+    }
+
+    std::string Config::chat_bot_response_after() {
+        return chat_bot_response_after_;
+    }
+
+    int Config::chat_bot_max_new_tokens() {
+        return chat_bot_max_new_tokens_;
+    }
+
+    float Config::chat_bot_temperature() {
+        return chat_bot_temperature_;
+    }
+
+    float Config::chat_bot_top_p() {
+        return chat_bot_top_p_;
+    }
+
+    int Config::chat_bot_top_k() {
+        return chat_bot_top_k_;
+    }
+
+    float Config::chat_bot_repetition_penalty() {
+        return chat_bot_repetition_penalty_;
+    }
+
+    void Config::chat_vision_repo_id(const char *value) {
+        chat_vision_repo_id_ = value;
+    }
+
+    void Config::chat_vision_temperature(float value) {
+        chat_vision_temperature_ = value;
+    }
+
+    std::string Config::chat_vision_repo_id() {
+        return chat_vision_repo_id_;
+    }
+
+    float Config::chat_vision_temperature() {
+        return chat_vision_temperature_;
     }
 
 } // namespace editorium

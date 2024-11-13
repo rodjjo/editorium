@@ -8,6 +8,7 @@
 #include <FL/Fl_Int_Input.H>
 #include <FL/Fl_Float_Input.H>
 #include <FL/Fl_Check_Button.H>
+#include <FL/Fl_Multiline_Input.H>
 
 #include "components/button.h"
 
@@ -44,7 +45,7 @@ private:
     //chat bot
     Fl_Input *chat_bot_repo_id_;
     Fl_Input *chat_bot_model_name_;
-    Fl_Input *chat_bot_template_;
+    Fl_Multiline_Input *chat_bot_template_;
     Fl_Int_Input *chat_bot_max_new_tokens_;
     Fl_Float_Input *chat_bot_temperature_;
     Fl_Float_Input *chat_bot_top_p_;
