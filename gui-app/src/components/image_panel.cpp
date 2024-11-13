@@ -422,6 +422,10 @@ namespace editorium
                 refresh(true);
                 publish_event(parent_, event_layer_selected, selected_);
             }
+        } else {
+            selected_ = NULL;
+            refresh(true);
+            publish_event(parent_, event_layer_selected, selected_);
         }
     }
 
@@ -498,8 +502,16 @@ namespace editorium
 
     size_t ViewSettings::layer_at_mouse_coord(float zoom, int x, int y) {
         if (zoom != 0) {
-            float mx = cache_.get_scroll_x() * zoom + x / zoom;
-            float my = cache_.get_scroll_y() * zoom + y / zoom;
+            float mx = x / zoom - cache_.get_scroll_x();
+            float my = y / zoom - cache_.get_scroll_y();
+            /*
+            if (selected_) {
+                if (selected_->x() < mx && mx <  selected_->x() + selected_->w() 
+                    && selected_->y() < my && my <  selected_->y() + selected_->h() ) {
+                    return selected_layer_index();
+                }
+            }
+            */
             Layer *l;
             for (size_t i = layers_.size(); i > 0; i--) {
                 l = layers_[i - 1].get();
@@ -513,7 +525,7 @@ namespace editorium
     }
 
     void ViewSettings::mouse_drag(float zoom, int dx, int dy, int x, int y) {
-        if (zoom == 0 || !selected_) 
+        if (zoom == 0 || !selected_ || layer_count() < 2) 
             return;
         float mx = x;
         float my = y;
@@ -523,11 +535,16 @@ namespace editorium
         float dragy = (my - mdy) / zoom;
         selected_->x(drag_begin_x_ + dragx);
         selected_->y(drag_begin_y_ + dragy);
-        compact_image_area();
+        compact_image_area(false);
         parent_->schedule_redraw(true);
     }
 
-    void ViewSettings::compact_image_area() {
+    void ViewSettings::mouse_drag_end() {
+        compact_image_area(true);
+        parent_->schedule_redraw(true);
+    }
+
+    void ViewSettings::compact_image_area(bool complete) {
         /*
             This function ensure the image does not scroll far than largest image layer size * 2
             This function ensure that at least one layer has the position (0, 0)
@@ -543,6 +560,7 @@ namespace editorium
                 max_h = l->h();
             }
         }
+
         max_w = int(1.005 * max_w);
         max_h = int(1.005 * max_h);
         int max_w2 = int(2.00 * max_w);
@@ -563,6 +581,9 @@ namespace editorium
             }
         }
        
+        if (!complete) {
+            return;
+        }
 
         int x, y, w, h;
         get_image_area(&x, &y, &w, &h); // 10, 10
@@ -570,11 +591,10 @@ namespace editorium
         int add_x = -x;
         int add_y = -y;
 
-        /*
         int scroll_px = cache()->get_scroll_x() + x;
         int scroll_py = cache()->get_scroll_y() + y;
-        constraint_scroll(1.0, parent_->view_w() / zoom, parent_->view_h() / zoom, &scroll_px, &scroll_py);
-        cache()->set_scroll(scroll_px, scroll_py); */
+        constraint_scroll(zoom, parent_->view_w(), parent_->view_h(), &scroll_px, &scroll_py);
+        cache()->set_scroll(scroll_px, scroll_py); 
 
         for (auto & l : layers_) {
             l->x(l->x() + add_x);
@@ -1297,6 +1317,8 @@ namespace editorium
     }
 
     void ImagePanel::mouse_down(bool left_button, bool right_button, int down_x, int down_y) {
+        view_settings_->mouse_drag_end();
+
         if (!mouse_down_control_ && (left_button || right_button)) {
             // select the layer at the mouse coordinates
             auto index = view_settings_->layer_at_mouse_coord(getZoom(), down_x, down_y);
@@ -1311,9 +1333,13 @@ namespace editorium
     }
 
     void ImagePanel::mouse_up(bool left_button, bool right_button, int down_x, int down_y, int up_x, int up_y) {
-        if (right_button && !mouse_down_control_) {
-            
+        if (right_button && !mouse_down_control_ && !mouse_down_shift_) {
+            if (enable_drag()) {
+                view_settings_->mouse_drag(getZoom(), down_x, down_y, up_x, up_y);
+                view_settings_->mouse_drag_end();
+            }
         }
+
     }
 
     bool ImagePanel::enable_selection() {
@@ -1345,6 +1371,7 @@ namespace editorium
     }
 
     void ImagePanel::clear_scroll() {
+        view_settings_->mouse_drag_end();
         view_settings_->cache()->set_scroll(0, 0);
         schedule_redraw(true);
     }

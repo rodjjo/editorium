@@ -105,6 +105,7 @@ namespace editorium
         size_t layer_at_mouse_coord(float zoom, int x, int y);
         void mouse_drag(float zoom, int dx, int dy, int x, int y);
         void mouse_drag_begin();
+        void mouse_drag_end();
         void mouse_scale(bool up);
         ImageCache *cache();
         uint16_t getZoom();
@@ -131,7 +132,7 @@ namespace editorium
 
     private:
         Layer* add_layer(std::shared_ptr<Layer> l, bool in_front=false);
-        void compact_image_area();
+        void compact_image_area(bool complete=true);
 
     private:
         std::vector<std::shared_ptr<Layer> > layers_;
@@ -171,7 +172,7 @@ namespace editorium
         void clear_scroll();
         int view_w();
         int view_h();
-        
+
     private:
         void after_constructor();
 
