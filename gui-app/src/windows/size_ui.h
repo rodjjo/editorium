@@ -1,6 +1,7 @@
 #ifndef SRC_DIALOG_SIZE_DIALOG_H
 #define SRC_DIALOG_SIZE_DIALOG_H
 
+#include <string>
 #include <memory>
 
 #include <FL/Fl.H>
@@ -35,6 +36,8 @@ class SizeWindow : public Fl_Window  {
     static void valueChangedCb(Fl_Widget *wd, void *cbdata);
     void valueChangedCb(Fl_Widget *wd);
  private:
+    std::string last_width_;
+    std::string last_height_;
     float proportion_ = 1.0;
     bool changing_proportion_ = false;
     bool proportion_to_x_ = true;

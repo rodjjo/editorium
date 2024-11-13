@@ -84,22 +84,27 @@ void SizeWindow::valueChangedCb(Fl_Widget *wd) {
     }
     changing_proportion_ = true;
 
-    Fl_Input *inp = width_;
-    if (wd == height_) {
+    Fl_Input *inp = nullptr;
+    if (last_width_ != width_->value()) {
+        inp = width_;
+    } else if (last_height_ != height_->value()) {
         inp = height_;
+    } else {
+        changing_proportion_ = false;
+        return;
     }
 
     int value = 0;
     int newValue = 0;
     sscanf(inp->value(), "%d", &value);
     if (value != 0) {
-       
-        if (wd == height_) {
+        if (inp == height_) {
             if (proportion_to_x_) {
                 newValue = value / proportion_;
             } else {
                 newValue = value * proportion_;
             }
+
         } else {
             if (proportion_to_x_) {
                 newValue = value * proportion_;
@@ -110,12 +115,15 @@ void SizeWindow::valueChangedCb(Fl_Widget *wd) {
 
         char buffer[50] = {0,};
         sprintf(buffer, "%d", newValue);
-        if (wd == height_) {
+        if (inp == height_) {
             width_->value(buffer);
         } else {
             height_->value(buffer);
         }
     }
+    
+    last_width_ = width_->value();
+    last_height_ = height_->value();
 
     changing_proportion_ = false;
 }
@@ -135,6 +143,8 @@ void SizeWindow::setInitialSize(int x, int y) {
     width_->value(buffer);
     sprintf(buffer, "%d", y);
     height_->value(buffer);
+    last_width_ = width_->value();
+    last_height_ = height_->value();
 }
 
 void SizeWindow::setInitialSizeFloat(float x, float y) {

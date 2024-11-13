@@ -39,6 +39,7 @@ namespace editorium
             event_main_menu_layers_reset_zoom,
             event_main_menu_layers_reset_scroll,
             event_main_menu_enhance_upscaler,
+            event_main_menu_resize_image,
             event_main_menu_selection_generate, 
             event_main_menu_layers_from_selection,
             event_main_menu_layers_from_generated,
@@ -89,6 +90,7 @@ namespace editorium
             menu_->addItem(event_main_menu_layers_flip_vertical, "", "Layers/Flip/Vertical", "", 0, xpm::img_24x24_up_down);
             menu_->addItem(event_main_menu_layers_rotate_clock, "", "Layers/Flip/Rotate", "", 0, xpm::img_24x24_redo);
             menu_->addItem(event_main_menu_enhance_upscaler, "", "Enhancements/Upscaler", "", 0, xpm::img_24x24_zoom);
+            menu_->addItem(event_main_menu_resize_image, "", "Enhancements/Resize Image", "^r", 0, xpm::img_24x24_text_preview);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
@@ -375,6 +377,9 @@ namespace editorium
         case event_main_menu_enhance_upscaler:
             upscale_current_image();
             break;
+        case event_main_menu_resize_image:
+            resize_image();
+            break;
         case event_main_menu_exit:
             this->hide();
             break;
@@ -507,6 +512,27 @@ namespace editorium
             if (img_list.size() > 0) {
                 image_->view_settings()->clear_layers();
                 image_->view_settings()->add_layer(img_list[0]);
+            }
+        }
+    }
+
+    void MainWindow::resize_image() {
+        if (image_->view_settings()->layer_count() < 1) {
+            show_error("Open an image first!");
+            return;
+        } else if (image_->view_settings()->layer_count() > 1) {
+            show_error("Resizing is only available for single layer images!\nMerge all the layers first!");
+            return;
+        }
+        int w = 0, h = 0, unused = 0;
+        image_->view_settings()->get_image_area(&unused, &unused, &w, &h);
+        if (getSizeFromDialog("Resize the image", &w, &h)) {
+            image_->view_settings()->clear_selected_area();
+            auto img = image_->view_settings()->merge_layers_to_image();
+            if (img) {
+                auto resized = img->resizeImage(w, h);
+                image_->view_settings()->clear_layers();
+                image_->view_settings()->add_layer(resized);
             }
         }
     }

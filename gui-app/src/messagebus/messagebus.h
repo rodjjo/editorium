@@ -34,6 +34,7 @@ typedef enum {
     event_main_menu_layers_reset_zoom,
     event_main_menu_layers_reset_scroll,
     event_main_menu_enhance_upscaler,
+    event_main_menu_resize_image,
     event_main_menu_selection_generate,
     event_main_menu_resizeSelection_0,
     event_main_menu_resizeSelection_256,
