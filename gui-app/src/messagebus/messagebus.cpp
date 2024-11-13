@@ -1,6 +1,5 @@
 #include <list>
 #include <mutex>
-#include <thread>
 #include <map>
 #include <FL/Fl.H>
 #include "messagebus/messagebus.h"
@@ -35,7 +34,7 @@ void event_processor(void *) {
             (*sub)(item.second.first, item.first, item.second.second);
         }
     }
-    Fl::repeat_timeout(0.015, event_processor, NULL);
+    Fl::repeat_timeout(0.025, event_processor, NULL);
 }
 
 

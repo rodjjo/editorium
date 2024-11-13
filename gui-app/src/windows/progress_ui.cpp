@@ -1,3 +1,5 @@
+#include <thread>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include <memory>
@@ -68,7 +70,7 @@ ProgressWindow::ProgressWindow(progress_type ptype) {
 }
 
 void ProgressWindow::update(void *cbdata) {
-    Fl::repeat_timeout(0.01, &ProgressWindow::update, cbdata);
+    Fl::repeat_timeout(0.1, &ProgressWindow::update, cbdata);
     static_cast<ProgressWindow*>(cbdata)->update();
 }
 

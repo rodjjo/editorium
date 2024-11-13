@@ -253,6 +253,7 @@ namespace editorium
             refresh(true);
             publish_event(parent_, event_layer_count_changed, NULL);
             publish_event(parent_, event_layer_selected, selected_);
+            cache_.clear_hits();
             return l.get();
         }
         return NULL;
@@ -950,12 +951,11 @@ namespace editorium
     
     void ImagePanel::imageRefresh(void *cbdata) {
         ((ImagePanel *) cbdata)->imageRefresh();
-        Fl::repeat_timeout(0.018, ImagePanel::imageRefresh, cbdata);
+        Fl::repeat_timeout(0.033, ImagePanel::imageRefresh, cbdata);
     }
 
     void ImagePanel::imageRefresh() {
         if (should_redraw_) {
-            should_redraw_ = false;
             if (!image_ || image_->w() != w() || image_->h() != h()) {
                 image_ = newImage(w(), h(), false);
                 should_redraw_ = true;
@@ -963,6 +963,7 @@ namespace editorium
                 return;
             }
             redraw();
+            should_redraw_ = false;
             publish_event(this, event_layer_after_draw, NULL);
         }
     }
