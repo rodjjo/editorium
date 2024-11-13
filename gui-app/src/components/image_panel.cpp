@@ -532,6 +532,7 @@ namespace editorium
             This function ensure the image does not scroll far than largest image layer size * 2
             This function ensure that at least one layer has the position (0, 0)
         */
+        float zoom = getZoom() * 0.01;
         int max_w = 0;
         int max_h = 0;
         for (auto & l : layers_) {
@@ -546,13 +547,8 @@ namespace editorium
         max_h = int(1.005 * max_h);
         int max_w2 = int(2.00 * max_w);
         int max_h2 = int(2.00 * max_h);
-        int x, y, w, h;
-        get_image_area(&x, &y, &w, &h);
-        int add_x = -x;
-        int add_y = -y;
+
         for (auto & l : layers_) {
-            l->x(l->x() + add_x);
-            l->y(l->y() + add_y);
             if (l->x() < -max_w) {
                 l->x(-max_w);
             }
@@ -565,6 +561,24 @@ namespace editorium
             if (l->y() > max_h2) {
                 l->y(max_h2);
             }
+        }
+       
+
+        int x, y, w, h;
+        get_image_area(&x, &y, &w, &h); // 10, 10
+
+        int add_x = -x;
+        int add_y = -y;
+
+        /*
+        int scroll_px = cache()->get_scroll_x() + x;
+        int scroll_py = cache()->get_scroll_y() + y;
+        constraint_scroll(1.0, parent_->view_w() / zoom, parent_->view_h() / zoom, &scroll_px, &scroll_py);
+        cache()->set_scroll(scroll_px, scroll_py); */
+
+        for (auto & l : layers_) {
+            l->x(l->x() + add_x);
+            l->y(l->y() + add_y);
         }
        
         parent_->schedule_redraw(true);
@@ -1093,6 +1107,15 @@ namespace editorium
         draw_brush();
         blur_gl_contents(this->w(), this->h(), move_last_x_, move_last_y_);
     }
+
+    int ImagePanel::view_w() {
+        return image_->w();
+    }
+
+    int ImagePanel::view_h() {
+        return image_->h();
+    }
+
     
     void ImagePanel::draw_rectangle(int x, int y, int w, int h, uint8_t color[4], bool fill) {
         x += view_settings_->cache()->get_scroll_x();

@@ -169,7 +169,9 @@ namespace editorium
         float getZoom();
         void cancel_refresh();
         void clear_scroll();
-
+        int view_w();
+        int view_h();
+        
     private:
         void after_constructor();
 
