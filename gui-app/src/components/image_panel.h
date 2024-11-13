@@ -131,7 +131,6 @@ namespace editorium
 
     private:
         Layer* add_layer(std::shared_ptr<Layer> l, bool in_front=false);
-        void scroll_again(float old_zoom);
         void compact_image_area();
 
     private:
@@ -201,6 +200,8 @@ namespace editorium
         void imageRefresh();
         void getDrawingCoord(float &x, float &y);
         void mouse_drag(int dx, int dy, int x, int y);
+        void anchor_zoom(bool start, int x, int y);
+
 
     private:
         friend class ViewSettings;
@@ -227,6 +228,8 @@ namespace editorium
         int move_last_y_ = 0;
         int scroll_px_ = 0;
         int scroll_py_ = 0;
+        int anchor_x_ = 0;
+        int anchor_y_ = 0;
     };
 
 

@@ -453,8 +453,28 @@ namespace editorium
         }
         float old_zoom = zoom_;
         zoom_ = value;
-        scroll_again(old_zoom);
         refresh(true);
+    }
+
+    void ImagePanel::anchor_zoom(bool start, int x, int y) {
+        if (start) {
+            scroll_px_ = view_settings_->cache()->get_scroll_x();
+            scroll_py_ = view_settings_->cache()->get_scroll_y();
+            anchor_x_ = (x / getZoom()) - scroll_px_;
+            anchor_y_ = (y / getZoom()) - scroll_py_;
+        } else {
+            int new_anchor_x = (x / getZoom()) - scroll_px_;
+            int new_anchor_y = (y / getZoom()) - scroll_py_;
+            int diff_x = new_anchor_x - anchor_x_;
+            int diff_y = new_anchor_y - anchor_y_;
+            int new_scroll_x = scroll_px_ + diff_x;
+            int new_scroll_y = scroll_py_ + diff_y;
+            view_settings_->constraint_scroll(getZoom(), image_->w(), image_->h(), &new_scroll_x, &new_scroll_y);
+            view_settings_->cache()->set_scroll(new_scroll_x,  new_scroll_y);
+            scroll_px_ = view_settings_->cache()->get_scroll_x();
+            scroll_py_ = view_settings_->cache()->get_scroll_y();
+            schedule_redraw(true);
+        }
     }
 
     void ViewSettings::clear_layers() {
@@ -636,17 +656,6 @@ namespace editorium
         #endif
     }
     
-    void ViewSettings::scroll_again(float old_zoom) {
-        return;
-        if (old_zoom != 0 && getZoom() != 0) {
-            float diff = getZoom() / old_zoom;
-            cache_.set_scroll(
-                cache_.get_scroll_x() * diff,
-                cache_.get_scroll_y() * diff
-            );
-        }
-    }
-
     bool ViewSettings::get_selected_area(int *x, int *y, int *w, int *h) {
         if (!has_selected_area()) {
             *x = 0;
@@ -944,8 +953,9 @@ namespace editorium
                     bool alt_pressed = Fl::event_alt() != 0;
                     if (!control_pressed && !shift_pressed && !alt_pressed) {
                         if (enable_zoom()) {
+                            anchor_zoom(true, move_last_x_, move_last_y_);
                             view_settings_->setZoom(view_settings_->getZoom() + z);
-                            mouse_drag(0, 0, 0, 0);
+                            anchor_zoom(false, move_last_x_, move_last_y_);
                         }
                     } else if (!control_pressed && shift_pressed && !alt_pressed) {
                         if (enable_resize()) {
