@@ -145,6 +145,9 @@ void init_progress_title(progress_type ptype) {
     case progress_segmentation:
         set_progress_title("Segmenting the image, please wait...");
         break;
+    case progress_correct_colors:
+        set_progress_title("Correcting the colors, please wait...");
+        break;
     default:
         break;
     }

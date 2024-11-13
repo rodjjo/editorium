@@ -39,7 +39,8 @@ namespace editorium
             event_main_menu_layers_reset_zoom,
             event_main_menu_layers_reset_scroll,
             event_main_menu_enhance_upscaler,
-            event_main_menu_resize_image,
+            event_main_menu_enhance_resize,
+            event_main_menu_enhance_correct_colors,
             event_main_menu_selection_generate, 
             event_main_menu_layers_from_selection,
             event_main_menu_layers_from_generated,
@@ -90,7 +91,8 @@ namespace editorium
             menu_->addItem(event_main_menu_layers_flip_vertical, "", "Layers/Flip/Vertical", "", 0, xpm::img_24x24_up_down);
             menu_->addItem(event_main_menu_layers_rotate_clock, "", "Layers/Flip/Rotate", "", 0, xpm::img_24x24_redo);
             menu_->addItem(event_main_menu_enhance_upscaler, "", "Enhancements/Upscaler", "", 0, xpm::img_24x24_zoom);
-            menu_->addItem(event_main_menu_resize_image, "", "Enhancements/Resize Image", "^r", 0, xpm::img_24x24_text_preview);
+            menu_->addItem(event_main_menu_enhance_resize, "", "Enhancements/Resize Image", "^r", 0, xpm::img_24x24_text_preview);
+            menu_->addItem(event_main_menu_enhance_correct_colors, "", "Enhancements/Correct Colors", "", 0, xpm::img_24x24_text_preview);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
@@ -377,8 +379,11 @@ namespace editorium
         case event_main_menu_enhance_upscaler:
             upscale_current_image();
             break;
-        case event_main_menu_resize_image:
+        case event_main_menu_enhance_resize:
             resize_image();
+            break;
+        case event_main_menu_enhance_correct_colors:
+            correct_colors();
             break;
         case event_main_menu_exit:
             this->hide();
@@ -534,6 +539,27 @@ namespace editorium
                 image_->view_settings()->clear_layers();
                 image_->view_settings()->add_layer(resized);
             }
+        }
+    }
+
+    void MainWindow::correct_colors() {
+        if (image_->view_settings()->layer_count() < 1) {
+            show_error("Open an image first!");
+            return;
+        } else if (image_->view_settings()->layer_count() > 1) {
+            show_error("Correcting colors is only available for single layer images!\nMerge all the layers first!");
+            return;
+        } else if (!image_->view_settings()->has_selected_area()) {
+            show_error("The color correction use the selected area as reference.\nIt corrects the colors outside the selected area!");
+            return;
+        }
+        auto img = image_->view_settings()->merge_layers_to_image();
+        auto selected_img = image_->view_settings()->get_selected_image();
+        auto corrected = ws::upscalers::correct_colors({img}, {selected_img});
+        if (corrected.size() > 0) {
+            image_->view_settings()->clear_layers();
+            image_->view_settings()->add_layer(corrected[0]);
+            image_->view_settings()->clear_selected_area();
         }
     }
 

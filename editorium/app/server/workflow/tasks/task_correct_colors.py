@@ -42,6 +42,7 @@ class CorrectColorsTask(WorkflowTask):
 def register():
     CorrectColorsTask.register(
         "correct-colors", 
-        "Correct colors of a new image to match the original"
+        "Correct colors of a new image to match the original",
+        api_enabled=True
     )
  

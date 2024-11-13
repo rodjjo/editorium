@@ -54,6 +54,7 @@ private:
     void layer_generate_in_selection();
     void upscale_current_image();
     void resize_image();
+    void correct_colors();
     void create_image(bool selection);
 
 private:

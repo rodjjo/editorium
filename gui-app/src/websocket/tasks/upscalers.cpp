@@ -34,6 +34,30 @@ std::vector<editorium::image_ptr_t> upscale_gfpgan(float scale, float face_weigh
     return result;
 }
 
+std::vector<editorium::image_ptr_t> correct_colors(std::vector<editorium::image_ptr_t> images, std::vector<editorium::image_ptr_t> originals) {
+    std::vector<editorium::image_ptr_t> result;
+
+    json config;
+
+    api_payload_t payload;
+    payload.images = images;
+
+    json inputs;
+    inputs["default"] = to_input(payload);
+    payload.images = originals;
+    inputs["original"] = to_input(payload);
+
+    enable_progress_window(progress_correct_colors);
+    auto response = execute("correct-colors", inputs, config);
+
+    if (response) {
+        result = response->images;
+    }
+
+    return result;
+}
+
+
 
 } // namespace upscalers
 } // namespace ws

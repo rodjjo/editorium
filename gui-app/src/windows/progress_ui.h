@@ -18,6 +18,7 @@ typedef enum {
     progress_downloader,
     progress_generation,
     progress_upscaler,
+    progress_correct_colors,
     progress_background,
     progress_preprocessor,
     progress_segmentation
