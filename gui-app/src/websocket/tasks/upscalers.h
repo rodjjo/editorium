@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+#include "images/image.h"
+
 namespace editorium {
 namespace ws {
 namespace upscalers {

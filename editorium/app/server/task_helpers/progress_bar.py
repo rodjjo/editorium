@@ -39,6 +39,15 @@ class ProgressBar(tqdm):
             ProgressBar.global_progress_percent = progress
             if ProgressBar.global_should_stop:
                 raise StopException("Stopped by the user.")    
+    
+    @classmethod
+    def noop(cls):
+        with ProgressBar.global_lock:
+            if ProgressBar.global_should_stop:
+                raise StopException("Stopped by the user.")                    
+            if ProgressBar.global_progress_percent > 50.0:
+                ProgressBar.global_progress_percent = 0.0
+            ProgressBar.global_progress_percent += 15.0
                 
     @classmethod
     def stop(cls, value=True, id=None):

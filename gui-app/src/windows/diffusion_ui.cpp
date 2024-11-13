@@ -7,6 +7,7 @@
 
 #include "websocket/tasks.h"
 #include "windows/sapiens_ui.h"
+#include "windows/chatbot_ui.h"
 
 #include "windows/diffusion_ui.h"
 
@@ -25,6 +26,8 @@ namespace editorium
             event_image_frame_open_mask,
             event_image_frame_mode_selected,
             event_prompt_architecture_selected,
+            event_prompt_improve_requested,
+            event_prompt_interrogate_requested,
             event_image_frame_seg_gdino,
             event_image_frame_seg_sapiens
         };
@@ -279,6 +282,12 @@ namespace editorium
                 case event_prompt_architecture_selected:
                     set_architecture_view();
                 break;
+                case event_prompt_improve_requested:
+                    improve_prompt();
+                    break;
+                case event_prompt_interrogate_requested:
+                    interrogate_image();
+                    break;
             }
         } else if (sender == result_frame_.get()) {
             switch (event) {
@@ -457,6 +466,45 @@ namespace editorium
             }
         }
         return false;
+    }
+    
+    void DiffusionWindow::improve_prompt() {
+        std::string current_prompt = prompt_frame_->positive_prompt();
+        if (current_prompt.empty()) {
+                        show_error("Please fill the positive prompt first!");
+        } else {
+            auto arch = prompt_frame_->get_arch();
+            auto system_prompt = get_prompts_for_chat("Configuration - for prompt improvement - arch " + arch, arch + "::improve-prompt");
+            if (!system_prompt.empty()) {
+                ws::chatbots::chatbot_request_t req;
+                req.context = system_prompt;
+                req.prompt = current_prompt;
+                auto result = ws::chatbots::chat_bot(req);
+                if (!result.empty()) {
+                    prompt_frame_->positive_prompt(result);
+                }
+            }
+        }
+    }
+
+    void DiffusionWindow::interrogate_image() {
+        if (images_[page_type_image]->view_settings()->layer_count() < 1) {
+            show_error("Open or generate an image first!");
+        } else {
+            auto img = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+            auto arch = prompt_frame_->get_arch();
+            auto sys_user_prompt = get_prompts_for_vision("Configuration - for image interrogation - arch " + arch , arch + "::prompt-from-image");
+            if (!sys_user_prompt.empty()) {
+                ws::chatbots::vision_chat_request_t req;
+                req.system_prompt = "you are a helpful AI assistant that follows the user instructions";
+                req.prompt = sys_user_prompt;
+                req.image = img;
+                auto result = ws::chatbots::chat_bot_vision(req);
+                if (!result.empty()) {
+                    prompt_frame_->positive_prompt(result);
+                }
+            }
+        }
     }
 
     void DiffusionWindow::generate() {

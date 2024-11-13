@@ -4,7 +4,8 @@ import os
 import torch
 
 from pipelines.chatvision.managed_model import chatvision_model
-
+from task_helpers.progress_bar import ProgressBar
+from pipelines.common.utils import ensure_image
 
 class CanceledChecker:
     def __call__(self, *args, **kwargs) -> bool:
@@ -21,17 +22,21 @@ def generate_text(repo_id: str,
         raise ValueError('Image is required')
     if type(image) is str:
         image = torch.load(image)
+   
+    image = ensure_image(image)
+    
     if type(image) is not list:
         image = [image]
     
     msgs = [{'role': 'user', 'content': prompt}]
     
     chatvision_model.load_models(repo_id=repo_id)
-    paths = []
     responses = []
-
+    
+    ProgressBar.set_title('[chatvision] - describing the image')
     with torch.no_grad():
         for i, img in enumerate(image):
+            ProgressBar.set_progress(i * 100.0/ len(image))
             response = chatvision_model.model.chat(
                 image=img,
                 msgs=msgs,

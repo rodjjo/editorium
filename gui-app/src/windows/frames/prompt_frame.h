@@ -11,6 +11,7 @@
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Check_Button.H>
 
+#include "components/button.h"
 #include "windows/frames/embeddings_frame.h"
 
 namespace editorium
@@ -33,6 +34,7 @@ public:
 
     void alignComponents();
     std::string positive_prompt();
+    void positive_prompt(const std::string& value);
     std::string negative_prompt();
     std::string get_model();
     std::string get_scheduler();
@@ -71,6 +73,8 @@ private:
     Fl_Group             *emb_gp_;
     Fl_Multiline_Input   *positive_input_;
     Fl_Multiline_Input   *negative_input_;
+    std::unique_ptr<Button> btn_improve_;
+    std::unique_ptr<Button> btn_interrogate_;
     Fl_Int_Input         *seed_input_;
     Fl_Int_Input         *batch_input_;
     Fl_Int_Input         *steps_input_;

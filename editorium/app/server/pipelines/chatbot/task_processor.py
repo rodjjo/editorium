@@ -11,11 +11,6 @@ from pipelines.chatbot.managed_model import chatbot_models
 from task_helpers.progress_bar import ProgressBar
 
 
-class CanceledChecker:
-    def __call__(self, *args, **kwargs) -> bool:
-        ProgressBar.set_progress(0.0)
-        return False # TODO return True if the task should be canceled
-
 
 def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> str:
     from hashlib import sha1
@@ -25,6 +20,7 @@ def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> s
     os.makedirs(cache_dir, exist_ok=True)
     cache_file = f'chatbot_cache.json'
     cache_path = os.path.join(cache_dir, cache_file)
+    cache = {}
     if os.path.exists(cache_path):
         with open(cache_path, 'r') as f:
             cache = json.load(f)
@@ -32,6 +28,7 @@ def use_cache(repo_id: str, system_prompt: str, prompt: str, response: str) -> s
             return cache[sha1_value]
     if len(cache.keys()) > 20:
         cache = {}
+
     if response:
         cache[sha1_value] = response
         with open(cache_path, 'w') as f:
@@ -53,6 +50,7 @@ def generate_text(repo_id: str,
                   globals: dict = {}) -> dict:
     response = use_cache(repo_id, context, prompt, '')
     if response:
+        ProgressBar.set_title('[chatbot] - Using cached response')
         return {
             "texts": [response],
         }
@@ -63,6 +61,17 @@ def generate_text(repo_id: str,
         raise ValueError("Template must contain {context} and {input} placeholders.")
         
     prompt = template.format(context=context, input=prompt)
+    
+    ProgressBar.set_title('[chatbot] - generating the text')
+
+    class CanceledChecker:
+        def __call__(self, *args, **kwargs) -> bool:
+            try:
+                ProgressBar.noop()
+            except Exception:
+                return True
+            return False # TODO return True if the task should be canceled
+
     
     inputs = chatbot_models.tokenizer.encode(str(prompt), return_tensors='pt', add_special_tokens=True).to('cuda:0')
     output = chatbot_models.model.generate(

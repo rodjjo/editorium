@@ -24,5 +24,6 @@ class ChatvisionTask(WorkflowTask):
 def register():
     ChatvisionTask.register(
         "chatvision", 
-        "Use a chatvision model to check the image contents"
+        "Use a chatvision model to check the image contents",
+        api_enabled=True
     )

@@ -1,7 +1,9 @@
 #include "websocket/tasks.h"
 
-#include "windows/frames/prompt_frame.h"
+#include "components/xpm/xpm.h"
 #include "misc/profiles.h"
+
+#include "windows/frames/prompt_frame.h"
 
 namespace editorium
 {
@@ -24,6 +26,15 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
 
     positive_input_ = new Fl_Multiline_Input(0, 0, 1, 1, "Positive prompt");
     negative_input_ = new Fl_Multiline_Input(0, 0, 1, 1, "Negative Prompt");
+
+    btn_improve_.reset(new Button(xpm::image(xpm::img_24x24_list), [this] {
+        publish_event(this, event_prompt_improve_requested, nullptr);
+    }));
+
+    btn_interrogate_.reset(new Button(xpm::image(xpm::img_24x24_question), [this] {
+        publish_event(this, event_prompt_interrogate_requested, nullptr);
+    }));
+
     seed_input_ = new Fl_Int_Input(0, 0, 1, 1, "Seed");
     batch_input_ = new Fl_Int_Input(0, 0, 1, 1, "Batch size");
     steps_input_ = new Fl_Int_Input(0, 0, 1, 1, "Steps");
@@ -88,6 +99,10 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     models_input_->callback(widget_cb, this);
 
     correct_colors_->tooltip("On inpaiting operation, correct colors in the output image");
+
+    btn_improve_->tooltip("Uses a LLM to improve the positive prompt.");
+    btn_interrogate_->tooltip("Use a multimodal model to look at the current image and describe it.");
+
     alignComponents();
 
     prompt_load_profile();
@@ -147,7 +162,11 @@ void PromptFrame::alignComponents() {
         pw = 860;
         sx = sx + (parent_->w() - 860);
     }
-    positive_input_->resize(sx + 5, sy + 35, pw - 10, 50);
+    positive_input_->resize(sx + 5, sy + 35, pw - 70, 50);
+    btn_improve_->position(positive_input_->x() + positive_input_->w() + 5, positive_input_->y());
+    btn_improve_->size(28, 28);
+    btn_interrogate_->position(btn_improve_->x(), btn_improve_->y() + btn_improve_->h() + 2);
+    btn_interrogate_->size(28, 28);
     negative_input_->resize(sx + 5, positive_input_->y() + 75, positive_input_->w(), positive_input_->h());
     seed_input_->resize(sx + 5, negative_input_->y() + 75, (pw - 20) / 3, 20);
     batch_input_->resize(seed_input_->x() + seed_input_->w() + 5, seed_input_->y(), seed_input_->w(), seed_input_->h());
@@ -171,6 +190,9 @@ void PromptFrame::alignComponents() {
     embeddings_->alignComponents();
 }
 
+void PromptFrame::positive_prompt(const std::string& value) {
+    positive_input_->value(value.c_str());
+}
 
 std::string PromptFrame::positive_prompt() {
     std::string result = positive_input_->value();

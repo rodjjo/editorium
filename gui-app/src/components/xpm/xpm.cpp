@@ -41,6 +41,9 @@
 #include "components/xpm/data/24x24/redo.xpm"
 #include "components/xpm/data/24x24/zoom.xpm"
 #include "components/xpm/data/24x24/text_preview.xpm"
+#include "components/xpm/data/24x24/text.xpm"
+#include "components/xpm/data/24x24/question.xpm"
+#include "components/xpm/data/24x24/list.xpm"
 
 #pragma GCC diagnostic pop
 
@@ -80,6 +83,9 @@ std::map<xpm_t, const char * const*> xpm_db = {
     { img_24x24_redo,  xpm_redo },
     { img_24x24_zoom, xpm_zoom },
     { img_24x24_text_preview, xpm_text_preview },
+    { img_24x24_text, xpm_text },
+    { img_24x24_question, xpm_question },
+    { img_24x24_list, xpm_list }
 
 };
 

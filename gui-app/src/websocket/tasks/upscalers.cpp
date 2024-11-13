@@ -1,6 +1,5 @@
 #include <fstream>
 #include "base64/base64.h"
-#include "websocket/tasks/models.h"
 #include "websocket/code.h"
 #include "windows/progress_ui.h"
 #include "upscalers.h"

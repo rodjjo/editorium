@@ -150,6 +150,12 @@ void init_progress_title(progress_type ptype) {
     case progress_correct_colors:
         set_progress_title("Correcting the colors, please wait...");
         break;
+    case progress_chatbot:
+        set_progress_title("Chatbot processing, please wait...");
+        break;
+    case progress_chatbot_vision:
+        set_progress_title("Chatbot vision processing, please wait...");
+        break;
     default:
         break;
     }

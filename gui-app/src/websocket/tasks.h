@@ -4,3 +4,4 @@
 #include "websocket/tasks/models.h"
 #include "websocket/tasks/diffusion.h"
 #include "websocket/tasks/upscalers.h"
+#include "websocket/tasks/chatbots.h"

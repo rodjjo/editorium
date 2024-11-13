@@ -61,6 +61,8 @@ typedef enum {
     event_prompt_lora_selected,
     event_prompt_textual_selected,
     event_prompt_architecture_selected,
+    event_prompt_improve_requested,
+    event_prompt_interrogate_requested,
 } event_id_t;
 
 typedef std::function<void(void *sender, event_id_t event, void *data)> event_handler_t;

@@ -31,5 +31,6 @@ class ChatbotTask(WorkflowTask):
 def register():
     ChatbotTask.register(
         "chatbot", 
-        "Generates text based on text inputs"
+        "Generates text based on text inputs",
+        api_enabled=True
     )
