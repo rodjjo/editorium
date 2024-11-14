@@ -66,6 +66,7 @@ ProgressWindow::ProgressWindow(progress_type ptype) {
     window_->end();
     window_->position(Fl::w() / 2 - window_->w() / 2, Fl::h() / 2 - window_->h() / 2);
     window_->set_modal();
+    Fl::remove_timeout(&ProgressWindow::update, this);
     Fl::add_timeout(0.01, &ProgressWindow::update, this);
 }
 

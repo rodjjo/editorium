@@ -19,16 +19,22 @@ ChatbotWindow::ChatbotWindow(
         Fl_Window(Fl::w() / 2 - 860 / 2, Fl::h() / 2 - 640 / 2, 860, enable_user_prompt ? 520 : 340, title) {
     default_prompt_ = default_prompt;
     default_user_prompt_ = default_user_prompt;
-    system_prompt_ = new Fl_Multiline_Input(0, 0, 1, 1, "System prompt");
+    system_prompt_ = new Fl_Text_Editor(0, 0, 1, 1, "System prompt");
+    sys_prompt_buffer_ = new Fl_Text_Buffer();
+    system_prompt_->buffer(sys_prompt_buffer_);
+    system_prompt_->wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 5);
     if (enable_user_prompt) {
-        user_prompt_ = new Fl_Multiline_Input(0, 0, 1, 1, "User prompt");
+        user_prompt_ = new Fl_Text_Editor(0, 0, 1, 1, "User prompt");
+        usr_prompt_buffer_ = new Fl_Text_Buffer();
+        user_prompt_->buffer(usr_prompt_buffer_);
+        user_prompt_->wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 5);
     }
     btnDefault_.reset(new Button(xpm::image(xpm::img_24x24_text), [this] {
         use_default_prompt();
     }));
     btnOk_.reset(new Button(xpm::image(xpm::img_24x24_ok), [this] {
-        std::string system_prompt = system_prompt_->value();
-        std::string user_prompt = user_prompt_ != nullptr ? user_prompt_->value() : "place_holder";
+        std::string system_prompt = system_prompt_->buffer()->text();
+        std::string user_prompt = user_prompt_ != nullptr ? user_prompt_->buffer()->text() : "place_holder";
         if (!system_prompt.empty() && !user_prompt.empty()) {
             confirmed_ = true;
         } else {
@@ -48,25 +54,31 @@ ChatbotWindow::ChatbotWindow(
     btnDefault_->tooltip("Use a default prompt");
     
     chatbot_load_profile();
-    system_prompt_->value(chatbot_profile_get_string({context, "system_prompt"}, default_prompt).c_str());
+    system_prompt_->insert(chatbot_profile_get_string({context, "system_prompt"}, default_prompt).c_str());
     if (enable_user_prompt) {
-        user_prompt_->value(chatbot_profile_get_string({context, "user_prompt"}, default_user_prompt).c_str());
+        user_prompt_->insert(chatbot_profile_get_string({context, "user_prompt"}, default_user_prompt).c_str());
     }
     set_modal();
     align_component();
 }
 
 ChatbotWindow::~ChatbotWindow() {
+    if(sys_prompt_buffer_) {
+        delete sys_prompt_buffer_;
+    }
+    if (usr_prompt_buffer_) {
+        delete usr_prompt_buffer_;
+    }
 }
 
 bool ChatbotWindow::confirmed() {
-    return confirmed_;    
+    return confirmed_ && !display_result_;    
 }
 
 void ChatbotWindow::use_default_prompt() {
-    system_prompt_->value(default_prompt_.c_str());
+    system_prompt_->buffer()->text(default_prompt_.c_str());
     if (user_prompt_) {
-        user_prompt_->value(default_user_prompt_.c_str());
+        user_prompt_->buffer()->text(default_user_prompt_.c_str());
     }
 }
 
@@ -85,25 +97,32 @@ void ChatbotWindow::align_component() {
 }
 
 std::string ChatbotWindow::get_system_prompt() {
-    return system_prompt_->value();
+    return system_prompt_->buffer()->text();
 }
 
 std::string ChatbotWindow::get_user_prompt() {
     if (!user_prompt_) {
         return "";
     }
-    return user_prompt_->value();
+    return user_prompt_->buffer()->text();
 }
 
 
 void ChatbotWindow::set_system_prompt(const std::string& prompt) {
-    system_prompt_->value(prompt.c_str());
+    system_prompt_->buffer()->text(prompt.c_str());
 }
 
 void ChatbotWindow::set_user_prompt(const std::string& prompt) {
     if (user_prompt_) {
-        user_prompt_->value(prompt.c_str());
+        user_prompt_->buffer()->text(prompt.c_str());
     }
+}
+
+void ChatbotWindow::set_to_display_result() {
+    system_prompt_->label("Result:");
+    btnDefault_->hide();
+    btnOk_->hide();
+    display_result_ = true;
 }
 
 
@@ -145,6 +164,21 @@ std::string get_prompts_for_chat(const std::string& title, const std::string& co
     const char *default_system_prompt = "You are an helpful assistant that convert comma separated tags into a detailed description.";
     auto r = get_prompts(title, context, default_system_prompt, "", false);
     return r.first;
+}
+
+void chatbot_display_result(const std::string& title, const std::string& result) {
+    auto window = new ChatbotWindow(title.c_str(), "", "", "", false);
+    window->set_system_prompt(result);
+    window->set_to_display_result();
+    window->show();
+    while (true) {
+        if (!window->visible_r()) {
+            break;
+        }
+        Fl::wait();
+    }
+    Fl::delete_widget(window);
+    Fl::do_widget_deletion();
 }
 
 } // namespace editorium

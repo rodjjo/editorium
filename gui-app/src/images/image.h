@@ -35,6 +35,7 @@ class RawImage {
     void incVersion();
     void pasteFill(RawImage *image);
     void pasteFrom(int x, int y, float zoom, RawImage *image);
+    void pasteAtClearFirst(int x, int y, RawImage *image);
     void pasteAt(int x, int y, RawImage *image);
     void pasteAt(int x, int y, RawImage *mask, RawImage *image);
     void pasteAt(int x, int y, int w, int h, RawImage *image);
@@ -50,6 +51,7 @@ class RawImage {
     image_ptr_t addAlpha();
     image_ptr_t resizeCanvas(uint32_t x, uint32_t y);
     image_ptr_t resizeImage(uint32_t x, uint32_t y);
+    image_ptr_t resizeImage(uint32_t size);
     image_ptr_t resizeInTheCenter(uint32_t x, uint32_t y);
     image_ptr_t getCrop(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     image_ptr_t ensureMultipleOf8();

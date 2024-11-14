@@ -12,6 +12,8 @@
 #include <Windows.h>
 #endif
 
+#include <algorithm>
+
 #include "misc/utils.h"
 #include "misc/config.h"
 
@@ -115,6 +117,81 @@ bool rectRect(int r1x, int r1y, int r1w, int r1h, int r2x, int r2y, int r2w, int
         return true;
   }
   return false;
+}
+
+std::vector<std::string> list_directory_files(const std::string& path, const std::vector<std::string>& ext) {
+    std::vector<std::string> result;
+#ifdef _WIN32
+    WIN32_FIND_DATAA findFileData;
+    HANDLE hFind = FindFirstFileA((path + "/*." + ext).c_str(), &findFileData);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            result.push_back(findFileData.cFileName);
+        } while (FindNextFileA(hFind, &findFileData));
+        FindClose(hFind);
+    }
+#else
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir(path.c_str())) != NULL) {
+        bool ext_found = false;
+        while ((ent = readdir(dir)) != NULL) {
+            std::string name = ent->d_name;
+            ext_found = false;
+            for (const auto& ext_item : ext) {
+                if (name.find(ext_item) != std::string::npos) {
+                    ext_found = true;
+                    break;
+                }
+            }
+            if (ext_found) {
+                result.push_back(path + name);
+            }
+        }
+        closedir(dir);
+    }
+#endif
+
+    // sort the result
+    std::sort(result.begin(), result.end());
+
+    return result;
+}
+
+std::string extract_directory(const std::string& path) {
+    size_t pos = path.find_last_of("/\\");
+    if (pos != std::string::npos) {
+        return path.substr(0, pos + 1);
+    }
+    return path;
+}
+
+std::string the_item_after(const std::vector<std::string> contents, const std::string& current) {
+    for (size_t i = 0; i < contents.size(); i++) {
+        if (contents[i] == current) {
+            if (i + 1 < contents.size()) {
+                return contents[i + 1];
+            }
+        }
+    }
+    if (contents.size() > 0) {
+        return contents[0];
+    }
+    return std::string();
+}
+
+std::string the_item_before(const std::vector<std::string> contents, const std::string& current) {
+    for (size_t i = 0; i < contents.size(); i++) {
+        if (contents[i] == current) {
+            if (i > 0) {
+                return contents[i - 1];
+            }
+        }
+    }
+    if (contents.size() > 0) {
+        return contents[contents.size() - 1];
+    }
+    return std::string();
 }
 
 } // namespace editorium

@@ -53,11 +53,16 @@ private:
     void convert_selection_into_layer();
     void layer_generate_in_selection();
     void upscale_current_image();
+    void send_selection_to_vision_chat();
     void resize_image();
     void correct_colors();
     void create_image(bool selection);
-
+    void open_prior_image(bool confirm=false);
+    void open_next_image(bool confirm=false);
+    void open_other_image(bool next, bool confirm);    
+    void open_image_file(bool clear_layers, const std::string& path);
 private:
+    std::string last_open_image_;
     int16_t wheel_correct_delta_ = 0;
     uint16_t correct_keys_;
     MainMenu *menu_ = NULL;

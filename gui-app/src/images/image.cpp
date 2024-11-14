@@ -278,6 +278,11 @@ void RawImage::pasteAt(int x, int y, RawImage *image) {
     src.permute_axes("cxyz");
 }
 
+void RawImage::pasteAtClearFirst(int x, int y, RawImage *image) {
+    this->rectangle(x, y, image->w(), image->h(), white_color_rgba, 1.0f);
+    pasteAt(x, y, image);
+}
+
 void RawImage::pasteAt(int x, int y, RawImage *mask, RawImage *image) {
     CImg<unsigned char> src(image->buffer(), format_channels[image->format()], image->w(), image->h(), 1, true);
     CImg<unsigned char> msk(mask->buffer(), format_channels[mask->format()], mask->w(), mask->h(), 1, true);
@@ -591,6 +596,14 @@ image_ptr_t RawImage::resizeImage(uint32_t x, uint32_t y) {
     return result;
 }
 
+image_ptr_t RawImage::resizeImage(uint32_t size) {
+    if (this->w() > this->h()) {
+        return resizeImage(size, (int)((this->h() / (float)this->w()) * size));
+    } else {
+        return resizeImage((int)((this->w() / (float)this->h()) * size), size);
+    }
+}
+
 image_ptr_t RawImage::getCrop(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     image_ptr_t result(new RawImage(NULL, w, h, this->format(), false));
     CImg<unsigned char> src(this->buffer(), format_channels[this->format()], this->w(), this->h(), 1, true);
@@ -787,9 +800,11 @@ json RawImage::toJson() {
 }
 
 image_ptr_t newImage(uint32_t w, uint32_t h, bool enable_alpha) {
-    return std::make_shared<RawImage>(
+    auto r = std::make_shared<RawImage>(
         (const unsigned char *) NULL, w, h, enable_alpha ? img_rgba : img_rgb
     );
+    r->clear(255, 255, 255, enable_alpha ? 0 : 255);
+    return r;
 }
 
 image_ptr_t newImage(const json& value) {

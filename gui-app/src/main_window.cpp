@@ -6,6 +6,7 @@
 #include "windows/diffusion_ui.h"
 #include "windows/upscaler_ui.h"
 #include "windows/size_ui.h"
+#include "windows/chatbot_ui.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
 #include "misc/utils.h"
@@ -25,10 +26,13 @@ namespace editorium
             event_main_menu_file_open,
             event_main_menu_file_save,
             event_main_menu_file_open_layer,
+            event_main_menu_file_dir_prior,
+            event_main_menu_file_dir_next,
             event_main_menu_file_close,
             event_main_menu_edit_settings,
             event_main_menu_layers_duplicate,
             event_main_menu_layers_remove_selected,
+            event_main_menu_layers_minimize_selected,
             event_main_menu_layers_merge_all,
             event_main_menu_layers_remove_background,
             event_main_menu_layers_remove_background_sapiens,
@@ -42,6 +46,8 @@ namespace editorium
             event_main_menu_enhance_resize,
             event_main_menu_enhance_correct_colors,
             event_main_menu_selection_generate, 
+            event_main_menu_selection_vision_chat,
+            event_main_menu_selection_from_layer,
             event_main_menu_layers_from_selection,
             event_main_menu_layers_from_generated,
             event_main_menu_resizeSelection_0,
@@ -73,20 +79,23 @@ namespace editorium
             menu_->addItem(event_main_menu_file_new_art, "", "File/New Art", "^n", 0, xpm::img_24x24_new);
             menu_->addItem(event_main_menu_file_open, "", "File/Open", "^o", 0, xpm::img_24x24_open);
             menu_->addItem(event_main_menu_file_save, "", "File/Save", "^s", 0, xpm::img_24x24_flash_drive);
-            menu_->addItem(event_main_menu_file_open_layer, "", "File/Open as Layer", "^l", 0, xpm::img_24x24_open_layer);
             menu_->addItem(event_main_menu_file_close, "", "File/Close", "^x", 0, xpm::img_24x24_close);
+            menu_->addItem(event_main_menu_file_open_layer, "", "File/Open as Layer", "^l", 0, xpm::img_24x24_open_layer);
+            menu_->addItem(event_main_menu_file_dir_prior, "", "File/Directory/Open Prior", "^8", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_file_dir_next, "", "File/Directory/Open Next", "^9", 0, xpm::no_image);
             menu_->addItem(event_main_menu_exit, "", "File/Exit", "", 0, xpm::img_24x24_exit);
             menu_->addItem(event_main_menu_edit_settings, "", "Edit/Settings", "", 0, xpm::img_24x24_settings);
             menu_->addItem(event_main_menu_layers_duplicate, "", "Layers/Duplicate", "^d", 0, xpm::img_24x24_copy);
             menu_->addItem(event_main_menu_layers_from_selection, "", "Layers/From selection", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_from_generated, "", "Layers/From generation", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_remove_selected, "", "Layers/Remove", "", 0, xpm::img_24x24_remove);
+            menu_->addItem(event_main_menu_layers_minimize_selected, "", "Layers/Minimize", "", 0, xpm::img_24x24_up_down);
             menu_->addItem(event_main_menu_layers_merge_all, "", "Layers/Merge", "^m", 0, xpm::img_24x24_load);
             menu_->addItem(event_main_menu_layers_reset_zoom, "", "Layers/Reset Zoom", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_reset_scroll, "", "Layers/Reset Scroll", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_remove_background, "", "Layers/Background/Remove", "", 0, xpm::img_24x24_picture);
             menu_->addItem(event_main_menu_layers_remove_background_sapiens, "", "Layers/Background/Extract human", "", 0, xpm::img_24x24_picture);
-            menu_->addItem(event_main_menu_layers_remove_background_gdino, "", "Layers/Background/Extract object", "", 0, xpm::img_24x24_picture);
+            menu_->addItem(event_main_menu_layers_remove_background_gdino, "", "Layers/Background/Extract object", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_flip_horizontal, "", "Layers/Flip/Horizontal", "", 0, xpm::img_24x24_left_right);
             menu_->addItem(event_main_menu_layers_flip_vertical, "", "Layers/Flip/Vertical", "", 0, xpm::img_24x24_up_down);
             menu_->addItem(event_main_menu_layers_rotate_clock, "", "Layers/Flip/Rotate", "", 0, xpm::img_24x24_redo);
@@ -94,13 +103,16 @@ namespace editorium
             menu_->addItem(event_main_menu_enhance_resize, "", "Enhancements/Resize Image", "^r", 0, xpm::img_24x24_text_preview);
             menu_->addItem(event_main_menu_enhance_correct_colors, "", "Enhancements/Correct Colors", "", 0, xpm::img_24x24_text_preview);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
+            menu_->addItem(event_main_menu_selection_vision_chat, "", "Selection/Vision Chat", "");
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
             menu_->addItem(event_main_menu_resizeSelection_512, "", "Selection/Expand/512x512", "^1");
             menu_->addItem(event_main_menu_resizeSelection_768, "", "Selection/Expand/768x768", "^2");
             menu_->addItem(event_main_menu_resizeSelection_1024, "", "Selection/Expand/1024x1024", "^3");
             menu_->addItem(event_main_menu_resizeSelection_2048, "", "Selection/Expand/2048x2048", "^4");
+            menu_->addItem(event_main_menu_selection_from_layer, "", "Selection/Expand/Current layer", "^b", 0);
             menu_->addItem(event_main_menu_resizeSelection_all, "", "Selection/Expand/Select All", "^a");
+            
         } // menu
 
         { // image panels
@@ -291,6 +303,9 @@ namespace editorium
         case event_main_menu_selection_generate:
             create_image(true);
             break;
+        case event_main_menu_selection_vision_chat:
+            send_selection_to_vision_chat();
+            break;
         case event_main_menu_layers_from_selection:
             convert_selection_into_layer();
             break;
@@ -315,12 +330,21 @@ namespace editorium
         case event_main_menu_resizeSelection_2048:
             resizeSelection(2048);
             break;
+        case event_main_menu_selection_from_layer:
+            resizeSelection(-2);
+            break;
         case event_main_menu_resizeSelection_all:
             resizeSelection(-1);
             break;
         case event_main_menu_file_open:
             choose_file_and_open(true);
             break;
+        case event_main_menu_file_dir_prior:
+            open_prior_image(Fl::event_state(FL_CTRL) != 0);
+        break;
+        case event_main_menu_file_dir_next:
+            open_next_image(Fl::event_state(FL_CTRL) != 0);
+        break;
         case event_main_menu_file_save:
             choose_file_and_save();
             break;
@@ -357,6 +381,15 @@ namespace editorium
             break;
         case event_main_menu_layers_remove_selected:
             remove_selected_layer();
+            break;
+        case event_main_menu_layers_minimize_selected:
+            if (image_->view_settings()->selected_layer()) {
+                image_->view_settings()->selected_layer()->replace_image(
+                    image_->view_settings()->selected_layer()->getImage()->resize_down_alpha()
+                );
+            } else {
+                fl_alert("No layer selected");
+            }
             break;
         case event_main_menu_layers_merge_all:
             merge_all_layers();
@@ -432,17 +465,54 @@ namespace editorium
         lblSelectionSize_->copy_label(buffer);
     }
 
-    void MainWindow::choose_file_and_open(bool clear_layers) {
-        std::string result = choose_image_to_open_fl("main_window_picture");
-        if (!result.empty()) {
-            auto dir = filepath_dir(result);
+    void MainWindow::open_image_file(bool clear_layers, const std::string& path) {
+        if (!path.empty()) {
+            auto dir = filepath_dir(path);
             if (clear_layers) {
                 image_->view_settings()->clear_layers();
             }
-            printf("[MainWindow] Opening file: %s\n", result.c_str());
-            image_->view_settings()->add_layer(result.c_str());
+            image_->view_settings()->add_layer(path.c_str());
+            last_open_image_ = path;
+            if (clear_layers) {
+                resizeSelection(-1);
+            } else {
+                resizeSelection(-2);
+            }
         }
     }
+
+    void MainWindow::choose_file_and_open(bool clear_layers) {
+        open_image_file(clear_layers, choose_image_to_open_fl("main_window_picture"));
+    }
+
+    void MainWindow::open_other_image(bool next_direction, bool confirm) {
+        if (last_open_image_.empty()) {
+            fl_alert("You need to open an image first!");
+            return;
+        }
+        std::string current_dir = extract_directory(last_open_image_);
+        std::vector<std::string> files = list_directory_files(current_dir, {".jpg", ".jpeg", ".png"});
+        std::string next = next_direction ? the_item_after(files, last_open_image_) : the_item_before(files, last_open_image_);
+        if (next.empty()) {
+            fl_alert("No prior image found");
+        } else {
+            if (confirm) {
+                if (!ask(next_direction ? "Do you want to open the next image ?" : "Do you want to open the prior image ?")) {
+                    return;
+                }
+            }
+            open_image_file(true, next);
+        }
+    }
+
+    void MainWindow::open_prior_image(bool confirm) {
+        open_other_image(false, confirm);
+    }
+
+    void MainWindow::open_next_image(bool confirm) {
+        open_other_image(true, confirm);
+    }
+
 
     void MainWindow::choose_file_and_save() {
         std::string result = choose_image_to_save_fl("main_window_picture");
@@ -496,6 +566,35 @@ namespace editorium
             image_->view_settings()->at(image_->view_settings()->layer_count() - 1)->y(sy);
         } else {
             fl_alert("No selection to create a layer");
+        }
+    }
+
+    void MainWindow::send_selection_to_vision_chat() {
+        if (image_->view_settings()->has_selected_area()) {
+            auto img = image_->view_settings()->get_selected_image();
+            if (img) {
+                if (img->w() < 128 || img->h() < 128) {
+                    fl_alert("The selected area is too small to send to the vision chat");
+                    return;
+                }
+                std::pair<std::string, std::string> prompts = get_prompts_for_vision("Analyzing the selected area in the image", "main-window-selection");
+                if (!prompts.first.empty() && !prompts.second.empty()) {
+
+                    img = img->resizeImage(768);
+                    editorium::ws::chatbots::vision_chat_request_t request;
+                    request.image = img;
+                    request.system_prompt = prompts.first;
+                    request.prompt = prompts.second;
+                    auto results = ws::chatbots::chat_bot_vision(request);
+                    if (results.empty()) {
+                        fl_alert("No results from the vision chat");
+                    } else {
+                        chatbot_display_result("Vision Chat Results", results);
+                    }
+                }
+            }
+        } else {
+            fl_alert("No selection to send to the vision chat");
         }
     }
 
@@ -601,7 +700,7 @@ namespace editorium
         image_->view_settings()->get_selected_area(&x1, &y1, &x2, &y2);
         x2 += x1;
         y2 += y1;
-        if (x1 == x2 && y1 == y2 && width != -1) {
+        if (x1 == x2 && y1 == y2 && width != -1 && width != -2) {
             show_error("No selection");
             return;
         }
@@ -654,6 +753,17 @@ namespace editorium
             int w = 0, h = 0;
             image_->view_settings()->get_image_area(&x, &y, &w, &h);
             image_->view_settings()->set_selected_area(0, 0, w, h);
+        } else if (width == -2) {
+            if (image_->view_settings()->layer_count() < 1) {
+                show_error("Open an image first!");
+                return;
+            }
+            if (!image_->view_settings()->selected_layer()) {
+                show_error("Select a layer first!");
+                return;
+            }
+            auto l = image_->view_settings()->selected_layer();
+            image_->view_settings()->set_selected_area(l->x(), l->y(), l->w(), l->h());
         } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
             image_->view_settings()->set_selected_area(x1, y1, w, h);
         } 

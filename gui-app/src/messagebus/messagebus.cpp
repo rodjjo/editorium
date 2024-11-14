@@ -41,6 +41,7 @@ void event_processor(void *) {
 void publish_event(void *sender, event_id_t event, void *data) {
     std::unique_lock<std::mutex> lk(event_mutex);
     if (!event_processor_enabled) {
+        Fl::remove_timeout(event_processor, NULL);
         Fl::add_timeout(0.001, event_processor, NULL);
     }
     event_queue.push_back({event, {sender, data}});

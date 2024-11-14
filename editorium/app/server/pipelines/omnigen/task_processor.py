@@ -4,7 +4,7 @@ import re
 import random
 from pipelines.omnigen.managed_model import omnigen_models
 from task_helpers.progress_bar import ProgressBar
-
+from pipelines.common.utils import ensure_image
 
 def generate_omnigen_image(input: dict, params: dict):
     inpaint_image = input.get('default', {}).get('images', None)
@@ -26,8 +26,11 @@ def generate_omnigen_image(input: dict, params: dict):
         
     inpaint_image = inpaint_image or []
     
-    if type(inpaint_image) is not list:
+    if inpaint_image and type(inpaint_image) is not list:
         inpaint_image = [inpaint_image]
+
+    inpaint_image = ensure_image(inpaint_image)
+    inpaint_image = [img.convert('RGB') if img.mode != 'RGB' else img for img in inpaint_image]
     
     steps = params.get('steps', 50)
     

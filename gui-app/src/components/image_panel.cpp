@@ -285,7 +285,7 @@ namespace editorium
         image_ptr_t r;
         int sx, sy, sw, sh;
         if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
-            auto merged = merge_layers_to_image();
+            auto merged = merge_layers_to_image(true);
             r = merged->getCrop(sx, sy, sw, sh);
         }
         return r;
@@ -722,17 +722,17 @@ namespace editorium
         return selected_area_ && !layers_.empty();
     }
 
-    image_ptr_t ViewSettings::merge_layers_to_image() {
+    image_ptr_t ViewSettings::merge_layers_to_image(bool enable_alpha) {
         image_ptr_t r;
         if (!layer_count()) {
             return r;
         }
         int x, y, w, h;
         get_image_area(&x, &y, &w, &h);
-        r = newImage(w, h, false);
+        r = newImage(w, h, enable_alpha);
         for (auto & l : layers_) {
             if (l->getImage()) {
-                r->pasteAt(l->x() + x, l->y() + y, l->getImage());
+                r->pasteAtClearFirst(l->x() + x, l->y() + y, l->getImage());
             }
         }
         return r;
@@ -942,6 +942,7 @@ namespace editorium
 
     void ImagePanel::after_constructor() {
         register_mouse_hook();
+        Fl::remove_timeout(ImagePanel::imageRefresh, this);
         Fl::add_timeout(0.01, ImagePanel::imageRefresh, this);
     }
 

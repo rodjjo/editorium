@@ -3,9 +3,10 @@
 #include <string>
 
 #include <FL/Fl_Group.H>
-#include <FL/Fl_Multiline_Input.H>
+#include <FL/Fl_Text_Editor.H>
 #include "components/button.h"
 #include <FL/Fl_Window.H>
+#include <FL/Fl_Text_Buffer.H>
 
 namespace editorium
 {
@@ -24,6 +25,7 @@ public:
     std::string get_user_prompt();
     void set_system_prompt(const std::string& prompt);
     void set_user_prompt(const std::string& prompt);
+    void set_to_display_result();
 
 private:
     void align_component();
@@ -35,8 +37,11 @@ private:
 
 private:
     bool confirmed_ = false;
-    Fl_Multiline_Input *system_prompt_ = nullptr;
-    Fl_Multiline_Input *user_prompt_ = nullptr;
+    bool display_result_ = false;
+    Fl_Text_Editor *system_prompt_ = nullptr;
+    Fl_Text_Editor *user_prompt_ = nullptr;
+    Fl_Text_Buffer *sys_prompt_buffer_ = nullptr;
+    Fl_Text_Buffer *usr_prompt_buffer_ = nullptr;
     std::unique_ptr<Button> btnDefault_;
     std::unique_ptr<Button> btnOk_;
     std::unique_ptr<Button> btnCancel_;
@@ -44,7 +49,6 @@ private:
 
 std::pair<std::string,std::string> get_prompts_for_vision(const std::string& title, const std::string& context = "");
 std::string get_prompts_for_chat(const std::string& title, const std::string& context = "");
+void chatbot_display_result(const std::string& title, const std::string& result);
 
-
-    
-} // namespace editoruim
+} // namespace editorium

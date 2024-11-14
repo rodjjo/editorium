@@ -123,7 +123,7 @@ namespace editorium
         void set_selected_area(int x, int y, int w, int h);
         bool has_selected_area();
         void clear_selected_area();
-        image_ptr_t merge_layers_to_image();
+        image_ptr_t merge_layers_to_image(bool enable_alpha=false);
         void set_image(image_ptr_t value);
         void set_mask();
         void brush_size(int value);

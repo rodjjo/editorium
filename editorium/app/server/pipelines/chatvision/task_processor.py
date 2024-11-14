@@ -27,6 +27,8 @@ def generate_text(repo_id: str,
     
     if type(image) is not list:
         image = [image]
+        
+    image = [img.convert('RGB') if img.mode != 'RGB' else img for img in image]
     
     msgs = [{'role': 'user', 'content': prompt}]
     
@@ -45,7 +47,9 @@ def generate_text(repo_id: str,
                 temperature=temperature,
                 system_prompt=system_prompt
             )
-            
+            response = response.split('\n')
+            response = [r.strip() for r in response if r]
+            response = '\n'.join([r for r in response if r])
             responses.append(response)
 
     return {
