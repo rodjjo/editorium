@@ -494,10 +494,10 @@ namespace editorium
             auto img = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
             auto arch = prompt_frame_->get_arch();
             auto sys_user_prompt = get_prompts_for_vision("Configuration - for image interrogation - arch " + arch , arch + "::prompt-from-image");
-            if (!sys_user_prompt.empty()) {
+            if (!sys_user_prompt.first.empty() && !sys_user_prompt.second.empty()) {
                 ws::chatbots::vision_chat_request_t req;
-                req.system_prompt = "you are a helpful AI assistant that follows the user instructions";
-                req.prompt = sys_user_prompt;
+                req.system_prompt = sys_user_prompt.first;
+                req.prompt = sys_user_prompt.second;
                 req.image = img;
                 auto result = ws::chatbots::chat_bot_vision(req);
                 if (!result.empty()) {

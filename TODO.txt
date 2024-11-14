@@ -2,5 +2,7 @@
 [x] - Cache chatbot result for the same prompt
 [x] - Replace flux schneel by dev
 [x] - FLUX load each component  (vae, text encoders and transformer) one by one allowing replacing and reusing them.
-[ ] - SDLX load each component  (vae, text encoders and unet) one by one allowing replacing and reusing them.
+[x] - SDLX load each component  (vae, text encoders and unet) one by one allowing replacing and reusing them.
+[x] - add a graphical user interface
+
 
