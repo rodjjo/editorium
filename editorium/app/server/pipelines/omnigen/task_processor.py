@@ -1,7 +1,9 @@
 import torch
 
+import re
 import random
 from pipelines.omnigen.managed_model import omnigen_models
+from task_helpers.progress_bar import ProgressBar
 
 
 def generate_omnigen_image(input: dict, params: dict):
@@ -37,8 +39,14 @@ def generate_omnigen_image(input: dict, params: dict):
         
     generator = torch.Generator(device='cuda').manual_seed(seed)
     
+    prompt = params.get('prompt', '')
+    prompt_re = re.compile(r'(image_[0-9]+)')
+    prompt = prompt_re.sub(r'<img><|\g<1>|></img>', prompt)
+    
+    ProgressBar.set_title('[omnigen] - generating image')
+    
     additional_args = dict(
-        prompt=params['prompt'],
+        prompt=prompt,
         guidance_scale=params.get('cfg', 3.5),
         height=params.get('height', 1024),
         width=params.get('width', 1024),
