@@ -242,17 +242,23 @@ def pil_from_dict(data):
     return Image.frombytes(data['mode'], (data['width'], data['height']),  base64.b64decode(data['data']))
 
 
-def ensure_image(data):
+def ensure_image(data, ensure_rgb=True):
     if data is None:
         return None
     if type(data) is list:
         data = [
-            ensure_image(d)
+            ensure_image(d, ensure_rgb=ensure_rgb)
             for d in data
         ]
         return data
     if type(data) is dict:
-        return pil_from_dict(data)
+        result = pil_from_dict(data)
+        if ensure_rgb and result.mode != "RGB":
+            result = result.convert("RGB")
+        return result
     if type(data) is str:
-        return Image.open(data)
+        result = Image.open(data)
+        if ensure_rgb and result.mode != "RGB":
+            result = result.convert("RGB")
+        return result
     return data

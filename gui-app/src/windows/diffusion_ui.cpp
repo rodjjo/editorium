@@ -3,6 +3,7 @@
 #include "misc/utils.h"
 #include "misc/dialogs.h"
 #include "misc/config.h"
+#include "images/image_palette.h"
 #include "components/xpm/xpm.h"
 
 #include "websocket/tasks.h"
@@ -22,6 +23,7 @@ namespace editorium
             event_generator_accept_image,
             event_generator_accept_partial_image,
             event_generator_save_current_image,
+            event_generator_send_to_palette,
             event_image_frame_new_mask,
             event_image_frame_open_mask,
             event_image_frame_mode_selected,
@@ -333,6 +335,15 @@ namespace editorium
                     if (images_[page_type_results] && images_[page_type_results]->view_settings()->layer_count() > 0) {
                         auto img = images_[page_type_results]->view_settings()->at(0)->getImage()->duplicate();
                         choose_and_save_image("generator_results", img);
+                    }
+                break;
+
+                case event_generator_send_to_palette:
+                    if (images_[page_type_results] && images_[page_type_results]->view_settings()->layer_count() > 0) {
+                        auto img = images_[page_type_results]->view_settings()->at(0)->getImage()->duplicate();
+                        add_image_palette(img);
+                    } else {
+                        show_error("No image to send to the palette!");
                     }
                 break;
             };

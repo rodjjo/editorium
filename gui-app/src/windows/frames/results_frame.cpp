@@ -40,11 +40,18 @@ ResultFrame::ResultFrame(Fl_Group *parent, ImagePanel *img) {
             publish_event(this, event_generator_save_current_image, NULL);
         }
     ));
+    btn_to_palette_.reset(new Button(
+        xpm::image(xpm::img_24x24_pinion),
+        [this] () {
+            publish_event(this, event_generator_send_to_palette, NULL);
+        }
+    ));
     btn_previous_->tooltip("Go to the previous generated image...");
     btn_next_->tooltip("Go to the next generated image...");
     btn_accept_->tooltip("Send to the input image tab");
     btn_accept_partially_->tooltip("Select a region in the currenct image and send to image tab");
     btn_save_->tooltip("Save the current image");
+    btn_to_palette_->tooltip("Send the current image to the image palette");
 }
 
 ResultFrame::~ResultFrame() {
@@ -68,6 +75,8 @@ void ResultFrame::alignComponents() {
     btn_accept_partially_->size(w - 10, 30);
     btn_save_->position(btn_accept_partially_->x(), btn_accept_partially_->y() + btn_accept_partially_->h() + 5);
     btn_save_->size(w - 10, 30);
+    btn_to_palette_->position(btn_save_->x(), btn_save_->y() + btn_save_->h() + 5);
+    btn_to_palette_->size(w - 10, 30);
 }
 
 void ResultFrame::set_page_text(const char *value) {

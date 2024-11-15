@@ -30,7 +30,6 @@ def generate_omnigen_image(input: dict, params: dict):
         inpaint_image = [inpaint_image]
 
     inpaint_image = ensure_image(inpaint_image)
-    inpaint_image = [img.convert('RGB') if img.mode != 'RGB' else img for img in inpaint_image]
     
     steps = params.get('steps', 50)
     

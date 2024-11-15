@@ -52,6 +52,10 @@ void show_error(const char *message) {
     fl_alert("%s", message);
 }
 
+void show_info(const char *message) {
+    fl_message("%s", message);
+}
+
 std::string executeChooser(Fl_File_Chooser *fc) {
     fc->preview(0);
     fc->show();

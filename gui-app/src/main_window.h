@@ -51,9 +51,12 @@ private:
     void clear_layers();
     void update_layer_list();
     void convert_selection_into_layer();
+    void image_from_palette_to_layer();
     void layer_generate_in_selection();
     void upscale_current_image();
     void send_selection_to_vision_chat();
+    void send_selection_to_palette();
+    void send_selected_layer_to_palette();
     void resize_image();
     void correct_colors();
     void create_image(bool selection);

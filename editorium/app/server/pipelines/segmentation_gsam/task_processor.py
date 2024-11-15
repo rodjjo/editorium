@@ -137,7 +137,7 @@ def detect(
     labels = [label if label.endswith(".") else label+"." for label in labels]
 
     print("Detecting objects...")
-    results = segmentation_models.model(image.convert('RGB'), candidate_labels=labels, threshold=threshold)
+    results = segmentation_models.model(image, candidate_labels=labels, threshold=threshold)
     print("Compiling detection results")
     results = [DetectionResult.from_dict(result) for result in results]
     print(f"Detected objects cont: {len(results)}")

@@ -1,18 +1,19 @@
 #include <map>
 #include <FL/Fl.H>
 #include <FL/fl_ask.H>
+#include "misc/dialogs.h"
+#include "misc/config.h"
+#include "misc/utils.h"
+#include "websocket/tasks.h"
+#include "websocket/code.h"
+#include "images/image_palette.h"
 #include "windows/progress_ui.h"
 #include "windows/settings_ui.h"
 #include "windows/diffusion_ui.h"
 #include "windows/upscaler_ui.h"
 #include "windows/size_ui.h"
 #include "windows/chatbot_ui.h"
-#include "misc/dialogs.h"
-#include "misc/config.h"
-#include "misc/utils.h"
-#include "websocket/tasks.h"
-#include "websocket/code.h"
-
+#include "windows/image_palette_ui.h"
 #include "main_window.h"
 
 
@@ -34,6 +35,7 @@ namespace editorium
             event_main_menu_edit_settings,
             event_main_menu_layers_duplicate,
             event_main_menu_layers_remove_selected,
+            event_main_menu_layers_send_to_palette,
             event_main_menu_layers_minimize_selected,
             event_main_menu_layers_merge_all,
             event_main_menu_layers_remove_background,
@@ -44,14 +46,16 @@ namespace editorium
             event_main_menu_layers_rotate_clock,
             event_main_menu_layers_reset_zoom,
             event_main_menu_layers_reset_scroll,
+            event_main_menu_layers_from_selection,
+            event_main_menu_layers_from_generated,
+            event_main_menu_layers_from_palette,
             event_main_menu_enhance_upscaler,
             event_main_menu_enhance_resize,
             event_main_menu_enhance_correct_colors,
             event_main_menu_selection_generate, 
             event_main_menu_selection_vision_chat,
             event_main_menu_selection_from_layer,
-            event_main_menu_layers_from_selection,
-            event_main_menu_layers_from_generated,
+            event_main_menu_selection_to_palette,
             event_main_menu_resizeSelection_0,
             event_main_menu_resizeSelection_256,
             event_main_menu_resizeSelection_512,
@@ -92,6 +96,8 @@ namespace editorium
             menu_->addItem(event_main_menu_layers_duplicate, "", "Layers/Duplicate", "^d", 0, xpm::img_24x24_copy);
             menu_->addItem(event_main_menu_layers_from_selection, "", "Layers/From selection", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_from_generated, "", "Layers/From generation", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_layers_from_palette, "", "Layers/From palette", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_layers_send_to_palette, "", "Layers/Send to palette", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_remove_selected, "", "Layers/Remove", "", 0, xpm::img_24x24_remove);
             menu_->addItem(event_main_menu_layers_minimize_selected, "", "Layers/Minimize", "", 0, xpm::img_24x24_up_down);
             menu_->addItem(event_main_menu_layers_merge_all, "", "Layers/Merge", "^m", 0, xpm::img_24x24_load);
@@ -108,6 +114,7 @@ namespace editorium
             menu_->addItem(event_main_menu_enhance_correct_colors, "", "Enhancements/Correct Colors", "", 0, xpm::img_24x24_text_preview);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_selection_vision_chat, "", "Selection/Vision Chat", "");
+            menu_->addItem(event_main_menu_selection_to_palette, "", "Selection/Send to Palette", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
             menu_->addItem(event_main_menu_resizeSelection_512, "", "Selection/Expand/512x512", "^1");
@@ -316,11 +323,20 @@ namespace editorium
         case event_main_menu_selection_vision_chat:
             send_selection_to_vision_chat();
             break;
+        case event_main_menu_selection_to_palette:
+            send_selection_to_palette();
+            break;
+        case event_main_menu_layers_send_to_palette:
+            send_selected_layer_to_palette();
+            break;
         case event_main_menu_layers_from_selection:
             convert_selection_into_layer();
             break;
         case event_main_menu_layers_from_generated:
             layer_generate_in_selection();
+            break;
+        case event_main_menu_layers_from_palette:
+            image_from_palette_to_layer();
             break;
         case event_main_menu_resizeSelection_0:
             resizeSelection(0);
@@ -589,12 +605,20 @@ namespace editorium
         }
     }
 
+    void MainWindow::image_from_palette_to_layer() {
+        auto img = pickup_image_from_pallet();
+        if (img) {
+            image_->view_settings()->clear_selected_area();
+            image_->view_settings()->add_layer(img);
+        }
+    }
+
     void MainWindow::send_selection_to_vision_chat() {
         if (image_->view_settings()->has_selected_area()) {
             auto img = image_->view_settings()->get_selected_image();
             if (img) {
                 if (img->w() < 128 || img->h() < 128) {
-                    fl_alert("The selected area is too small to send to the vision chat");
+                    fl_alert("The selected area is too small to send to the vision chat.\nIt must be at least 128x128 pixels");
                     return;
                 }
                 std::pair<std::string, std::string> prompts = get_prompts_for_vision("Analyzing the selected area in the image", "main-window-selection");
@@ -617,6 +641,34 @@ namespace editorium
             fl_alert("No selection to send to the vision chat");
         }
     }
+
+    void MainWindow::send_selection_to_palette() {
+        if (image_->view_settings()->has_selected_area()) {
+            auto img = image_->view_settings()->get_selected_image();
+            if (img) {
+                if (img->w() < 20 || img->h() < 20) {
+                    fl_alert("The selected area is too small to send to the image palette.\nIt must be at least 20x20 pixels!");
+                    return;
+                }
+                image_->view_settings()->clear_selected_area();
+                editorium::add_image_palette(img);
+            }
+        }
+    }
+    
+    void MainWindow::send_selected_layer_to_palette() {
+        if (image_->view_settings()->selected_layer()) {
+            auto img = image_->view_settings()->selected_layer()->getImage()->duplicate();
+            if (img) {
+                if (img->w() < 20 || img->h() < 20) {
+                    fl_alert("The selected layer is too small to send to the image palette.\nIt must be at least 20x20 pixels!");
+                    return;
+                }
+                editorium::add_image_palette(img);
+            }
+        }
+    }
+
 
     void MainWindow::upscale_current_image() {
         if (image_->view_settings()->layer_count() < 1) {
