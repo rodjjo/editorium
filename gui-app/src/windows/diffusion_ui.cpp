@@ -27,6 +27,7 @@ namespace editorium
             event_image_frame_mode_selected,
             event_prompt_architecture_selected,
             event_prompt_improve_requested,
+            event_prompt_improve_requested2,
             event_prompt_interrogate_requested,
             event_image_frame_seg_gdino,
             event_image_frame_seg_sapiens
@@ -283,7 +284,8 @@ namespace editorium
                     set_architecture_view();
                 break;
                 case event_prompt_improve_requested:
-                    improve_prompt();
+                case event_prompt_improve_requested2:
+                    improve_prompt(event == event_prompt_improve_requested2);
                     break;
                 case event_prompt_interrogate_requested:
                     interrogate_image();
@@ -468,20 +470,20 @@ namespace editorium
         return false;
     }
     
-    void DiffusionWindow::improve_prompt() {
+    void DiffusionWindow::improve_prompt(bool second_pass) {
         std::string current_prompt = prompt_frame_->positive_prompt();
         if (current_prompt.empty()) {
                         show_error("Please fill the positive prompt first!");
         } else {
             auto arch = prompt_frame_->get_arch();
-            auto system_prompt = get_prompts_for_chat("Configuration - for prompt improvement - arch " + arch, arch + "::improve-prompt");
+            auto system_prompt = get_prompts_for_chat("Configuration - for prompt improvement - arch " + arch, arch + "::improve-prompt" + (second_pass ? "::second-pass" : ""));
             if (!system_prompt.empty()) {
                 ws::chatbots::chatbot_request_t req;
                 req.context = system_prompt;
                 req.prompt = current_prompt;
                 auto result = ws::chatbots::chat_bot(req);
                 if (!result.empty()) {
-                    prompt_frame_->positive_prompt(result);
+                    prompt_frame_->positive_prompt(result, true);
                 }
             }
         }
@@ -501,7 +503,7 @@ namespace editorium
                 req.image = img;
                 auto result = ws::chatbots::chat_bot_vision(req);
                 if (!result.empty()) {
-                    prompt_frame_->positive_prompt(result);
+                    prompt_frame_->positive_prompt(result, true);
                 }
             }
         }

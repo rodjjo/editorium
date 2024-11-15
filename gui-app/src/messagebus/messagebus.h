@@ -67,6 +67,7 @@ typedef enum {
     event_prompt_textual_selected,
     event_prompt_architecture_selected,
     event_prompt_improve_requested,
+    event_prompt_improve_requested2,
     event_prompt_interrogate_requested,
 } event_id_t;
 

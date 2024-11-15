@@ -56,7 +56,7 @@ private:
     void page_cb(Fl_Widget* widget);
     void show_current_page();
     void generate();
-    void improve_prompt();
+    void improve_prompt(bool second_pass);
     void interrogate_image();
     image_ptr_t choose_and_open_image(const char * scope);
     void choose_and_save_image(const char * scope, image_ptr_t image);

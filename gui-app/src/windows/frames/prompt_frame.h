@@ -34,7 +34,7 @@ public:
 
     void alignComponents();
     std::string positive_prompt();
-    void positive_prompt(const std::string& value);
+    void positive_prompt(const std::string& value, bool keep_loras);
     std::string negative_prompt();
     std::string get_model();
     std::string get_scheduler();
@@ -74,6 +74,7 @@ private:
     Fl_Multiline_Input   *positive_input_;
     Fl_Multiline_Input   *negative_input_;
     std::unique_ptr<Button> btn_improve_;
+    std::unique_ptr<Button> btn_improve2_;
     std::unique_ptr<Button> btn_interrogate_;
     Fl_Int_Input         *seed_input_;
     Fl_Int_Input         *batch_input_;

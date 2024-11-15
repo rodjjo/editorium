@@ -31,6 +31,10 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
         publish_event(this, event_prompt_improve_requested, nullptr);
     }));
 
+    btn_improve2_.reset(new Button(xpm::image(xpm::img_24x24_list), [this] {
+        publish_event(this, event_prompt_improve_requested2, nullptr);
+    }));
+
     btn_interrogate_.reset(new Button(xpm::image(xpm::img_24x24_question), [this] {
         publish_event(this, event_prompt_interrogate_requested, nullptr);
     }));
@@ -101,6 +105,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     correct_colors_->tooltip("On inpaiting operation, correct colors in the output image");
 
     btn_improve_->tooltip("Uses a LLM to improve the positive prompt.");
+    btn_improve2_->tooltip("Uses a LLM to improve the positive prompt. (SECOND PASS)");
     btn_interrogate_->tooltip("Use a multimodal model to look at the current image and describe it.");
 
     alignComponents();
@@ -165,6 +170,8 @@ void PromptFrame::alignComponents() {
     positive_input_->resize(sx + 5, sy + 35, pw - 70, 50);
     btn_improve_->position(positive_input_->x() + positive_input_->w() + 5, positive_input_->y());
     btn_improve_->size(28, 28);
+    btn_improve2_->position(btn_improve_->x() + btn_improve_->w() + 2, btn_improve_->y());
+    btn_improve2_->size(28, 28);
     btn_interrogate_->position(btn_improve_->x(), btn_improve_->y() + btn_improve_->h() + 2);
     btn_interrogate_->size(28, 28);
     negative_input_->resize(sx + 5, positive_input_->y() + 75, positive_input_->w(), positive_input_->h());
@@ -190,7 +197,15 @@ void PromptFrame::alignComponents() {
     embeddings_->alignComponents();
 }
 
-void PromptFrame::positive_prompt(const std::string& value) {
+void PromptFrame::positive_prompt(const std::string& value, bool keep_loras) {
+    auto prompt = value;
+    if (keep_loras) {
+        auto lora = get_loras();
+        for (auto & l : lora) {
+            printf("keeping lora: %s\n", l.c_str());
+            prompt += " <lora:" + l + ">";
+        }
+    }
     positive_input_->value(value.c_str());
 }
 

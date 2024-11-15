@@ -580,7 +580,7 @@ namespace editorium
                 std::pair<std::string, std::string> prompts = get_prompts_for_vision("Analyzing the selected area in the image", "main-window-selection");
                 if (!prompts.first.empty() && !prompts.second.empty()) {
 
-                    img = img->resizeImage(768);
+                    img = img->resizeImage(1024);
                     editorium::ws::chatbots::vision_chat_request_t request;
                     request.image = img;
                     request.system_prompt = prompts.first;
@@ -691,7 +691,13 @@ namespace editorium
         }
         auto img = selection ? generate_image(true, image_->view_settings()) : generate_image(true);
         if (img) {
-            image_->view_settings()->fuse_image(img);
+            if (selection) { 
+                image_->view_settings()->fuse_image(img);
+            } else {
+                image_->view_settings()->clear_layers();
+                image_->view_settings()->add_layer(img);
+
+            }
         } 
     }
 

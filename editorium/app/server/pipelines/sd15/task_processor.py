@@ -365,6 +365,9 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
     inpaint_mask = input.get('mask', {}).get('images', None)
     inpaint_mask = ensure_image(inpaint_mask)
     
+    if inpaint_image:
+        inpaint_image = [i.convert("RGB") if i and i.mode != 'RGB' else i for i in inpaint_image]
+    
     controlnets = []
     controlnet_models = []
     for control_index in range(1, 5):

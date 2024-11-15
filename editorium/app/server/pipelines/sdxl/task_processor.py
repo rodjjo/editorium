@@ -53,6 +53,8 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
         inpaint_mask = [None]
     elif not inpaint_mask:
         inpaint_mask = [None] * len(inpaint_image)
+        
+    inpaint_image = [i.convert("RGB") if i and i.mode != 'RGB' else i for i in inpaint_image]
     
     lora_repo_id = params.get('lora_repo_id', '')
     lora_scale = params.get('lora_scale', 1.0)
