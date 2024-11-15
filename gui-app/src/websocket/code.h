@@ -2,8 +2,9 @@
 
 #include <string>
 #include <functional>
-#include "images/image.h"
 #include <nlohmann/json.hpp>
+
+#include "images/image.h"
 
 
 namespace editorium

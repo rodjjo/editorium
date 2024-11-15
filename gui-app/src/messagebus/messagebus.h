@@ -69,6 +69,8 @@ typedef enum {
     event_prompt_improve_requested,
     event_prompt_improve_requested2,
     event_prompt_interrogate_requested,
+    event_websocket_connected,
+    event_websocket_disconnected
 } event_id_t;
 
 typedef std::function<void(void *sender, event_id_t event, void *data)> event_handler_t;

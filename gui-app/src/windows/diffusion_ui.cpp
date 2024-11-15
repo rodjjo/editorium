@@ -72,7 +72,7 @@ namespace editorium
             }));
 
             btnCancel_.reset(new Button(xpm::image(xpm::img_24x24_abort), [this] {
-                this->hide();        
+                check_accept_current_image();
             }));
 
             bottom_panel_->end();
@@ -310,6 +310,7 @@ namespace editorium
                 case event_generator_accept_image:
                     if (images_[page_type_results] && images_[page_type_image]) {
                         if (images_[page_type_results]->view_settings()->layer_count() > 0) {
+                            image_generated_ = true;
                             auto img = images_[page_type_results]->view_settings()->at(0)->getImage()->duplicate();
                             if (images_[page_type_image]->view_settings()->layer_count() > 0) {
                                 images_[page_type_image]->view_settings()->at(0)->replace_image(
@@ -429,6 +430,15 @@ namespace editorium
             return;
         }
         confirm_ = true;
+        this->hide();
+    }
+
+    void DiffusionWindow::check_accept_current_image() {
+        if (image_generated_) {
+            if (ask("Do you want to accept the generated image?")) {
+                accept_current_image();
+            }
+        } 
         this->hide();
     }
 

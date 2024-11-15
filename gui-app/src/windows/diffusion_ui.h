@@ -63,10 +63,12 @@ private:
     const char *get_mode();
     void show_current_result();
     void accept_current_image();
+    void check_accept_current_image();
     void set_architecture_view();
     bool page_visible(page_type_t page);
     
 private:
+    bool image_generated_ = false;
     bool confirm_ = false;
     bool selecting_page_ = false;
     ViewSettings *view_settings_;

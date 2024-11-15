@@ -8,6 +8,7 @@
 
 #include <FL/Fl.H>
 
+#include "messagebus/messagebus.h"
 #include "windows/progress_ui.h"
 #include "websocket/uuid.h"
 #include "websocket/code.h"
@@ -262,6 +263,7 @@ namespace editorium
         }
 
         void run_ws_client() {
+            publish_event(NULL, event_websocket_disconnected, NULL);
             ws_client->connect(ws_address);
 
             ws_client->onMessage([&](WebsocketsClient&, WebsocketsMessage message){
@@ -298,15 +300,22 @@ namespace editorium
             });
 
             if (ws_client->available()) {
+                publish_event(NULL, event_websocket_connected, NULL);
                 puts("Connected to websocket server!");
             }
-
+            bool connection_event_sent = true;
             while (running) {
                 if (!ws_client->available()) {
+                    if (connection_event_sent) {
+                        publish_event(NULL, event_websocket_disconnected, NULL);
+                        connection_event_sent = false;
+                    }
                     puts("Client not connected! trying to reconnect...");
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                     ws_client->connect(ws_address);
                     if (ws_client->available()) {
+                        connection_event_sent = true;
+                        publish_event(NULL, event_websocket_connected, NULL);
                         puts("Connected to websocket server!");
                     }
                     continue;

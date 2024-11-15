@@ -11,6 +11,7 @@
 #include "misc/config.h"
 #include "misc/utils.h"
 #include "websocket/tasks.h"
+#include "websocket/code.h"
 
 #include "main_window.h"
 
@@ -19,6 +20,7 @@ namespace editorium
 {
     namespace
     {
+        const std::string title_prefix = "Editorium";
         bool stopped = false;
         const std::list<event_id_t> main_window_events = {
             event_main_menu_clicked,
@@ -60,6 +62,8 @@ namespace editorium
             event_layer_count_changed,
             event_layer_selected,
             event_layer_after_draw,
+            event_websocket_connected,
+            event_websocket_disconnected,
             event_main_menu_exit
         };
     } // namespace
@@ -161,8 +165,11 @@ namespace editorium
         Fl::scheme("gtk+");
         MainWindow *wnd = new MainWindow();
         
+        editorium::ws::run_websocket();
+
         get_config();
 
+        
 
         while (!stopped)
         {
@@ -172,6 +179,9 @@ namespace editorium
                 break;
             }
         }
+
+        editorium::ws::stop_websocket();
+
         return 0;
     }
     void MainWindow::layer_cb(Fl_Widget* widget, void *cbdata) {
@@ -420,6 +430,16 @@ namespace editorium
             break;
         case event_main_menu_exit:
             this->hide();
+            break;
+        case event_websocket_connected: {
+            std::string new_title = title_prefix + " - [connected to " + get_config()->server_url() + "]";
+            this->copy_label(new_title.c_str());
+        }
+            break;
+        case event_websocket_disconnected: {
+            std::string new_title = title_prefix + " - [trying to connect to " + get_config()->server_url() + "]";
+            this->copy_label(new_title.c_str());
+        }
             break;
         case event_layer_after_draw:
             if (sender == image_) {
