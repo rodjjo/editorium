@@ -62,6 +62,7 @@ class RawImage {
     image_ptr_t resizeBottom(int value);
     image_ptr_t blur(int size);
     image_ptr_t erode(int size);
+    image_ptr_t dilate(int size);
     image_ptr_t flip(bool vertically);
     image_ptr_t resize_down_alpha();
     image_ptr_t rotate();

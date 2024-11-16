@@ -665,6 +665,16 @@ image_ptr_t RawImage::erode(int size) {
     return result;
 }
 
+image_ptr_t RawImage::dilate(int size) {
+    image_ptr_t result = this->duplicate();
+    CImg<unsigned char> self(result->buffer(), format_channels[result->format()], result->w(), result->h(), 1, true);
+    self.permute_axes("yzcx");
+    self.dilate(size);
+    self.permute_axes("cxyz");
+    return result;
+}
+
+
 image_ptr_t RawImage::flip(bool vertically) {
     image_ptr_t result = this->duplicate();
     CImg<unsigned char> self(result->buffer(), format_channels[result->format()], result->w(), result->h(), 1, true);

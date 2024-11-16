@@ -161,9 +161,9 @@ void CopyRegionWindow::peform_dino_image_segmentation() {
         return;
     }
     if (original_panel_->view_settings()->layer_count() < 2) {
-        original_panel_->view_settings()->add_layer(r[0]);
+        original_panel_->view_settings()->add_layer(r[0]->dilate(3));
     } else {
-        original_panel_->view_settings()->at(1)->replace_image(r[0]);
+        original_panel_->view_settings()->at(1)->replace_image(r[0]->dilate(3));
     }
 }
 
@@ -177,9 +177,9 @@ void CopyRegionWindow::peform_sapiens_image_segmentation() {
         return;
     }
     if (original_panel_->view_settings()->layer_count() < 2) {
-        original_panel_->view_settings()->add_layer(r[0]);
+        original_panel_->view_settings()->add_layer(r[0]->dilate(3));
     } else {
-        original_panel_->view_settings()->at(1)->replace_image(r[0]);
+        original_panel_->view_settings()->at(1)->replace_image(r[0]->dilate(3));
     }
 }
 
