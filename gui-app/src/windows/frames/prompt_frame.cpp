@@ -16,6 +16,7 @@ namespace {
         "Scale down to fit in 1024x1024",
         "Scale down to fit in 1280x1280"
     };
+    std::string last_prompt;
 }
 
 PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
@@ -107,6 +108,8 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     btn_improve_->tooltip("Uses a LLM to improve the positive prompt.");
     btn_improve2_->tooltip("Uses a LLM to improve the positive prompt. (SECOND PASS)");
     btn_interrogate_->tooltip("Use a multimodal model to look at the current image and describe it.");
+
+    positive_input_->value(last_prompt.c_str());
 
     alignComponents();
 
@@ -212,6 +215,7 @@ void PromptFrame::positive_prompt(const std::string& value, bool keep_loras) {
 
 std::string PromptFrame::positive_prompt() {
     std::string result = positive_input_->value();
+    last_prompt = result;
     size_t lpos = result.find("<lora:");
     while (lpos != result.npos) {
         size_t rpos = result.find(">", lpos);

@@ -49,7 +49,7 @@ bool Button::down() {
 
 void Button::down(bool value) {
     if (down_up_) {
-        button_->value((int)value);
+        button_->value(value ? 1 : 0);
     }
 }
 

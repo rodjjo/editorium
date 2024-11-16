@@ -4,7 +4,9 @@
 #include <vector>
 
 #include <FL/Fl_Group.H>
-#include <FL/Fl_Input_Choice.H>
+#include <FL/Fl_Select_Browser.H>
+#include <FL/Fl_Input.H>
+
 
 #include "messagebus/messagebus.h"
 #include "components/button.h"
@@ -32,15 +34,17 @@ class EmbeddingFrame {
     void goNextConcept();
     void goPreviousConcept();
     void selectImage();
-    static void searchCmbCallback(Fl_Widget* widget, void *cbdata);
-    void searchCmbCallback(Fl_Widget* widget);
-    std::string findModel(const std::string& name);
+    static void widget_cb(Fl_Widget* widget, void *cbdata);
+    void widget_cb(Fl_Widget* widget);
+    std::vector<std::string> findModel(const std::vector<std::string>& words);
     int findIndex();
+
   private:
     bool in_search_callback_ = false;
     std::vector<embedding_t> embeddings_;
     bool lora_embedding_ = false;
-    Fl_Input_Choice *search_;
+    Fl_Input *search_;
+    Fl_Select_Browser *embeddings_list_;
     Fl_Group *parent_;
     ImagePanel *img_;
     std::unique_ptr<Button> btnNext_;

@@ -105,5 +105,9 @@ std::string choose_image_to_save_fl(const std::string& scope) {
     return result;
 }
 
+bool pickup_color(const char* title, uint8_t *r, uint8_t *g, uint8_t *b) {
+    return fl_color_chooser(title, *r, *g, *b) == 1;
+}
+
 
 } // namespace editorium

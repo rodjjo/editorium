@@ -1,5 +1,6 @@
 #include "components/xpm/xpm.h"
 
+#include "misc/dialogs.h"
 #include "messagebus/messagebus.h"
 #include "windows/frames/image_frame.h"
 
@@ -60,6 +61,16 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
             publish_event(this, event_image_frame_open_mask, NULL);
         }
     ));
+    btnColor_.reset(new Button([this] () {
+            configure_mask_color();
+        }
+    ));
+    btnUseColor_.reset(new Button(xpm::image(xpm::img_24x24_diagram),
+        [this] () {
+            configure_mask_color_enabled();
+        }
+    ));
+
     btnSegGDino_.reset(new Button(xpm::image(xpm::img_24x24_alien),
         [this] () {
             publish_event(this, event_image_frame_seg_gdino, NULL);
@@ -100,11 +111,17 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
 
     btnNewMask_->tooltip("Create a new mask");
     btnOpenMask_->tooltip("Open a image to use as a mask");
+    btnColor_->tooltip("Select a color to use on the image");
+    btnUseColor_->tooltip("When the button is down it draws a color over the image");
     btnSegGDino_->tooltip("Create mask using Grounding Dino segmentation");
     btnSegSapiens_->tooltip("Create mask using Sapiens segmentation (from facebook)");
 
+    btnColor_->setColor(255, 255, 255);
+    btnUseColor_->enableDownUp();
+
     alignComponents();
     combobox_selected();
+    configure_mask_color_enabled();
 }
 
 ImageFrame::~ImageFrame() {
@@ -158,10 +175,14 @@ void ImageFrame::alignComponents() {
     btnNewMask_->size((w - 15) / 2, 30);
     btnSegGDino_->size((w - 15) / 2, 30);
     btnSegSapiens_->size((w - 15) / 2, 30);
+    btnUseColor_->size((w - 15) / 2, 30);
+    btnColor_->size((w - 15) / 2, 30);
     btnOpenMask_->size(btnNewMask_->w(), btnNewMask_->h());
     btnNewMask_->position(left + 5, strength_input_->y() + strength_input_->h() + 5);
     btnOpenMask_->position(btnNewMask_->x() + btnNewMask_->w() + 5, btnNewMask_->y());
-    btnSegGDino_->position(left + 5, btnNewMask_->y() + btnNewMask_->h() + 5);
+    btnUseColor_->position(left + 5, btnOpenMask_->y() + btnOpenMask_->h() + 5);
+    btnColor_->position(btnUseColor_->x() + btnUseColor_->w() + 5, btnUseColor_->y());
+    btnSegGDino_->position(left + 5, btnUseColor_->y() + btnUseColor_->h() + 5);
     btnSegSapiens_->position(btnSegGDino_->x() + btnSegGDino_->w() + 5, btnSegGDino_->y());
 }
 
@@ -191,6 +212,8 @@ void ImageFrame::combobox_selected() {
     if (choice_mode_->value() > 1) {
         btnNewMask_->show();
         btnOpenMask_->show();
+        btnColor_->show();
+        btnUseColor_->show();
         btnSegGDino_->show();
         btnSegSapiens_->show();
         choice_brush_size_->show();
@@ -198,6 +221,8 @@ void ImageFrame::combobox_selected() {
         strength_input_->show();
     } else {
         btnNewMask_->hide();
+        btnColor_->hide();
+        btnUseColor_->hide();
         btnOpenMask_->hide();
         btnSegGDino_->hide();
         btnSegSapiens_->hide();
@@ -237,6 +262,21 @@ float ImageFrame::get_strength() {
     sprintf(buffer, "%0.1f", value);
     strength_input_->value(buffer);
     return value / 100.0; 
+}
+
+void ImageFrame::configure_mask_color() {
+    uint8_t r = 255, g = 255, b = 255, a = 255;
+    img_->get_color_mask_color(&r, &g, &b, &a);
+    btnColor_->setColor(r, g, b);
+    if (pickup_color("Foreground color", &r, &g, &b)) {
+        btnColor_->setColor(r, g, b);
+        img_->color_mask_color(r, g, b, a);
+    }
+
+}
+
+void ImageFrame::configure_mask_color_enabled() {
+    img_->enable_color_mask_editor(btnUseColor_->down());
 }
 
 } // namespace editorium

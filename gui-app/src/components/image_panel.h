@@ -175,7 +175,9 @@ namespace editorium
         void clear_scroll();
         int view_w();
         int view_h();
-
+        void enable_color_mask_editor(bool value);
+        void color_mask_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+        void get_color_mask_color(uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *a);
     private:
         void after_constructor();
 
@@ -186,10 +188,11 @@ namespace editorium
         virtual bool enable_drag();
         virtual bool enable_resize();
         virtual bool enable_mask_editor();
+        virtual bool enable_colored_mask_editor();
 
     protected:
         // mouse routines
-        virtual void mouse_move(bool left_button, bool right_button, int down_x, int down_y, int move_x, int move_y, int from_x, int from_y);
+        virtual void mouse_move(bool left_button, bool right_button, int down_x, int down_y, int move_x, int move_y);
         virtual void mouse_down(bool left_button, bool right_button, int down_x, int down_y);
         virtual void mouse_up(bool left_button, bool right_button, int down_x, int down_y, int up_x, int up_y);
 
@@ -219,8 +222,8 @@ namespace editorium
         image_ptr_t buffer_;
         bool should_redraw_ = true;
         bool force_redraw_ = false;
-        
-
+        bool edit_color_mask_ = false;
+        uint8_t color_mask_color_[4] = {255, 255, 255, 255};
     private:
         // mouse variables
         bool mouse_down_control_ = false;
@@ -277,5 +280,20 @@ namespace editorium
                 return true;
             }
     };
+
+    class ColoredMaskEditableImagePanel : public MaskEditableImagePanel {
+        public:
+            ColoredMaskEditableImagePanel(
+                uint32_t x, uint32_t y, 
+                uint32_t w, uint32_t h, 
+                const char *unique_title) : MaskEditableImagePanel(
+                    x, y, w, h, unique_title
+                ) {};
+
+            bool enable_colored_mask_editor() override {
+                return true;
+            }
+    };
+    
 
 } // namespace editorium

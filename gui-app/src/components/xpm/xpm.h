@@ -45,6 +45,7 @@ typedef enum {
     img_24x24_text,
     img_24x24_question,
     img_24x24_list,
+    img_24x24_diagram,
     // keep no_image at the end
     no_image
 } xpm_t;

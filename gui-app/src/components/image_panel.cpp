@@ -831,15 +831,17 @@ namespace editorium
     }
     
     void ViewSettings::set_mask() {
-        if (layers_.size() > 2) {
+        int layer_count = parent_->enable_colored_mask_editor() ? 3 : 2;
+        if (layers_.size() > layer_count || layers_.size() < 1) {
             return;
         }
         auto first_image = layers_[0]->getImage();
-        auto img = newImage(first_image->w(), first_image->h(), true);
-        if (layers_.size() < 2) {
-            add_layer(img);
-        } else {
-            layers_[1]->replace_image(img);
+        for (int i = 1; i < layer_count; i++) {
+            if (layers_.size() < i + 1) {
+                add_layer(newImage(first_image->w(), first_image->h(), true));
+            } else {
+                layers_[i]->replace_image(newImage(first_image->w(), first_image->h(), true));
+            }
         }
         refresh(true);
     }
@@ -1030,7 +1032,7 @@ namespace editorium
                     mouse_down_x_ = Fl::event_x();
                     mouse_down_y_ = Fl::event_y();
                 }
-                mouse_move(mouse_down_left_, mouse_down_right_, mouse_down_x_, mouse_down_y_, Fl::event_x(), Fl::event_y(), move_last_x_, move_last_y_);
+                mouse_move(mouse_down_left_, mouse_down_right_, mouse_down_x_, mouse_down_y_, Fl::event_x(), Fl::event_y());
                 move_last_x_ = Fl::event_x();
                 move_last_y_ = Fl::event_y();
             }
@@ -1057,6 +1059,7 @@ namespace editorium
                     mouse_down_left_ = mouse_down_left;
                     mouse_down_right_ = mouse_down_right;
                     mouse_down(mouse_down_left_, mouse_down_right_, mouse_down_x_, mouse_down_y_);
+                    mouse_move(mouse_down_left_, mouse_down_right_, mouse_down_x_, mouse_down_y_, mouse_down_x_, mouse_down_y_);
                 }
                 else
                 {
@@ -1116,11 +1119,12 @@ namespace editorium
             force_redraw_ = false;
             image_->clear(255, 255, 255, 255);
             view_settings_->cache()->clear_hits();
+            size_t mask_layer_index = enable_colored_mask_editor() ? 2 : 1;
             for (size_t i = 0; i < view_settings_->layer_count(); i++) {
                 if (!view_settings_->at(i)->visible()) {
                     continue;
                 }
-                draw_layer(view_settings_->at(i), i == 1 && enable_mask_editor());
+                draw_layer(view_settings_->at(i), i == mask_layer_index && enable_mask_editor());
             }
 
             int ix, iy, iw, ih;
@@ -1265,6 +1269,24 @@ namespace editorium
         return view_settings_->getZoom() * 0.01;
     }
     
+    void ImagePanel::enable_color_mask_editor(bool value) {
+        edit_color_mask_ = value;
+    }
+    
+    void ImagePanel::color_mask_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+        color_mask_color_[0] = r;
+        color_mask_color_[1] = g;
+        color_mask_color_[2] = b;
+        color_mask_color_[3] = a;
+    }
+
+    void ImagePanel::get_color_mask_color(uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *a) {
+        *r = color_mask_color_[0];
+        *g = color_mask_color_[1];
+        *b = color_mask_color_[2];
+        *a = color_mask_color_[3];
+    }
+
     void ImagePanel::mouse_drag(int dx, int dy, int x, int y) {
         dx = (x - dx) / getZoom();
         dy = (y - dy) / getZoom();
@@ -1275,7 +1297,7 @@ namespace editorium
         schedule_redraw(true);
     }
 
-    void ImagePanel::mouse_move(bool left_button, bool right_button, int down_x, int down_y, int move_x, int move_y, int from_x, int from_y) {
+    void ImagePanel::mouse_move(bool left_button, bool right_button, int down_x, int down_y, int move_x, int move_y) {
         if (mouse_down_control_ && left_button) {
             // control was pressed during mouse down, so lets change the scroll 
             if (enable_scroll()) {
@@ -1291,15 +1313,40 @@ namespace editorium
         }
 
         bool ctl_buttons = mouse_down_control_ || mouse_down_alt_ || mouse_down_shift_;
+
+        if (mouse_down_alt_ && !mouse_down_control_ && !mouse_down_shift_ && enable_colored_mask_editor()) {
+            if (view_settings_->layer_count() > 0) {
+                auto img = view_settings_->at(0)->getImage();
+                // pickup the color from the image at x and y
+                move_x = (move_x) / getZoom() - view_settings_->cache()->get_scroll_x();
+                move_y = (move_y) / getZoom() - view_settings_->cache()->get_scroll_y();
+                uint8_t r, g, b, a;
+                if (img->getColor(move_x, move_y, &r, &g, &b, &a)) {
+                    color_mask_color(r, g, b, a);
+                }
+            }
+        }
+
         if (enable_mask_editor() && !ctl_buttons) {
-            if (view_settings_->layer_count() < 2 || view_settings_->brush_size() < 1 || !view_settings_->at(1)->visible()) {
+            int expected_layer_count = enable_colored_mask_editor() ? 3 : 2;
+            if (view_settings_->layer_count() < expected_layer_count || view_settings_->brush_size() < 1 || !view_settings_->at(1)->visible()) {
                 return;
             }
-            auto img = view_settings_->at(1)->getImage();
+            bool edit_color = enable_colored_mask_editor();
+            int mask_index = edit_color ? 2 : 1;
+            if (edit_color_mask_) {
+                mask_index = 1;
+            }
+            
+            auto img = view_settings_->at(mask_index)->getImage();
             move_x = (move_x) / getZoom() - view_settings_->cache()->get_scroll_x();
             move_y = (move_y) / getZoom() - view_settings_->cache()->get_scroll_y();
             if (left_button) {
-                img->drawCircle(move_x, move_y, view_settings_->brush_size(), false);
+                if (edit_color_mask_ && edit_color) {
+                    img->drawCircleColor(move_x, move_y, view_settings_->brush_size(), color_mask_color_, color_mask_color_, false);
+                } else {
+                    img->drawCircle(move_x, move_y, view_settings_->brush_size(), false);
+                }
             } else if (right_button) {
                 img->drawCircle(move_x, move_y, view_settings_->brush_size(), true);
             }
@@ -1385,6 +1432,10 @@ namespace editorium
     }
 
     bool ImagePanel::enable_mask_editor() {
+        return false;
+    }
+
+    bool ImagePanel::enable_colored_mask_editor() {
         return false;
     }
 

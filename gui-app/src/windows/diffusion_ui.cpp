@@ -114,7 +114,7 @@ namespace editorium
 
             if (i != page_type_prompt) {
                 if (where == page_type_image) {
-                    images_[where] = new MaskEditableImagePanel(0, 0, 1, 1, titles_[where].c_str());        
+                    images_[where] = new ColoredMaskEditableImagePanel(0, 0, 1, 1, titles_[where].c_str());        
                     if (reference_img) {
                         images_[where]->view_settings()->set_image(reference_img);
                         images_[where]->cancel_refresh();
@@ -426,7 +426,7 @@ namespace editorium
                             images_[page_type_image]->view_settings()->at(1)->visible(false);
                         }
                     } else {
-                        if (images_[page_type_image]->view_settings()->layer_count() < 2) {
+                        if (images_[page_type_image]->view_settings()->layer_count() < 3) {
                             images_[page_type_image]->view_settings()->set_mask();
                         }
                         images_[page_type_image]->view_settings()->at(1)->visible(true);
@@ -472,11 +472,11 @@ namespace editorium
     }
 
     image_ptr_t DiffusionWindow::get_current_image() {
-        image_ptr_t r;
         if (images_[page_type_image]->view_settings()->layer_count() > 0) {
-            r = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+            auto img1 = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+            return img1;
         }
-        return r;
+        return image_ptr_t();
     }
 
     bool DiffusionWindow::was_confirmed() {
@@ -585,7 +585,14 @@ namespace editorium
         int original_height = params.height;
 
         if (image_frame_->get_mode() != img2img_text) {
-            params.images = {images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate()};
+            auto img1 = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+            if (images_[page_type_image]->view_settings()->layer_count() > 2) {
+                auto img2 = images_[page_type_image]->view_settings()->at(1)->getImage();
+                img1->pasteAt(0, 0, img2);
+            }
+            params.images = {img1};
+
+
             original_width = params.images[0]->w();
             original_height = params.images[0]->h();
             params.images[0] = params.images[0]->ensureMultipleOf8();
