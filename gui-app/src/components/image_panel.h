@@ -41,6 +41,8 @@ namespace editorium
         bool selected();
         bool visible();
         void visible(bool value);
+        bool pinned();
+        void pinned(bool value);
         void restore_size();
         void scale_size(bool up);
         std::shared_ptr<Layer> duplicate();
@@ -59,6 +61,7 @@ namespace editorium
         int w_ = 1;
         int h_ = 1;
         bool visible_ = true;
+        bool pinned_ = false;
     };
 
     class CachedLayer {

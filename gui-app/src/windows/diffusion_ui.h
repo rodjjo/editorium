@@ -63,6 +63,7 @@ private:
     const char *get_mode();
     void show_current_result();
     void accept_current_image();
+    void accept_current_image_partial();
     void check_accept_current_image();
     void set_architecture_view();
     bool page_visible(page_type_t page);

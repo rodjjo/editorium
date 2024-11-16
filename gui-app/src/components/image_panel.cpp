@@ -126,6 +126,14 @@ namespace editorium
         parent_->refresh(true);
     }
 
+    bool Layer::pinned() {
+        return pinned_;
+    }
+
+    void Layer::pinned(bool value) {
+        pinned_ = value;
+    }
+
     const char *Layer::name() {
         return name_.c_str();
     }
@@ -134,7 +142,14 @@ namespace editorium
         name_ = value;
     }
 
+    void Layer::set_modified() {
+        ++version_;
+    }
+
     void Layer::x(int value) {
+        if (pinned_) {
+            return;
+        }
         if (value != x_) {
             x_ = value;
             ++version_;
@@ -142,11 +157,10 @@ namespace editorium
         }
     }
 
-    void Layer::set_modified() {
-        ++version_;
-    }
-
     void Layer::y(int value) {
+        if (pinned_) {
+            return;
+        }
         if (value != y_) {
             y_ = value;
             ++version_;
@@ -155,6 +169,9 @@ namespace editorium
     }
 
     void Layer::w(int value) {
+        if (pinned_) {
+            return;
+        }
         if (value != w_) {
             w_ = value;
             ++version_;
@@ -163,6 +180,9 @@ namespace editorium
     }
 
     void Layer::h(int value) {
+        if (pinned_) {
+            return;
+        }
         if (value != h_) {
             h_ = value;
             ++version_;

@@ -9,6 +9,7 @@
 #include "websocket/tasks.h"
 #include "windows/sapiens_ui.h"
 #include "windows/chatbot_ui.h"
+#include "windows/copy_region_ui.h"
 
 #include "windows/diffusion_ui.h"
 
@@ -329,6 +330,7 @@ namespace editorium
                 break;
 
                 case event_generator_accept_partial_image:
+                    accept_current_image_partial();
                 break;
 
                 case event_generator_save_current_image:
@@ -432,6 +434,22 @@ namespace editorium
 
                 break;
             }
+        }
+    }
+
+    void DiffusionWindow::accept_current_image_partial() {
+        if (!images_[page_type_results] || !images_[page_type_image]) {
+            return;
+        }
+        if (images_[page_type_results]->view_settings()->layer_count() < 1 || images_[page_type_image]->view_settings()->layer_count() < 1) {
+            show_error("You need a image in the images pages and a new generated one!\nIt's required two images to proceed!");
+            return;
+        }
+        auto new_generated_image = images_[page_type_results]->view_settings()->at(0)->getImage()->duplicate();
+        auto original_image = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+        auto merged = copy_image_region(original_image, new_generated_image);
+        if (merged) {
+            images_[page_type_image]->view_settings()->at(0)->replace_image(merged);
         }
     }
 
