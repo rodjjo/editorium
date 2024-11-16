@@ -28,8 +28,6 @@ def generate_text(repo_id: str,
     if type(image) is not list:
         image = [image]
         
-    image = [img.convert('RGB') if img.mode != 'RGB' else img for img in image]
-    
     msgs = [{'role': 'user', 'content': prompt}]
     
     chatvision_model.load_models(repo_id=repo_id)

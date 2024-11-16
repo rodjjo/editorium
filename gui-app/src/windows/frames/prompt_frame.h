@@ -89,6 +89,7 @@ private:
     Fl_Check_Button      *use_lcm_lora_;
     Fl_Check_Button      *use_tiny_vae_;
     Fl_Check_Button      *correct_colors_;
+    Fl_Check_Button      *ensure_min_512_;
 };
 
 } // namespace editorium

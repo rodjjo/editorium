@@ -52,7 +52,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     use_lcm_lora_ = new Fl_Check_Button(0, 0, 1, 1, "Use LCM lora");
     use_tiny_vae_ = new Fl_Check_Button(0, 0, 1, 1, "Use Tiny AutoEncoder");
     correct_colors_ = new Fl_Check_Button(0, 0, 1, 1, "Correct colors");
-
+    ensure_min_512_ = new Fl_Check_Button(0, 0, 1, 1, "Ensure min 512x512 size");
     lora_gp_ = new Fl_Group(0, 0, 1, 1);
     loras_.reset(new EmbeddingFrame(true, lora_gp_));
     lora_gp_->end();
@@ -103,7 +103,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     models_input_->callback(widget_cb, this);
 
     correct_colors_->tooltip("On inpaiting operation, correct colors in the output image");
-
+    ensure_min_512_->tooltip("Ensure resizing images to at least 512x512 before doing img2img or inpainting operations");
     btn_improve_->tooltip("Uses a LLM to improve the positive prompt.");
     btn_improve2_->tooltip("Uses a LLM to improve the positive prompt. (SECOND PASS)");
     btn_interrogate_->tooltip("Use a multimodal model to look at the current image and describe it.");
@@ -185,7 +185,8 @@ void PromptFrame::alignComponents() {
     models_input_->resize(arch_input_->x() + arch_input_->w() + 5, arch_input_->y(), (pw - 15) / 2, height_input_->h());
     use_lcm_lora_->resize(sx + 5, models_input_->y() + models_input_->h() + 5, 160, 20);
     use_tiny_vae_->resize(use_lcm_lora_->x() + use_lcm_lora_->w() + 5, use_lcm_lora_->y(), use_lcm_lora_->w(), use_lcm_lora_->h());
-    correct_colors_->resize(use_tiny_vae_->x() + use_tiny_vae_->w() + 5, use_tiny_vae_->y(), use_tiny_vae_->w(), use_tiny_vae_->h());
+    correct_colors_->resize(use_tiny_vae_->x() + use_tiny_vae_->w() + 10, use_tiny_vae_->y(), use_tiny_vae_->w(), use_tiny_vae_->h());
+    ensure_min_512_->resize(correct_colors_->x() + correct_colors_->w() + 10, correct_colors_->y(), correct_colors_->w(), correct_colors_->h());
     schedulers_->resize(sx + 5, use_tiny_vae_->y() + use_tiny_vae_->h() + 20, models_input_->w(), models_input_->h());
     resizeModes_->resize(schedulers_->x() +  schedulers_->w() + 5, schedulers_->y(), models_input_->w(), models_input_->h());
 

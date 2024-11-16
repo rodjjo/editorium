@@ -261,4 +261,7 @@ def ensure_image(data, ensure_rgb=True):
         if ensure_rgb and result.mode != "RGB":
             result = result.convert("RGB")
         return result
+    if type(data) is Image.Image:
+        if ensure_rgb and data.mode != "RGB":
+            data = data.convert("RGB")
     return data
