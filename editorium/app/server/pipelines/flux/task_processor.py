@@ -156,9 +156,9 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
                     mask.putalpha(mask.split()[0])
                     result = result.resize(image.size)
                     try:
-                        results[i] = Image.composite(result, image, mask)
                         if correct_colors:
                             results[i] = color_correction(results[i], image)
+                        results[i] = Image.composite(result, image, mask)
                     except:
                         print(f"\n\n!!!\n\n {input} - image: {image} - mask: {mask} - result: {result}")
                         raise

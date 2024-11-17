@@ -29,7 +29,8 @@ class EmbeddingFrame {
     void refresh_models(const std::string& architecture);
     void alignComponents();
     embedding_t getSelected();
-
+    bool contains(const std::string& name);
+    
   private:
     void goNextConcept();
     void goPreviousConcept();

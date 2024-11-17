@@ -210,6 +210,15 @@ embedding_t EmbeddingFrame::getSelected() {
     return result;
 }
 
+bool EmbeddingFrame::contains(const std::string& name) {
+    for (auto & e : embeddings_) {
+        if (e.name == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void EmbeddingFrame::refresh_models(const std::string& architecture) {
     embeddings_.clear();
     in_search_callback_ = true;

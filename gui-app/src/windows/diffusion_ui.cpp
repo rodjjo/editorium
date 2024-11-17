@@ -560,6 +560,9 @@ namespace editorium
                     return;
                 }
             }
+            if (!prompt_frame_->validate()) {
+                return;
+            }
         }
         
         ws::diffusion::diffusion_request_t params;
@@ -598,11 +601,11 @@ namespace editorium
             params.images[0] = params.images[0]->ensureMultipleOf8();
             params.width = params.images[0]->w();
             params.height = params.images[0]->h();
-
+            size_t mask_index = images_[page_type_image]->view_settings()->layer_count() > 2 ? 2 : 1;
             if (image_frame_->get_mode() == img2img_inpaint_masked) {
-                params.masks = {images_[page_type_image]->view_settings()->at(1)->getImage()->rgba_mask_into_black_white()};
+                params.masks = {images_[page_type_image]->view_settings()->at(mask_index)->getImage()->rgba_mask_into_black_white()};
             } else if (image_frame_->get_mode() == img2img_inpaint_not_masked) {
-                params.masks = {images_[page_type_image]->view_settings()->at(1)->getImage()->rgba_mask_into_black_white(true)};
+                params.masks = {images_[page_type_image]->view_settings()->at(mask_index)->getImage()->rgba_mask_into_black_white(true)};
             }
             
             if (!params.masks.empty()) {

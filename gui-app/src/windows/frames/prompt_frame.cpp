@@ -3,6 +3,7 @@
 #include "components/xpm/xpm.h"
 #include "misc/profiles.h"
 
+#include "misc/dialogs.h"
 #include "windows/frames/prompt_frame.h"
 
 namespace editorium
@@ -322,6 +323,19 @@ int PromptFrame::get_height() {
 }
 
 bool PromptFrame::validate() {
+    auto loras = get_loras();
+    for (size_t i = 0; i < loras.size(); i++) {
+        size_t pos = loras[i].find(":");
+        if (pos == std::string::npos) {
+            show_error(("Invalid Lora: " + loras[i]).c_str());
+            return false;
+        }
+        std::string name = loras[i].substr(0, pos);
+        if (!loras_->contains(name)) {
+            show_error(("Lora not supported by this architecture: " + name).c_str());
+            return false;
+        }
+    }
     return true;
 }
 
