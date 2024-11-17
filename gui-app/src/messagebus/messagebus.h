@@ -56,6 +56,7 @@ typedef enum {
     event_layer_count_changed,
     event_layer_selected,
     event_layer_after_draw,
+    event_layer_mask_color_picked,
     event_generator_next_image,
     event_generator_previous_image,
     event_generator_accept_image,

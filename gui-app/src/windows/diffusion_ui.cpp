@@ -33,7 +33,8 @@ namespace editorium
             event_prompt_improve_requested2,
             event_prompt_interrogate_requested,
             event_image_frame_seg_gdino,
-            event_image_frame_seg_sapiens
+            event_image_frame_seg_sapiens,
+            event_layer_mask_color_picked
         };
 
        const char *page_names[page_type_count] = {
@@ -389,11 +390,12 @@ namespace editorium
                         if (r.empty()) {
                             return;
                         }
-                        if (images_[page_type_image]->view_settings()->layer_count() < 2) {
-                            images_[page_type_image]->view_settings()->add_layer(r[0]);
-                        } else {
-                            images_[page_type_image]->view_settings()->at(1)->replace_image(r[0]);
+                        r[0] = r[0]->dilate(3);
+
+                        if (images_[page_type_image]->view_settings()->layer_count() < 3) {
+                            images_[page_type_image]->view_settings()->set_mask();
                         }
+                        images_[page_type_image]->view_settings()->at(2)->replace_image(r[0]);
                     }
                 break;
 
@@ -409,11 +411,11 @@ namespace editorium
                         if (r.empty()) {
                             return;
                         }
-                        if (images_[page_type_image]->view_settings()->layer_count() < 2) {
-                            images_[page_type_image]->view_settings()->add_layer(r[0]);
-                        } else {
-                            images_[page_type_image]->view_settings()->at(1)->replace_image(r[0]);
+                        r[0] = r[0]->dilate(3);
+                        if (images_[page_type_image]->view_settings()->layer_count() < 3) {
+                            images_[page_type_image]->view_settings()->set_mask();
                         }
+                        images_[page_type_image]->view_settings()->at(2)->replace_image(r[0]);
                     }
                 break;
 
@@ -432,6 +434,12 @@ namespace editorium
                         images_[page_type_image]->view_settings()->at(1)->visible(true);
                     }
 
+                break;
+            }
+        } else {
+            switch (event) {
+                case event_layer_mask_color_picked:
+                    image_frame_->handle_event(event, sender);
                 break;
             }
         }

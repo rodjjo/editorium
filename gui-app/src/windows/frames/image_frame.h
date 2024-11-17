@@ -65,6 +65,7 @@ public:
 
     bool inpaint_enabled();
     void inpaint_enabled(bool enabled);
+    void handle_event(int event, void *sender);
 
 private:
     void combobox_selected();

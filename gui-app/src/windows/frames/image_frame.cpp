@@ -279,4 +279,15 @@ void ImageFrame::configure_mask_color_enabled() {
     img_->enable_color_mask_editor(btnUseColor_->down());
 }
 
+void ImageFrame::handle_event(int event, void *sender) {
+    switch (event) {
+        case event_layer_mask_color_picked: {
+            uint8_t r = 255, g = 255, b = 255, a = 255;
+            img_->get_color_mask_color(&r, &g, &b, &a);
+            btnColor_->setColor(r, g, b);
+        }
+        break;
+    }
+}
+
 } // namespace editorium

@@ -1323,6 +1323,7 @@ namespace editorium
                 uint8_t r, g, b, a;
                 if (img->getColor(move_x, move_y, &r, &g, &b, &a)) {
                     color_mask_color(r, g, b, a);
+                    publish_event(this, event_layer_mask_color_picked, NULL);
                 }
             }
         }
