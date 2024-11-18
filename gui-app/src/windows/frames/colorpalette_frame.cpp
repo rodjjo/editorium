@@ -50,6 +50,11 @@ ColorPaletteFrame::ColorPaletteFrame(Fl_Group *parent, ImagePanel *image_panel, 
         }
     });
     btn_reset_colors_->tooltip("Reset colors to default");
+    btn_current_color_ = std::make_shared<Button>([this]() {
+       // does nothing
+    });
+    btn_current_color_ ->tooltip("Shows the current color");
+    btn_current_color_->enabled(false);
 
     aligncomponents();
 }
@@ -72,6 +77,8 @@ void ColorPaletteFrame::aligncomponents() {
     }
     btn_reset_colors_->size(button_w, button_h);
     btn_reset_colors_->position(x, y + button_h * 8);
+    btn_current_color_->size(button_w, button_h);
+    btn_current_color_->position(btn_reset_colors_->x() + button_w, btn_reset_colors_->y());
 }
 
 void ColorPaletteFrame::reset_colors() {
@@ -92,6 +99,13 @@ void ColorPaletteFrame::choose_color_for_palette(int palette_index) {
         }
     }
     image_panel_->color_mask_color(r, g, b, a);
+    btn_current_color_->setColor(r, g, b);
+}
+
+void ColorPaletteFrame::update_current_color() {
+    uint8_t r, g, b, a;
+    image_panel_->get_color_mask_color(&r, &g, &b, &a);
+    btn_current_color_->setColor(r, g, b);
 }
 
 }  // namespace editorium

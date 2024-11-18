@@ -13,16 +13,20 @@
 #include "components/button.h"
 #include "components/image_panel.h"
 #include "windows/frames/colorpalette_frame.h"
+#include "messagebus/messagebus.h"
 #include "images/image.h"
 
 namespace editorium {
 
 
-class DrawingWindow: public Fl_Window  {
+class DrawingWindow: public Fl_Window, public SubscriberThis {
  public:
     DrawingWindow(image_ptr_t reference_img);
     virtual ~DrawingWindow();
     image_ptr_t get_image();    
+
+ protected:
+      void dfe_handle_event(void *sender, event_id_t event, void *data) override;
 
  private:
    void align_components();
@@ -58,6 +62,7 @@ class DrawingWindow: public Fl_Window  {
     Fl_Choice *brush_size_;
     Fl_Choice *arch_input_;
     Fl_Choice *model_input_;
+    std::unique_ptr<Button> btnPinSeed_;
     std::unique_ptr<Button> btnRandomSeed_;
     std::unique_ptr<Button> btnFirstPass_;
     std::unique_ptr<Button> btnSecondPass_;

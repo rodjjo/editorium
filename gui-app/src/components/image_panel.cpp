@@ -226,7 +226,7 @@ namespace editorium
             w(new_image->w());
             h(new_image->h());
             image_ = new_image;
-            refresh();
+            refresh(true);
         }
     }
 

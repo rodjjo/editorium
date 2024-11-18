@@ -16,13 +16,16 @@ namespace {
     uint8_t brush_size_count() {
         return sizeof(brushes_sizes) / sizeof(brushes_sizes[0]);
     }
-
+    const std::list<event_id_t> drawing_ui_events = {
+            event_layer_mask_color_picked,
+    };
 }
 
-DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 - 1024 / 2, Fl::h() / 2 - 640 / 2, 1024, 640, "Image palette - Select an image") {
+DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 - 1024 / 2, Fl::h() / 2 - 640 / 2, 1024, 640, "Image palette - Select an image"),
+        SubscriberThis(drawing_ui_events) {
     this->set_modal();
 
-    image_ = reference_img->resizeImage(32, 32)->resizeImage(512, 512);
+    image_ = reference_img->blur(4)->resizeImage(32, 32)->resizeImage(512, 512);
     
     this->begin();
     image_panel_ = new LayerDrawingImagePanel(0, 0, 1, 1, "Image");
@@ -76,6 +79,10 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
             image_panel_->view_settings()->at(1)->h(h);
         }
     }));
+    btnPinSeed_.reset(new Button(xpm::image(xpm::img_24x24_green_pin), [this] {
+        // does nothing
+    }));
+    btnPinSeed_->enableDownUp();
     brush_size_ = new Fl_Choice(0, 0, 1, 1, "Brush size");
 
     this->begin();
@@ -108,6 +115,7 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
     seed_input_->value(buffer);
     btnSettings_->tooltip("Prompt and other settings...");
     btnRandomSeed_->tooltip("Randomizes the seed");
+    btnPinSeed_->tooltip("When pinned, it does not change the current after generating images");
     settings_panel_->hide();
     align_components();
     load_arch_models();
@@ -174,6 +182,12 @@ void DrawingWindow::update_model_list() {
     }
 }
 
+void DrawingWindow::dfe_handle_event(void *sender, event_id_t event, void *data) {
+    if (event == event_layer_mask_color_picked && sender == image_panel_) {
+        color_palette_->update_current_color();
+    }
+}
+
 void DrawingWindow::align_components() {
     // the image_panel_ is positioned at top left with a margin of 5 pixels
     image_panel_->size(this->w() - 100, this->h() - 50);
@@ -213,6 +227,8 @@ void DrawingWindow::align_components() {
     btnSecondPass_->size(btnFirstPass_->w(), 30);
     btnBtnResetImage_->position(btnSecondPass_->x(), btnSecondPass_->y() + btnSecondPass_->h() + 5);
     btnBtnResetImage_->size(btnSecondPass_->w(), 30);
+    btnPinSeed_->position(btnBtnResetImage_->x(), btnBtnResetImage_->y() + btnBtnResetImage_->h() + 5);
+    btnPinSeed_->size(btnBtnResetImage_->w(), 30);
 
     // the buttons at the bottom right corner
     btnOk_->position(this->w() - 215, this->h() - 40);
@@ -281,10 +297,13 @@ void DrawingWindow::generate_image(bool second_pass) {
         show_error("You need to select a model!");
         return;
     }
+    if (!btnPinSeed_->down() && !second_pass) {
+        random_seed();
+    }
     params.prompt = prompt;
     params.negative_prompt = "";
-    params.seed = get_seed();
-    params.steps = second_pass ? 16 : 8;
+    params.seed = second_pass ? -1 : get_seed();
+    params.steps = second_pass ? 8 : 8;
     params.correct_colors = false;
     params.batch_size = 1;
     

@@ -15,7 +15,7 @@ public:
     ColorPaletteFrame(Fl_Group *parent, ImagePanel *image_panel, const std::string& context);
     ~ColorPaletteFrame();
     void aligncomponents();
-
+    void update_current_color();
 private:
     void reset_colors();
     
@@ -28,6 +28,7 @@ private:
     Fl_Group *parent_;
     ImagePanel *image_panel_;
     button_colors_t palette_;
+    button_ptr_t btn_current_color_;
     button_ptr_t btn_reset_colors_;
 };
 
