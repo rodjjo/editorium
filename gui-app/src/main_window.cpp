@@ -14,6 +14,7 @@
 #include "windows/size_ui.h"
 #include "windows/chatbot_ui.h"
 #include "windows/image_palette_ui.h"
+#include "windows/drawing_ui.h"
 #include "main_window.h"
 
 
@@ -26,6 +27,7 @@ namespace editorium
         const std::list<event_id_t> main_window_events = {
             event_main_menu_clicked,
             event_main_menu_file_new_art,
+            event_main_menu_file_new_drawing,
             event_main_menu_file_open,
             event_main_menu_file_save,
             event_main_menu_file_open_layer,
@@ -49,6 +51,7 @@ namespace editorium
             event_main_menu_layers_from_selection,
             event_main_menu_layers_from_generated,
             event_main_menu_layers_from_palette,
+            event_main_menu_layers_from_drawing,
             event_main_menu_enhance_upscaler,
             event_main_menu_enhance_resize,
             event_main_menu_enhance_correct_colors,
@@ -56,6 +59,7 @@ namespace editorium
             event_main_menu_selection_vision_chat,
             event_main_menu_selection_from_layer,
             event_main_menu_selection_to_palette,
+            event_main_menu_selection_send_to_drawing,
             event_main_menu_resizeSelection_0,
             event_main_menu_resizeSelection_256,
             event_main_menu_resizeSelection_512,
@@ -85,6 +89,7 @@ namespace editorium
             menuPanel_->end();
 
             menu_->addItem(event_main_menu_file_new_art, "", "File/New Art", "^n", 0, xpm::img_24x24_new);
+            menu_->addItem(event_main_menu_file_new_drawing, "", "File/New Drawing", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_open, "", "File/Open", "^o", 0, xpm::img_24x24_open);
             menu_->addItem(event_main_menu_file_save, "", "File/Save", "^s", 0, xpm::img_24x24_flash_drive);
             menu_->addItem(event_main_menu_file_close, "", "File/Close", "^x", 0, xpm::img_24x24_close);
@@ -97,6 +102,7 @@ namespace editorium
             menu_->addItem(event_main_menu_layers_from_selection, "", "Layers/From selection", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_from_generated, "", "Layers/From generation", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_from_palette, "", "Layers/From palette", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_layers_from_drawing, "", "Layers/From drawing", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_send_to_palette, "", "Layers/Send to palette", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_layers_remove_selected, "", "Layers/Remove", "", 0, xpm::img_24x24_remove);
             menu_->addItem(event_main_menu_layers_minimize_selected, "", "Layers/Minimize", "", 0, xpm::img_24x24_up_down);
@@ -115,6 +121,7 @@ namespace editorium
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_selection_vision_chat, "", "Selection/Vision Chat", "");
             menu_->addItem(event_main_menu_selection_to_palette, "", "Selection/Send to Palette", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_selection_send_to_drawing, "", "Selection/Send to drawing", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
             menu_->addItem(event_main_menu_resizeSelection_512, "", "Selection/Expand/512x512", "^1");
@@ -317,6 +324,9 @@ namespace editorium
         case event_main_menu_file_new_art:
             create_image(false);
             break;
+        case event_main_menu_file_new_drawing:
+            new_drawing(true);
+            break;
         case event_main_menu_selection_generate:
             create_image(true);
             break;
@@ -329,6 +339,9 @@ namespace editorium
         case event_main_menu_layers_send_to_palette:
             send_selected_layer_to_palette();
             break;
+        case event_main_menu_selection_send_to_drawing:
+            new_drawing_from_selection();
+            break;
         case event_main_menu_layers_from_selection:
             convert_selection_into_layer();
             break;
@@ -337,6 +350,9 @@ namespace editorium
             break;
         case event_main_menu_layers_from_palette:
             image_from_palette_to_layer();
+            break;
+        case event_main_menu_layers_from_drawing:
+            new_drawing(false);
             break;
         case event_main_menu_resizeSelection_0:
             resizeSelection(0);
@@ -547,6 +563,47 @@ namespace editorium
 
     void MainWindow::open_next_image(bool confirm) {
         open_other_image(true, confirm);
+    }
+
+    void MainWindow::new_drawing(bool clear_layers) {
+        int w = 512, h = 512;
+        auto img = newImage(w, h, true);
+        auto drawing = draw_image(img);
+        if (!drawing) {
+            return;
+        }
+        if (clear_layers) {
+            image_->view_settings()->clear_layers();
+        }
+        image_->view_settings()->add_layer(drawing);
+    }
+
+    void MainWindow::new_drawing_from_selection() {
+        if (image_->view_settings()->has_selected_area()) {
+            auto img = image_->view_settings()->get_selected_image();
+            if (img) {
+                if (img->w() < 32 || img->h() < 32) {
+                    fl_alert("The selected area is too small to create a drawing!");
+                    return;
+                }
+                if (img->w() != img->h()) {
+                    fl_alert("The selected area is not square!");
+                    return;
+                }
+                size_t original_w = img->w();
+                size_t original_h = img->h();
+                if (original_w != 512) {
+                    img = img->resizeImage(512, 512);
+                }
+                auto drawing = draw_image(img);
+                if (drawing) {
+                    drawing = drawing->resizeImage(original_w, original_h);
+                    image_->view_settings()->add_layer(drawing);
+                }
+            }
+        } else {
+            fl_alert("No layer selected");
+        }
     }
 
 

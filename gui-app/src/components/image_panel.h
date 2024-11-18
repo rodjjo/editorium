@@ -43,10 +43,14 @@ namespace editorium
         void visible(bool value);
         bool pinned();
         void pinned(bool value);
+        void focusable(bool value);
+        bool focusable();
         void restore_size();
         void scale_size(bool up);
         std::shared_ptr<Layer> duplicate();
         void replace_image(image_ptr_t new_image);
+        float scale_x();
+        float scale_y();
     private:
         void refresh(bool force=false);
 
@@ -62,6 +66,7 @@ namespace editorium
         int h_ = 1;
         bool visible_ = true;
         bool pinned_ = false;
+        bool focusable_ = true;
     };
 
     class CachedLayer {
@@ -289,6 +294,38 @@ namespace editorium
                 const char *unique_title) : MaskEditableImagePanel(
                     x, y, w, h, unique_title
                 ) {};
+
+            bool enable_colored_mask_editor() override {
+                return true;
+            }
+    };
+    
+    class LayerDrawingImagePanel : public ImagePanel {
+        public:
+            LayerDrawingImagePanel(
+                uint32_t x, uint32_t y, 
+                uint32_t w, uint32_t h, 
+                const char *unique_title) : ImagePanel(
+                    x, y, w, h, unique_title
+                ) {};
+
+            bool enable_selection() override {
+                // do not let the user to select a region
+                return false;
+            }
+
+            bool enable_drag() override {
+                return true; // enable to drag, we are going to pin the first and the mask layers
+            }
+
+            bool enable_resize() override {
+                // do not let the user to change the size of the image
+                return false;
+            }
+
+            bool enable_mask_editor() override {
+                return true;
+            }
 
             bool enable_colored_mask_editor() override {
                 return true;

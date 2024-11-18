@@ -88,6 +88,7 @@ namespace editorium
             sdxl_base_model_ = load_key("base_models", "sdxl_base_model");
             flux_base_model_ = load_key("base_models", "flux_base_model");
             sd35_base_model_ = load_key("base_models", "sd35_base_model");
+            arch_speed_model_ = load_key("base_models", "arch_speed_models");
 
             chat_bot_repo_id_ = load_key("chat_bot", "repo_id", chat_bot_repo_id_.c_str());
             chat_bot_model_name_ = load_key("chat_bot", "model_name", chat_bot_model_name_.c_str());
@@ -163,6 +164,8 @@ namespace editorium
             base_models["sdxl_base_model"] = sdxl_base_model_;
             base_models["flux_base_model"] = flux_base_model_;
             base_models["sd35_base_model"] = sd35_base_model_;
+            base_models["arch_speed_models"] = arch_speed_model_;
+
             cf["base_models"] = base_models;
             
             cf["float16_enabled"] = use_float16_;
@@ -247,6 +250,10 @@ namespace editorium
         return sd35_base_model_;
     }
 
+    std::string Config::arch_speed_model() {
+        return arch_speed_model_;
+    }
+
     void Config::sdxl_base_model(const char *value) {
         sdxl_base_model_ = value;
     }
@@ -259,6 +266,9 @@ namespace editorium
         sd35_base_model_ = value;
     }
 
+    void Config::arch_speed_model(const char *value) {
+        arch_speed_model_ = value;
+    }
 
     bool Config::use_float16() {
         return use_float16_;

@@ -134,6 +134,14 @@ namespace editorium
         pinned_ = value;
     }
 
+    void Layer::focusable(bool value) {
+        focusable_ = value;
+    }
+
+    bool Layer::focusable() {
+        return focusable_;
+    }
+
     const char *Layer::name() {
         return name_.c_str();
     }
@@ -189,6 +197,21 @@ namespace editorium
             refresh();
         }
     }
+
+    float Layer::scale_x() {
+        if (image_) {
+            return (float)image_->w() / (float)w_;
+        }
+        return 1.0;
+    }
+
+    float Layer::scale_y() {
+        if (image_) {
+            return (float)image_->h() / (float)h_;
+        }
+        return 1.0;
+    }
+
 
     int Layer::version() {
         return version_;
@@ -525,18 +548,10 @@ namespace editorium
         if (zoom != 0) {
             float mx = x / zoom - cache_.get_scroll_x();
             float my = y / zoom - cache_.get_scroll_y();
-            /*
-            if (selected_) {
-                if (selected_->x() < mx && mx <  selected_->x() + selected_->w() 
-                    && selected_->y() < my && my <  selected_->y() + selected_->h() ) {
-                    return selected_layer_index();
-                }
-            }
-            */
             Layer *l;
             for (size_t i = layers_.size(); i > 0; i--) {
                 l = layers_[i - 1].get();
-                if (l->x() < mx && mx <  l->x() + l->w() 
+                if (l->focusable() && l->x() < mx && mx <  l->x() + l->w() 
                     && l->y() < my && my <  l->y() + l->h() ) {
                     return i - 1;
                 }
@@ -1195,26 +1210,40 @@ namespace editorium
         }
         float sx = 2.0 / this->w();
         float sy = 2.0 / this->h();
+        uint8_t mask_r, mask_g, mask_b, mask_a;
+        get_color_mask_color(&mask_r, &mask_g, &mask_b, &mask_a);
         glBegin(GL_LINE_LOOP);
         float theta;
         float x;
         float y;
         float wx;
         float wy;
+        int brush_size = view_settings_->brush_size();
+        size_t l_index = view_settings_->layer_at_mouse_coord(getZoom(), move_last_x_, move_last_y_);
         float cx = move_last_x_;
         float cy = move_last_y_;
-        bool black = true;
+        if (l_index != (size_t) -1) {
+            auto layer = view_settings_->at(l_index);
+            brush_size = brush_size / ((layer->scale_x() + layer->scale_y()) / 2.0);
+        }
+        float fmask_r = mask_r / 255.0;
+        float fmask_g = mask_g / 255.0;
+        float fmask_b = mask_b / 255.0;
+        float fmask_a = mask_a / 255.0;
+        uint8_t color_step = enable_colored_mask_editor() ? 3 : 2;
+        uint8_t step = 0;
         for (int ii = 0; ii < 36; ++ii)   {
-            if (black) {
-                black = false;
+            if (step == 0) {
                 glColor3f(0, 0, 0);
-            } else {
-                black = true;
+            } else if (step == 1) {
                 glColor3f(1, 1, 1);
+            } else {
+                glColor4f(fmask_r, fmask_g, fmask_b, fmask_a);
             }
+            step = (step + 1) % color_step;
             theta = (2.0f * 3.1415926f) * float(ii) / float(36);
-            x = (view_settings_->brush_size() * getZoom()) * cosf(theta);
-            y = (view_settings_->brush_size() * getZoom()) * sinf(theta);
+            x = (brush_size * getZoom()) * cosf(theta);
+            y = (brush_size * getZoom()) * sinf(theta);
             wx = ((x + cx) * sx) - 1;
             wy = 1 - ((y + cy) * sy);
             glVertex2f(wx, wy);
@@ -1314,15 +1343,17 @@ namespace editorium
 
         bool ctl_buttons = mouse_down_control_ || mouse_down_alt_ || mouse_down_shift_;
 
-        if (mouse_down_alt_ && !mouse_down_control_ && !mouse_down_shift_ && enable_colored_mask_editor()) {
+        if (!mouse_down_alt_ && !mouse_down_control_ && mouse_down_shift_ && enable_colored_mask_editor()) {
             if (view_settings_->layer_count() > 0) {
                 auto img = view_settings_->at(0)->getImage();
                 // pickup the color from the image at x and y
-                move_x = (move_x) / getZoom() - view_settings_->cache()->get_scroll_x();
-                move_y = (move_y) / getZoom() - view_settings_->cache()->get_scroll_y();
-                uint8_t r, g, b, a;
-                if (img->getColor(move_x, move_y, &r, &g, &b, &a)) {
-                    color_mask_color(r, g, b, a);
+                // move_x = (move_x) / getZoom() - view_settings_->cache()->get_scroll_x();
+                // move_y = (move_y) / getZoom() - view_settings_->cache()->get_scroll_y();
+               // uint8_t r, g, b, a;
+                uint8_t gl_color[4] = {255, 255, 255, 255};
+                if (move_x >= 0 && move_y >= 0 && move_x < this->w() && move_y < this->h()) {
+                    glReadPixels(move_x, this->h() - move_y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, gl_color);
+                    color_mask_color(gl_color[0], gl_color[1], gl_color[2], gl_color[3]);
                     publish_event(this, event_layer_mask_color_picked, NULL);
                 }
             }
@@ -1338,10 +1369,14 @@ namespace editorium
             if (edit_color_mask_) {
                 mask_index = 1;
             }
-            
+            auto layer_under_mouse = view_settings_->layer_at_mouse_coord(getZoom(), move_x, move_y);
+            if (layer_under_mouse != mask_index) {
+                return;
+            }
+            auto layer = view_settings_->at(mask_index);
             auto img = view_settings_->at(mask_index)->getImage();
-            move_x = (move_x) / getZoom() - view_settings_->cache()->get_scroll_x();
-            move_y = (move_y) / getZoom() - view_settings_->cache()->get_scroll_y();
+            move_x = ((move_x / getZoom()) - layer->x() - view_settings_->cache()->get_scroll_x()) * layer->scale_x();
+            move_y = ((move_y / getZoom()) - layer->y() - view_settings_->cache()->get_scroll_y()) * layer->scale_y();
             if (left_button) {
                 if (edit_color_mask_ && edit_color) {
                     img->drawCircleColor(move_x, move_y, view_settings_->brush_size(), color_mask_color_, color_mask_color_, false);

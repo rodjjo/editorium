@@ -64,6 +64,9 @@ private:
     void open_next_image(bool confirm=false);
     void open_other_image(bool next, bool confirm);    
     void open_image_file(bool clear_layers, const std::string& path);
+    void new_drawing(bool clear_layers);
+    void new_drawing_from_selection();
+
 private:
     std::string last_open_image_;
     int16_t wheel_correct_delta_ = 0;

@@ -272,7 +272,6 @@ void ImageFrame::configure_mask_color() {
         btnColor_->setColor(r, g, b);
         img_->color_mask_color(r, g, b, a);
     }
-
 }
 
 void ImageFrame::configure_mask_color_enabled() {

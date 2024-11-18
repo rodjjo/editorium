@@ -47,6 +47,7 @@ typedef struct {
     bool support_inpaint = false;
     bool support_textual_inversion = false;
     bool support_base_model = false;
+    bool support_speed_mode = false;
 } architecture_features_t;
 
 std::vector<std::pair<std::string, std::string> > list_architectures();

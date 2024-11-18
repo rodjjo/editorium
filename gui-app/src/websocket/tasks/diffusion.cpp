@@ -21,6 +21,7 @@ architecture_features_t get_architecture_features(const std::string &architectur
         result.support_inpaint = true;
         result.support_textual_inversion = true;
         result.support_base_model = false;
+        result.support_speed_mode = true;
     } else if (architecture == "sdxl") {
         result.controlnet_count = 1;
         result.ip_adapter_count = 2;
@@ -29,6 +30,7 @@ architecture_features_t get_architecture_features(const std::string &architectur
         result.support_inpaint = true;
         result.support_textual_inversion = false;
         result.support_base_model = true;
+        result.support_speed_mode = true;
     } else if (architecture == "flux") {
         result.controlnet_count = 1;
         result.ip_adapter_count = 2;

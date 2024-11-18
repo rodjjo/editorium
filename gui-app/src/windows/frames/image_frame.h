@@ -97,7 +97,6 @@ private:
     img2img_mode_t mode_ = img2img_text;
     int brush_size_ = 16;
     inpaint_mode_t inpaint_mode_ = inpaint_original;
-
 };
 
 } // namespace editorium

@@ -22,10 +22,11 @@ class Config {
         std::string sdxl_base_model();
         std::string flux_base_model();
         std::string sd35_base_model();
+        std::string arch_speed_model();
         void sdxl_base_model(const char *value);
         void flux_base_model(const char *value);
         void sd35_base_model(const char *value);
-
+        void arch_speed_model(const char *value);
         bool use_float16();
         bool private_mode();
         bool keep_in_memory();
@@ -66,6 +67,7 @@ class Config {
         std::string sdxl_base_model_;
         std::string flux_base_model_;
         std::string sd35_base_model_;
+        std::string arch_speed_model_;
 
         std::string chat_bot_repo_id_ = "TheBloke/Nous-Hermes-13B-GPTQ";
         std::string chat_bot_model_name_ = "model";
