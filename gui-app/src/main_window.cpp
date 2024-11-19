@@ -586,10 +586,6 @@ namespace editorium
                     fl_alert("The selected area is too small to create a drawing!");
                     return;
                 }
-                if (img->w() != img->h()) {
-                    fl_alert("The selected area is not square!");
-                    return;
-                }
                 size_t original_w = img->w();
                 size_t original_h = img->h();
                 if (original_w != 512) {
@@ -663,7 +659,7 @@ namespace editorium
     }
 
     void MainWindow::image_from_palette_to_layer() {
-        auto img = pickup_image_from_pallet();
+        auto img = pickup_image_from_palette();
         if (img) {
             image_->view_settings()->clear_selected_area();
             image_->view_settings()->add_layer(img);

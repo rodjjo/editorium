@@ -22,6 +22,7 @@ architecture_features_t get_architecture_features(const std::string &architectur
         result.support_textual_inversion = true;
         result.support_base_model = false;
         result.support_speed_mode = true;
+        result.support_tiny_vae = true;
     } else if (architecture == "sdxl") {
         result.controlnet_count = 1;
         result.ip_adapter_count = 2;
@@ -31,6 +32,7 @@ architecture_features_t get_architecture_features(const std::string &architectur
         result.support_textual_inversion = false;
         result.support_base_model = true;
         result.support_speed_mode = true;
+        result.support_tiny_vae = true;
     } else if (architecture == "flux") {
         result.controlnet_count = 1;
         result.ip_adapter_count = 2;
@@ -95,6 +97,7 @@ std::pair<json, json> create_sd15_diffusion_request(const diffusion_request_t &r
     config["inpaint_mode"] = request.inpaint_mode;
     config["mask_dilate_size"] = request.mask_dilate_size;
     config["mask_blur_size"] = request.mask_blur_size;
+    config["use_tiny_vae"] = request.use_tiny_vae;
 
     api_payload_t images;
     images.images = request.images;
@@ -206,6 +209,7 @@ std::pair<json, json> create_sdxl_diffusion_request(const diffusion_request_t &r
     }
     config["strength"] = request.image_strength;
     config["ip_adapter_scale"] = ip_adapter_scale;
+    config["use_tiny_vae"] = request.use_tiny_vae;
 
     api_payload_t images;
     images.images = request.images;

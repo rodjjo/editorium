@@ -13,6 +13,7 @@
 #include "components/button.h"
 #include "components/image_panel.h"
 #include "windows/frames/colorpalette_frame.h"
+#include "windows/frames/embeddings_frame.h"
 #include "messagebus/messagebus.h"
 #include "images/image.h"
 
@@ -26,7 +27,8 @@ class DrawingWindow: public Fl_Window, public SubscriberThis {
     image_ptr_t get_image();    
 
  protected:
-      void dfe_handle_event(void *sender, event_id_t event, void *data) override;
+    void dfe_handle_event(void *sender, event_id_t event, void *data) override;
+    int handle(int event) override;
 
  private:
    void align_components();
@@ -39,12 +41,23 @@ class DrawingWindow: public Fl_Window, public SubscriberThis {
    void random_seed();
    int get_seed();
    void brush_size_selected();
+   void insert_current_lora();
+   void from_palette();
+   void to_palette();
+   void use_current_image();
+   void reset_image();
 
  private:
     bool confirmed_ = false;
     bool ignore_pinned_cb_ = false;
     static void cb_widget(Fl_Widget *widget, void *data);
     void cb_widget(Fl_Widget *widget);
+    
+
+ private:
+   bool validate();
+   std::string positive_prompt();
+   std::vector<std::string> get_loras();
 
  private:
    std::vector<std::pair<std::string, std::string> > arch_models_;
@@ -57,17 +70,23 @@ class DrawingWindow: public Fl_Window, public SubscriberThis {
     Fl_Group *settings_panel_ = nullptr;
     Fl_Group *right_panel_ = nullptr;
     Fl_Group *color_pal_group_ = nullptr;
+    Fl_Group  *lora_gp_ = nullptr;
     Fl_Int_Input *seed_input_;
     Fl_Multiline_Input *prompt_input_;
     Fl_Choice *brush_size_;
     Fl_Choice *arch_input_;
     Fl_Choice *model_input_;
+
+    std::unique_ptr<EmbeddingFrame> loras_;
     std::unique_ptr<Button> btnPinSeed_;
     std::unique_ptr<Button> btnRandomSeed_;
     std::unique_ptr<Button> btnFirstPass_;
     std::unique_ptr<Button> btnSecondPass_;
     std::unique_ptr<Button> btnBtnResetImage_;
     std::unique_ptr<Button> btnSettings_;
+    std::unique_ptr<Button> btnFromPalette_;
+    std::unique_ptr<Button> btnToPalette_;
+    std::unique_ptr<Button> btnUseCurrent_;
     std::unique_ptr<Button> btnOk_;
     std::unique_ptr<Button> btnCancel_;
 };

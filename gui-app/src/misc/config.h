@@ -11,10 +11,6 @@ class Config {
         virtual ~Config();
         bool load();
         bool save();
-        std::string last_save_directory(const char *scope);
-        std::string last_open_directory(const char *scope);
-        void last_save_directory(const char *scope, const char* value);
-        void last_open_directory(const char *scope, const char* value);
         std::string profiles_dir();
         void profiles_dir(const char *value);
         std::string server_url();
@@ -60,8 +56,6 @@ class Config {
         float chat_vision_temperature();
 
     private:
-        std::map<std::string, std::string> last_save_dirs;
-        std::map<std::string, std::string> last_open_dirs;
         std::string profiles_dir_;
         std::string server_url_ = "ws://localhost:5001";
         std::string sdxl_base_model_;

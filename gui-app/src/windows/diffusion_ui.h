@@ -67,6 +67,7 @@ private:
     void check_accept_current_image();
     void set_architecture_view();
     bool page_visible(page_type_t page);
+    void enable_masking(ImagePanel *panel);
     
 private:
     bool image_generated_ = false;

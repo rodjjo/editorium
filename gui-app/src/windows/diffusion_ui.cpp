@@ -281,6 +281,18 @@ namespace editorium
         }
     }
 
+    void DiffusionWindow::enable_masking(ImagePanel *panel) {
+        if (panel->view_settings()->layer_count() < 3) {
+            panel->enable_color_mask_editor(true);
+            panel->view_settings()->set_mask();
+            panel->view_settings()->at(0)->pinned(true);
+            panel->view_settings()->at(0)->focusable(false);
+            panel->view_settings()->at(2)->pinned(true);
+            panel->view_settings()->at(2)->focusable(false);
+            panel->enable_color_mask_editor(false);
+        }
+    }
+
     void DiffusionWindow::dfe_handle_event(void *sender, event_id_t event, void *data) {
         if (sender == prompt_frame_.get()) {
             switch (event) {
@@ -357,7 +369,9 @@ namespace editorium
                         show_error("Open or generate an image first!");
                     } else {
                         if (ask("Do you want to clear current mask?")) {
-                            images_[page_type_image]->view_settings()->set_mask();
+                            auto pn = images_[page_type_image];
+                            enable_masking(pn);
+                            pn->view_settings()->set_mask();
                         }
                     }
                 break;
@@ -370,11 +384,9 @@ namespace editorium
                         if (!r) {
                             return;
                         }
-                        if (images_[page_type_image]->view_settings()->layer_count() < 2) {
-                            images_[page_type_image]->view_settings()->add_layer(r);
-                        } else {
-                            images_[page_type_image]->view_settings()->at(1)->replace_image(r);
-                        }
+                        auto pn = images_[page_type_image];
+                        enable_masking(pn);
+                        images_[page_type_image]->view_settings()->at(2)->replace_image(r);
                     }
                 break;
 
@@ -391,11 +403,9 @@ namespace editorium
                             return;
                         }
                         r[0] = r[0]->dilate(3);
-
-                        if (images_[page_type_image]->view_settings()->layer_count() < 3) {
-                            images_[page_type_image]->view_settings()->set_mask();
-                        }
-                        images_[page_type_image]->view_settings()->at(2)->replace_image(r[0]);
+                        auto pn = images_[page_type_image];
+                        enable_masking(pn);
+                        pn->view_settings()->at(2)->replace_image(r[0]);
                     }
                 break;
 
@@ -412,10 +422,9 @@ namespace editorium
                             return;
                         }
                         r[0] = r[0]->dilate(3);
-                        if (images_[page_type_image]->view_settings()->layer_count() < 3) {
-                            images_[page_type_image]->view_settings()->set_mask();
-                        }
-                        images_[page_type_image]->view_settings()->at(2)->replace_image(r[0]);
+                        auto pn = images_[page_type_image];
+                        enable_masking(pn);
+                        pn->view_settings()->at(2)->replace_image(r[0]);
                     }
                 break;
 

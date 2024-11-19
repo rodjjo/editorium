@@ -811,16 +811,16 @@ namespace editorium
                 sx0 = sx - ly->x();
                 sy0 = sy - ly->y();
 
-                if (sx0 >= 0) {
+                if (sx0 >= -1) {
                     x1_in_layer = true;
                 }
-                if (sy0 >= 0) {
+                if (sy0 >= -1) {
                     y1_in_layer = true;
                 }
-                if (sx0 + value->w() < limg->w()) {
+                if (sx0 - 1 + value->w() <= limg->w()) {
                     x2_in_layer = true;
                 }
-                if (sy0 + value->h() < limg->h()) {
+                if (sy0 - 1 + value->h() <= limg->h()) {
                     y2_in_layer = true;
                 }
 

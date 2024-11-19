@@ -40,7 +40,7 @@ class ImagePalleteWindow: public Fl_Window  {
 };
 
 
-image_ptr_t pickup_image_from_pallet();
+image_ptr_t pickup_image_from_palette();
 
     
 } // namespace editorium

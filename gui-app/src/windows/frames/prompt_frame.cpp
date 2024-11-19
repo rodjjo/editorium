@@ -394,11 +394,15 @@ void PromptFrame::dfe_handle_event(void *sender, event_id_t event, void *data) {
     switch (event)
     {
     case event_prompt_lora_selected:
-        insert_current_lora();
+        if (sender == loras_.get()) {
+            insert_current_lora();
+        }
         break;
     
     case event_prompt_textual_selected:
-        insert_current_textual();
+        if (sender == embeddings_.get()) {
+            insert_current_textual();
+        }
         break;
     }
 }

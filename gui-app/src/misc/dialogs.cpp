@@ -12,6 +12,7 @@
 
 #include "misc/config.h"
 #include "misc/dialogs.h"
+#include "misc/profiles.h"
 
 namespace editorium
 {
@@ -68,7 +69,8 @@ std::string executeChooser(Fl_File_Chooser *fc) {
 }
 
 std::string choose_image_to_open_fl(const std::string& scope) {
-    std::string current_dir = get_config()->last_open_directory(scope.c_str());
+    dialogs_load_profile();
+    std::string current_dir = dialogs_profile_get_string({scope.c_str(), "last_open_directory"}, "");
 
     if (!path_exists(current_dir.c_str())) {
         current_dir = "";
@@ -79,13 +81,15 @@ std::string choose_image_to_open_fl(const std::string& scope) {
     if (!result.empty()) {
         size_t latest = result.find_last_of("/\\");
         current_dir = result.substr(0, latest);
-        get_config()->last_open_directory(scope.c_str(), current_dir.c_str());
+        dialogs_profile_set_string({scope.c_str(), "last_open_directory"}, current_dir.c_str());
+        dialogs_save_profile();
     }
     return result;
 }
 
 std::string choose_image_to_save_fl(const std::string& scope) {
-    std::string current_dir = get_config()->last_save_directory(scope.c_str());
+    dialogs_load_profile();
+    std::string current_dir = dialogs_profile_get_string({scope.c_str(), "last_save_directory"}, "");
     if (!path_exists(current_dir.c_str())) {
         current_dir = "";
     }
@@ -98,7 +102,8 @@ std::string choose_image_to_save_fl(const std::string& scope) {
         } else {
             size_t latest = result.find_last_of("/\\");
             current_dir = result.substr(0, latest);
-            get_config()->last_save_directory(scope.c_str(), current_dir.c_str());
+            dialogs_profile_set_string({scope.c_str(), "last_save_directory"}, current_dir.c_str());
+            dialogs_save_profile();
         }
     }
 

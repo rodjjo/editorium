@@ -16,6 +16,7 @@ namespace {
 EmbeddingFrame::EmbeddingFrame(bool lora_embedding, Fl_Group *parent) {
     parent_ = parent;
     lora_embedding_ = lora_embedding;
+    parent_->begin();
     img_ = new NonEditableImagePanel(0, 0, 1, 1, lora_embedding ? "LoraEmbeddingImage" : "TextualInversionImage");
     search_ = new Fl_Input(0, 0, 1, 1, lora_embedding ? "Lora:" : "Textual Inversion:");
     embeddings_list_ = new Fl_Select_Browser(0, 0, 1, 1);
@@ -35,6 +36,8 @@ EmbeddingFrame::EmbeddingFrame(bool lora_embedding, Fl_Group *parent) {
     btnPrior_.reset(new Button(xpm::image(xpm::img_24x24_back), [this] {
         goPreviousConcept();
     }));
+
+    parent_->end();
 
     btnNext_->tooltip("Next");
     btnPrior_->tooltip("Previous");
@@ -127,6 +130,7 @@ void EmbeddingFrame::widget_cb(Fl_Widget* widget) {
             embeddings_list_->hide();
             img_->show();
             img_->redraw();
+            publish_event(this, lora_embedding_ ? event_prompt_lora_selected : event_prompt_textual_selected, NULL);
         }
     }
 }
@@ -268,6 +272,9 @@ void EmbeddingFrame::refresh_models(const std::string& architecture) {
         }
     } catch(std::exception e) {
         printf("Error refreshing embedding model list %s", e.what());
+    }
+    if (parent_->visible_r()) {
+        parent_->redraw();
     }
 }
 

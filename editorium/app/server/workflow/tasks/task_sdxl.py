@@ -24,6 +24,7 @@ class SDXLSchema(Schema):
     controlnet_type = fields.Str(required=False, load_default="pose", validate=validate.OneOf(["pose", "canny", "depth"]))
     strength = fields.Float(required=False, load_default=0.8)
     ip_adapter_scale = fields.Float(required=False, load_default=0.6)
+    use_tiny_vae = fields.Bool(required=False, load_default=False)
     globals = fields.Dict(required=False, load_default={})
 
 

@@ -13,8 +13,10 @@ using json = nlohmann::json;
 namespace {
     std::string prompt_profile_name = "profile.json";
     std::string chatbot_profile_name = "chatbot.json";
+    std::string dialogs_profile_name = "dialogs.json";
     json prompt_profile_data;
     json chatbot_profile_data;
+    json dialogs_profile_data;
 }
 
 void load_profile_file(const std::string& filename, json &data) {
@@ -82,6 +84,24 @@ void chatbot_load_profile() {
 
 void chatbot_save_profile() {
     save_profile_file(chatbot_profile_name, chatbot_profile_data);
+}
+
+void dialogs_load_profile() {
+    std::string profile_dir = get_config()->profiles_dir();
+    if (profile_dir.empty()) {
+        return;
+    }
+    
+    std::string profile_path = get_config()->profiles_dir() + "/" + dialogs_profile_name; 
+    if (!std::filesystem::exists(profile_path)) {
+       return;
+    }
+    
+    load_profile_file(profile_path, dialogs_profile_data);
+}
+
+void dialogs_save_profile() {
+    save_profile_file(dialogs_profile_name, dialogs_profile_data);
 }
 
 std::string key_to_name(const std::vector<std::string>& key) {
@@ -160,5 +180,19 @@ void chatbot_profile_set_string(const std::vector<std::string>& key, const std::
     std::string key_name = key_to_name(key);
     chatbot_profile_data[key_name] = value;
 }
+
+std::string dialogs_profile_get_string(const std::vector<std::string>& key, const std::string& default_value) {
+    std::string key_name = key_to_name(key);
+    if (dialogs_profile_data.contains(key_name)) {
+        return dialogs_profile_data[key_name].get<std::string>();
+    }
+    return default_value;
+}
+
+void dialogs_profile_set_string(const std::vector<std::string>& key, const std::string& value) {
+    std::string key_name = key_to_name(key);
+    dialogs_profile_data[key_name] = value;
+}
+
 
 }

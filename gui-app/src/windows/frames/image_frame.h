@@ -71,6 +71,9 @@ private:
     void combobox_selected();
     void configure_mask_color();
     void configure_mask_color_enabled();
+    void pickup_palette_image();
+    void pixelate_current_image();
+
 protected:
     static void combobox_cb(Fl_Widget* widget, void *cbdata);
     void combobox_cb(Fl_Widget* widget);
@@ -91,6 +94,8 @@ private:
     std::unique_ptr<Button> btnOpenMask_;
     std::unique_ptr<Button> btnColor_;
     std::unique_ptr<Button> btnUseColor_;
+    std::unique_ptr<Button> btnPixelate_;
+    std::unique_ptr<Button> btnFromPalette_;
     std::unique_ptr<Button> btnSegGDino_;
     std::unique_ptr<Button> btnSegSapiens_;
 

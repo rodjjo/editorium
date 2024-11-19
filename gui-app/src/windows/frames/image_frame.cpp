@@ -3,6 +3,7 @@
 #include "misc/dialogs.h"
 #include "messagebus/messagebus.h"
 #include "windows/frames/image_frame.h"
+#include "windows/image_palette_ui.h"
 
 namespace editorium
 {
@@ -70,16 +71,24 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
             configure_mask_color_enabled();
         }
     ));
-
     btnSegGDino_.reset(new Button(xpm::image(xpm::img_24x24_alien),
         [this] () {
             publish_event(this, event_image_frame_seg_gdino, NULL);
         }
     ));
-
     btnSegSapiens_.reset(new Button(xpm::image(xpm::img_24x24_female),
         [this] () {
             publish_event(this, event_image_frame_seg_sapiens, NULL);
+        }
+    ));
+    btnPixelate_.reset(new Button(xpm::image(xpm::img_24x24_picture),
+        [this] () {
+            pixelate_current_image();
+        }
+    ));
+    btnFromPalette_.reset(new Button(xpm::image(xpm::img_24x24_list),
+        [this] () {
+            pickup_palette_image();
         }
     ));
 
@@ -115,6 +124,8 @@ ImageFrame::ImageFrame(Fl_Group *parent, ImagePanel *img) {
     btnUseColor_->tooltip("When the button is down it draws a color over the image");
     btnSegGDino_->tooltip("Create mask using Grounding Dino segmentation");
     btnSegSapiens_->tooltip("Create mask using Sapiens segmentation (from facebook)");
+    btnPixelate_->tooltip("Pixelate the current image");
+    btnFromPalette_->tooltip("Pick an image from the image palette");
 
     btnColor_->setColor(255, 255, 255);
     btnUseColor_->enableDownUp();
@@ -129,6 +140,51 @@ ImageFrame::~ImageFrame() {
 
 bool ImageFrame::inpaint_enabled() {
     return inpaint_enabled_;
+}
+
+void ImageFrame::pickup_palette_image() {
+    auto img = pickup_image_from_palette();
+    if (img) {
+        if (img_->view_settings()->layer_count() == 0) {
+            img_->view_settings()->add_layer(img);
+        } else {
+            img_->view_settings()->at(0)->replace_image(img);
+        }
+    }
+}
+
+void ImageFrame::pixelate_current_image() {
+    if (img_->view_settings()->layer_count() < 3) {
+        return;
+    }
+    if (!ask("Do you want to pixelate the current image?")) {
+        return;
+    }
+
+    auto reference_img = img_->view_settings()->at(0)->getImage();
+    
+    float ratio = 1.0;
+    if (reference_img->w() > reference_img->h()) {
+        ratio = 512.0 / reference_img->w();
+    } else {
+        ratio = 512.0 / reference_img->h();
+    }
+    int min_size_w, min_size_h; // 32 pixels minimum, checking the ratio
+    int new_w, new_h;
+    if (reference_img->w() > reference_img->h()) {
+        new_w = 512;
+        new_h = reference_img->h() * ratio;
+        min_size_w = 32;
+        min_size_h = 32 * ratio;
+    } else {
+        new_h = 512;
+        new_w = reference_img->w() * ratio;
+        min_size_h = 32;
+        min_size_w = 32 * ratio;
+    }
+
+    auto pixelated = reference_img->blur(4)->resizeImage(min_size_w, min_size_h)->resizeImage(new_w, new_h);
+    img_->view_settings()->at(1)->replace_image(pixelated);
 }
 
 void ImageFrame::inpaint_enabled(bool enabled) {
@@ -177,12 +233,16 @@ void ImageFrame::alignComponents() {
     btnSegSapiens_->size((w - 15) / 2, 30);
     btnUseColor_->size((w - 15) / 2, 30);
     btnColor_->size((w - 15) / 2, 30);
+    btnPixelate_->size((w - 15) / 2, 30);
+    btnFromPalette_->size((w - 15) / 2, 30);
     btnOpenMask_->size(btnNewMask_->w(), btnNewMask_->h());
     btnNewMask_->position(left + 5, strength_input_->y() + strength_input_->h() + 5);
     btnOpenMask_->position(btnNewMask_->x() + btnNewMask_->w() + 5, btnNewMask_->y());
     btnUseColor_->position(left + 5, btnOpenMask_->y() + btnOpenMask_->h() + 5);
     btnColor_->position(btnUseColor_->x() + btnUseColor_->w() + 5, btnUseColor_->y());
-    btnSegGDino_->position(left + 5, btnUseColor_->y() + btnUseColor_->h() + 5);
+    btnPixelate_->position(left + 5, btnColor_->y() + btnColor_->h() + 5);
+    btnFromPalette_->position(btnPixelate_->x() + btnPixelate_->w() + 5, btnPixelate_->y());
+    btnSegGDino_->position(left + 5, btnFromPalette_->y() + btnFromPalette_->h() + 5);
     btnSegSapiens_->position(btnSegGDino_->x() + btnSegGDino_->w() + 5, btnSegGDino_->y());
 }
 
@@ -275,7 +335,17 @@ void ImageFrame::configure_mask_color() {
 }
 
 void ImageFrame::configure_mask_color_enabled() {
-    img_->enable_color_mask_editor(btnUseColor_->down());
+    if (img_->view_settings()->layer_count() < 3) {
+        return;
+    }
+    img_->view_settings()->at(0)->focusable(false);
+    if (btnUseColor_->down()) {
+        img_->enable_color_mask_editor(true);
+        img_->view_settings()->at(2)->focusable(false);
+    } else {
+        img_->enable_color_mask_editor(false);
+        img_->view_settings()->at(2)->focusable(true);
+    }
 }
 
 void ImageFrame::handle_event(int event, void *sender) {

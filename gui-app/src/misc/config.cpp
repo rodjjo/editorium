@@ -58,19 +58,6 @@ namespace editorium
         }
 
         try {
-            auto load_map = [&cf] (const char *key, std::map<std::string, std::string> & output) {
-                if (cf.contains(key) && cf[key].is_object()) {
-                    auto hist =  cf[key];
-                    output.clear();
-                    for (auto it = hist.begin(); it != hist.end(); ++it) {
-                        output[it.key()] = it.value().get<std::string>();
-                    }
-                }
-            };
-
-            load_map("open_history", last_open_dirs);
-            load_map("save_history", last_save_dirs);
-
             auto load_key = [&cf] (const char *key, const char *sub_key, const char *default_value="") -> std::string {
                 std::string r = default_value;
                 if (!cf.contains(key)) {
@@ -142,16 +129,6 @@ namespace editorium
     bool Config::save() {
         json cf;
         try {
-            auto store_map = [&cf] (const char *key, const std::map<std::string, std::string> & input) {
-                json d;
-                for (const auto & v: input) {
-                    d[v.first.c_str()] = v.second;
-                }
-                cf[key] = d;
-            };
-            store_map("open_history", last_open_dirs);
-            store_map("save_history", last_save_dirs);
-            
             json dirs;
             dirs["profiles_dir"] = profiles_dir_;
             cf["directories"] = dirs;
@@ -194,32 +171,6 @@ namespace editorium
         }
         save_config(cf);
         return true;
-    }
-
-    std::string Config::last_save_directory(const char *scope) {
-        auto it = last_save_dirs.find(scope);
-        if (last_save_dirs.end() != it) {
-            return it->second;
-        }
-        return std::string();
-    }
-
-    std::string Config::last_open_directory(const char *scope) {
-        auto it = last_open_dirs.find(scope);
-        if (last_open_dirs.end() != it) {
-            return it->second;
-        }
-        return std::string();
-    }
-
-    void Config::last_save_directory(const char *scope, const char* value) {
-        last_save_dirs[scope] = value;
-        save();
-    }
-
-    void Config::last_open_directory(const char *scope, const char* value) {
-        last_open_dirs[scope] = value;
-        save();
     }
 
     std::string Config::profiles_dir() {

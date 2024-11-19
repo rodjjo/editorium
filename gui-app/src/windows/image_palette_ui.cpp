@@ -7,6 +7,7 @@ namespace editorium
 {
 
 ImagePalleteWindow::ImagePalleteWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 - 290 / 2, 768, 640, "Image palette - Select an image") {
+    this->set_modal();
     this->begin();
     img_ = new ImagePanel(0, 0, 1, 1, "ImagePaletteImagePanel");
     pinned_ = new Fl_Check_Button(0, 0, 1, 1, "Pin this image");
@@ -94,6 +95,7 @@ image_ptr_t ImagePalleteWindow::get_picked_image() {
     }
     return r;
 }
+
 void ImagePalleteWindow::show_current_image() {
     if (selected_index_ < get_image_palette_count()) {
         img_->view_settings()->clear_layers();
@@ -104,6 +106,7 @@ void ImagePalleteWindow::show_current_image() {
     }
     update_title();
 }
+
 void ImagePalleteWindow::go_next_image() {
     if (selected_index_ < get_image_palette_count() - 1) {
         selected_index_++;
@@ -124,7 +127,7 @@ void ImagePalleteWindow::go_prior_image() {
 }
 
 
-image_ptr_t pickup_image_from_pallet() {
+image_ptr_t pickup_image_from_palette() {
     image_ptr_t r;
 
     if (get_image_palette_count() < 1) {

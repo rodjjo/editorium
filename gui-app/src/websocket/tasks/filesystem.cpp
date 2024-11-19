@@ -8,7 +8,6 @@ namespace editorium {
 namespace ws {
 namespace filesystem {
     image_ptr_t load_image(const std::string &path) {
-        printf("Loading image: %s\n", path.c_str());
         std::ifstream file(path, std::ios::binary);
         std::vector<char> buffer(std::istreambuf_iterator<char>(file), {});
         auto encoded = base64_encode((const unsigned char *)buffer.data(), buffer.size());

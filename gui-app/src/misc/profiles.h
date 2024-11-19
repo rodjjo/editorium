@@ -23,4 +23,10 @@ bool prompt_profile_get_boolean(const std::vector<std::string>& key, bool defaul
 std::string chatbot_profile_get_string(const std::vector<std::string>& key, const std::string& default_value = "");
 void chatbot_profile_set_string(const std::vector<std::string>& key, const std::string& value);
 
+void dialogs_load_profile();
+void dialogs_save_profile();
+std::string dialogs_profile_get_string(const std::vector<std::string>& key, const std::string& default_value = "");
+void dialogs_profile_set_string(const std::vector<std::string>& key, const std::string& value);
+
+
 }

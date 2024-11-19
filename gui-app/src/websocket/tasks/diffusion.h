@@ -31,6 +31,7 @@ typedef struct {
     float ipadapter_strength = 1.0;
     unsigned int mask_dilate_size = 3;
     unsigned int mask_blur_size = 3;
+    bool use_tiny_vae = false;
     std::string inpaint_mode = "original";
     std::vector<editorium::image_ptr_t> images;
     std::vector<editorium::image_ptr_t> masks;
@@ -48,6 +49,7 @@ typedef struct {
     bool support_textual_inversion = false;
     bool support_base_model = false;
     bool support_speed_mode = false;
+    bool support_tiny_vae = false;
 } architecture_features_t;
 
 std::vector<std::pair<std::string, std::string> > list_architectures();

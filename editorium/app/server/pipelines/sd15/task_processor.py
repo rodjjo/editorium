@@ -421,13 +421,13 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
 
     print(f"Generating SD 1.5 image with model {model_name}")
     print(f"Adapter models: {adapter_models}")
-    
+    use_lcm = params.get('use_lcm', False)
     sd15_models.load_models(
         model_name, 
         inpainting_mode=inpaint_mask is not None,
         image2image=inpaint_image is not None,
         lora_list=lora_list,
-        use_lcm=False,
+        use_lcm=use_lcm,
         scheduler_name='EulerAncestralDiscreteScheduler',
         use_float16=True,
         controlnet_models=controlnet_models,
