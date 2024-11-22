@@ -279,6 +279,8 @@ void ImageFrame::combobox_selected() {
         choice_brush_size_->show();
         choice_inpaint_mode_->show();
         strength_input_->show();
+        btnPixelate_->show();
+        btnFromPalette_->show();
     } else {
         btnNewMask_->hide();
         btnColor_->hide();
@@ -288,6 +290,8 @@ void ImageFrame::combobox_selected() {
         btnSegSapiens_->hide();
         choice_brush_size_->hide();
         choice_inpaint_mode_->hide();
+        btnPixelate_->hide();
+        btnFromPalette_->hide();
         if (choice_mode_->value() > 0) {
             strength_input_->show();
         } else {

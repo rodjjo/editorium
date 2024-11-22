@@ -131,6 +131,9 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
         pipe = lambda *args, **kwargs: sdxl_models.pipe(*args, **kwargs).images 
     
     report(f"Generating image with model {unet_model if unet_model else model_name}")
+    if lora_repo_id:
+        print(f"Using LoRA model {lora_repo_id} with scale {lora_scale}")
+        add_args['cross_attention_kwargs'] = {"scale": lora_scale}
     
     if mode == 'inpaint':
         mask_dilate_size = params.get('mask_dilate_size', 0)

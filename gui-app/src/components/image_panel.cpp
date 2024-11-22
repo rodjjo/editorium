@@ -1346,10 +1346,6 @@ namespace editorium
         if (!mouse_down_alt_ && !mouse_down_control_ && mouse_down_shift_ && enable_colored_mask_editor()) {
             if (view_settings_->layer_count() > 0) {
                 auto img = view_settings_->at(0)->getImage();
-                // pickup the color from the image at x and y
-                // move_x = (move_x) / getZoom() - view_settings_->cache()->get_scroll_x();
-                // move_y = (move_y) / getZoom() - view_settings_->cache()->get_scroll_y();
-               // uint8_t r, g, b, a;
                 uint8_t gl_color[4] = {255, 255, 255, 255};
                 if (move_x >= 0 && move_y >= 0 && move_x < this->w() && move_y < this->h()) {
                     glReadPixels(move_x, this->h() - move_y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, gl_color);

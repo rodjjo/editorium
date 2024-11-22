@@ -24,6 +24,7 @@ class ImagePalleteWindow: public Fl_Window  {
     void widget_cb(Fl_Widget* widget);
     void update_title();
     void show_current_image();
+    void save_current_image();
 
  private:
     bool confirmed_ = false;
@@ -33,6 +34,7 @@ class ImagePalleteWindow: public Fl_Window  {
     size_t                  selected_index_  = 0;
     ImagePanel              *img_;
     Fl_Check_Button         *pinned_;
+    std::unique_ptr<Button> btnSave_;
     std::unique_ptr<Button> btnPrior_;
     std::unique_ptr<Button> btnNext_;
     std::unique_ptr<Button> btnOk_;

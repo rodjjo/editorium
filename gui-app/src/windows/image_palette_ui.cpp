@@ -1,7 +1,8 @@
 #include "misc/dialogs.h"
-#include "windows/image_palette_ui.h"
+#include "websocket/tasks.h"
 #include "components/xpm/xpm.h"
 #include "images/image_palette.h"
+#include "windows/image_palette_ui.h"
 
 namespace editorium
 {
@@ -27,6 +28,9 @@ ImagePalleteWindow::ImagePalleteWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::
     btnCancel_.reset(new Button(xpm::image(xpm::img_24x24_abort), [this] {
         this->hide();        
     }));
+    btnSave_.reset(new Button(xpm::image(xpm::img_24x24_flash_drive), [this] {
+        save_current_image();
+    }));
 
     this->end();    
     align_components();
@@ -35,6 +39,10 @@ ImagePalleteWindow::ImagePalleteWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::
     show_current_image();
 
     pinned_->callback(widget_cb, this);
+
+    btnSave_->tooltip("Save the current image");
+    btnNext_->tooltip("Next image");
+    btnPrior_->tooltip("Prior image");    
 }    
 
 ImagePalleteWindow::~ImagePalleteWindow() {
@@ -81,6 +89,8 @@ void ImagePalleteWindow::align_components() {
     btnPrior_->size(30, 30);
     btnNext_->position(btnPrior_->x() + btnPrior_->w() + 2, btnPrior_->y());
     btnNext_->size(30, 30);
+    btnSave_->position(btnNext_->x() + btnNext_->w() + 2, btnNext_->y());
+    btnSave_->size(30, 30);
 
     btnOk_->position(this->w() - 215, this->h() - 40);
     btnOk_->size(100, 30);
@@ -114,7 +124,18 @@ void ImagePalleteWindow::go_next_image() {
     if (selected_index_ < get_image_palette_count()) {
         show_current_image();
     }
-    
+}
+
+void ImagePalleteWindow::save_current_image() {
+    if (selected_index_ < get_image_palette_count()) {
+        auto img = get_image_palette(selected_index_);
+        if (img) {
+            std::string result = choose_image_to_save_fl("image_palette");
+            if (!result.empty()) {
+                ws::filesystem::save_image(result, img, result.find(".png") != std::string::npos);
+            }
+        }
+    }
 }
 
 void ImagePalleteWindow::go_prior_image() {

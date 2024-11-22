@@ -28,8 +28,58 @@ def generate_text(repo_id: str,
     if type(image) is not list:
         image = [image]
         
-    msgs = [{'role': 'user', 'content': prompt}]
+    prompt_texts = []
+    prompt = prompt.split('\n')
+    prompt = [p.strip() for p in prompt if p]
+    text = ''
+    for p in prompt:
+        p = p.strip()
+        if p == '':
+            continue
+        if p.lower() == 'next-turn:':
+            prompt_texts.append(text)
+            text = ''
+        else:
+            text += p + '\n'
+    if text:
+        prompt_texts.append(text)
     
+    message_texts = []    
+    for p in prompt_texts:
+        role = 'user'
+        user_text = ''
+        assistant_text = ''
+        messages = []
+        for line in p.split('\n'):
+            if line.lower() ==  'user:':
+                if assistant_text:
+                    messages.append({'role': role, 'content': assistant_text})
+                    assistant_text = ''
+                if user_text:
+                    messages.append({'role': role, 'content': user_text})
+                user_text = ''
+                role = 'user'
+                continue
+            if line.lower() == 'assistant:':
+                if user_text:
+                    messages.append({'role': role, 'content': user_text})
+                    user_text = ''
+                if assistant_text:
+                    messages.append({'role': role, 'content': assistant_text})
+                assistant_text = ''
+                role = 'assistant'
+                continue
+            if role == 'assistant':
+                assistant_text += '\n' + line
+            else:
+                user_text += '\n' + line
+
+        if user_text:
+            messages.append({'role': role, 'content': user_text})
+        if assistant_text:
+            messages.append({'role': role, 'content': assistant_text})
+        message_texts.append(messages)
+      
     chatvision_model.load_models(repo_id=repo_id)
     responses = []
     
@@ -37,18 +87,25 @@ def generate_text(repo_id: str,
     with torch.no_grad():
         for i, img in enumerate(image):
             ProgressBar.set_progress(i * 100.0/ len(image))
-            response = chatvision_model.model.chat(
-                image=img,
-                msgs=msgs,
-                tokenizer=chatvision_model.tokenizer,
-                sampling=True, # if sampling=False, beam_search will be used by default
-                temperature=temperature,
-                system_prompt=system_prompt
-            )
-            response = response.split('\n')
-            response = [r.strip() for r in response if r]
-            response = '\n'.join([r for r in response if r])
-            responses.append(response)
+            turn_result = []
+            for msgs in message_texts:
+                response = chatvision_model.model.chat(
+                    image=img,
+                    msgs=msgs,
+                    #repetition_penalty=1.0,
+                    tokenizer=chatvision_model.tokenizer,
+                    sampling=True, # if sampling=False, beam_search will be used by default
+                    temperature=temperature,
+                    system_prompt=system_prompt
+                )
+                turn_result.append(response)
+            for index, response in enumerate(turn_result):
+                response = response.split('\n')
+                response = [r.strip() for r in response if r.strip()]
+                response = '\n'.join([r for r in response if r])
+                turn_result[index] = response
+                
+            responses.append('\n\n'.join(turn_result))
 
     return {
         "texts": responses,

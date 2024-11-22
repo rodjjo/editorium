@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <map>
 #include <FL/Fl.H>
 #include <FL/fl_ask.H>
@@ -28,11 +29,13 @@ namespace editorium
             event_main_menu_clicked,
             event_main_menu_file_new_art,
             event_main_menu_file_new_drawing,
+            event_main_menu_file_new_empty,
             event_main_menu_file_open,
             event_main_menu_file_save,
             event_main_menu_file_open_layer,
             event_main_menu_file_dir_prior,
             event_main_menu_file_dir_next,
+            event_main_menu_file_dir_remove,
             event_main_menu_file_close,
             event_main_menu_edit_settings,
             event_main_menu_layers_duplicate,
@@ -90,12 +93,14 @@ namespace editorium
 
             menu_->addItem(event_main_menu_file_new_art, "", "File/New Art", "^n", 0, xpm::img_24x24_new);
             menu_->addItem(event_main_menu_file_new_drawing, "", "File/New Drawing", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_file_new_empty, "", "File/New blank", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_open, "", "File/Open", "^o", 0, xpm::img_24x24_open);
             menu_->addItem(event_main_menu_file_save, "", "File/Save", "^s", 0, xpm::img_24x24_flash_drive);
             menu_->addItem(event_main_menu_file_close, "", "File/Close", "^x", 0, xpm::img_24x24_close);
             menu_->addItem(event_main_menu_file_open_layer, "", "File/Open as Layer", "^l", 0, xpm::img_24x24_open_layer);
             menu_->addItem(event_main_menu_file_dir_prior, "", "File/Directory/Open Prior", "^8", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_dir_next, "", "File/Directory/Open Next", "^9", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_file_dir_remove, "", "File/Directory/Remove current image", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_exit, "", "File/Exit", "", 0, xpm::img_24x24_exit);
             menu_->addItem(event_main_menu_edit_settings, "", "Edit/Settings", "", 0, xpm::img_24x24_settings);
             menu_->addItem(event_main_menu_layers_duplicate, "", "Layers/Duplicate", "^d", 0, xpm::img_24x24_copy);
@@ -327,6 +332,9 @@ namespace editorium
         case event_main_menu_file_new_drawing:
             new_drawing(true);
             break;
+        case event_main_menu_file_new_empty:
+            create_empty_image();
+            break;
         case event_main_menu_selection_generate:
             create_image(true);
             break;
@@ -387,6 +395,9 @@ namespace editorium
         case event_main_menu_file_dir_next:
             open_next_image(Fl::event_state(FL_CTRL) != 0);
         break;
+        case event_main_menu_file_dir_remove:
+            delete_last_open_image();
+            break;
         case event_main_menu_file_save:
             choose_file_and_save();
             break;
@@ -524,6 +535,8 @@ namespace editorium
                 image_->view_settings()->clear_layers();
             }
             image_->view_settings()->add_layer(path.c_str());
+            image_->view_settings()->setZoom(100);
+            image_->clear_scroll();
             last_open_image_ = path;
             if (clear_layers) {
                 resizeSelection(-1);
@@ -554,6 +567,21 @@ namespace editorium
                 }
             }
             open_image_file(true, next);
+        }
+    }
+
+    void MainWindow::delete_last_open_image() {
+        if (last_open_image_.empty() || !path_exists(last_open_image_.c_str())) {
+            return;
+        }
+        std::string message = "Do you want to delete the last opened image ?\nIt's not possible to undo this action.";
+        if (!ask((message + "\n\n" + last_open_image_).c_str())) {
+            return;
+        }
+        if (std::remove(last_open_image_.c_str()) == 0) {
+            fl_alert("The file was deleted successfully");
+        } else {
+            fl_alert("The file could not be deleted");
         }
     }
 
@@ -821,12 +849,26 @@ namespace editorium
             } else {
                 image_->view_settings()->clear_layers();
                 image_->view_settings()->add_layer(img);
-
             }
+            image_->view_settings()->setZoom(100);
+            image_->clear_scroll();
         } 
     }
+    void MainWindow::create_empty_image() {
+        int w = 512, h = 512;
+        if (!getSizeFromDialog("Resize the selection area", &w, &h)) {
+            return;
+        }
+        auto img = newImage(w, h, true);
+        if (img) {
+            image_->view_settings()->clear_layers();
+            image_->view_settings()->add_layer(img);
+            image_->view_settings()->setZoom(100);
+            image_->clear_scroll();
+        }
+    }
 
-      void MainWindow::resizeSelection(int width) {
+    void MainWindow::resizeSelection(int width) {
         int x1 = 0, x2 = 0, y1 = 0, y2 = 0;
         image_->view_settings()->get_selected_area(&x1, &y1, &x2, &y2);
         x2 += x1;
@@ -898,6 +940,6 @@ namespace editorium
         } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
             image_->view_settings()->set_selected_area(x1, y1, w, h);
         } 
-      }
+    }
 
 } // namespace editorium

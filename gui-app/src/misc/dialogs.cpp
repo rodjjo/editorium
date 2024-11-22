@@ -95,16 +95,17 @@ std::string choose_image_to_save_fl(const std::string& scope) {
     }
     Fl_File_Chooser dialog(current_dir.c_str(), kIMAGE_FILES_FILTER_FL, Fl_File_Chooser::SINGLE | Fl_File_Chooser::CREATE, "Save image");
     std::string result = executeChooser(&dialog);
-    
     if (!result.empty() && path_exists(result.c_str())) {
         if (!ask("Do you want to replace the destination file ?")) {
             result.clear();
-        } else {
-            size_t latest = result.find_last_of("/\\");
-            current_dir = result.substr(0, latest);
-            dialogs_profile_set_string({scope.c_str(), "last_save_directory"}, current_dir.c_str());
-            dialogs_save_profile();
         }
+    }
+
+    if (!result.empty())  {
+        size_t latest = result.find_last_of("/\\");
+        current_dir = result.substr(0, latest);
+        dialogs_profile_set_string({scope.c_str(), "last_save_directory"}, current_dir.c_str());
+        dialogs_save_profile();
     }
 
     return result;

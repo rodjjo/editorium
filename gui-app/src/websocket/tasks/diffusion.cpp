@@ -259,10 +259,15 @@ std::pair<json, json> create_flux_diffusion_request(const diffusion_request_t &r
     float lora_scale = 1.0;
     std::string lora_name;
     if (!request.loras.empty() && request.loras[0].size() < 1024) {
-        char lora_name_cstr[1024];
-        if (sscanf(request.loras[0].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
-            lora_name = lora_name_cstr;
+        
+        size_t sep_pos = request.loras[0].find(':');
+        if (sep_pos != std::string::npos) {
+            lora_name = request.loras[0].substr(0, sep_pos);
+            lora_scale = std::stof(request.loras[0].substr(sep_pos + 1));
+        } else {
+            lora_name = request.loras[0];
         }
+        lora_name += ".safetensors";
     }
 
     float controlnet_scale = 1.0;
@@ -335,22 +340,17 @@ std::pair<json, json> create_sd35_diffusion_request(const diffusion_request_t &r
     float lora_scale = 1.0;
     std::string lora_name;
     if (!request.loras.empty() && request.loras[0].size() < 1024) {
-        char lora_name_cstr[1024];
-        if (sscanf(request.loras[0].c_str(), "%s:%f", lora_name_cstr, &lora_scale) == 2) {
-            lora_name = lora_name_cstr;
+        
+        size_t sep_pos = request.loras[0].find(':');
+        if (sep_pos != std::string::npos) {
+            lora_name = request.loras[0].substr(0, sep_pos);
+            lora_scale = std::stof(request.loras[0].substr(sep_pos + 1));
+        } else {
+            lora_name = request.loras[0];
         }
+        lora_name += ".safetensors";
     }
 
-    /*
-    float controlnet_scale = 1.0;
-    image_ptr_t controlnet_image;
-    std::string controlnet_type;
-    if (!request.controlnets.empty()) {
-        controlnet_scale = request.controlnets[0].first.second;
-        controlnet_image = request.controlnets[0].second;
-        controlnet_type = request.controlnets[0].first.first;
-    }
-    */
 
     config["prompt"] = request.prompt;
     config["model_name"] = get_config()->sd35_base_model();
@@ -367,13 +367,6 @@ std::pair<json, json> create_sd35_diffusion_request(const diffusion_request_t &r
     config["transformer2d_model"] = request.model_name;
     config["lora_repo_id"] = lora_name;
     config["lora_scale"] = lora_scale;
-
-    /*
-    if (controlnet_image) {
-        config["controlnet_type"] = controlnet_type;
-        config["controlnet_conditioning_scale"] = controlnet_scale;
-    }
-    */
 
     api_payload_t images;
     images.images = request.images;

@@ -15,5 +15,6 @@ std::vector<std::string> list_directory_files(const std::string& path, const std
 std::string extract_directory(const std::string& path);
 std::string the_item_after(const std::vector<std::string> contents, const std::string& current);
 std::string the_item_before(const std::vector<std::string> contents, const std::string& current);
+bool file_exists(const std::string& path);
 
 }

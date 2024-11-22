@@ -51,14 +51,14 @@ namespace {
     }
 }
 
-DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 - 1024 / 2, Fl::h() / 2 - 680 / 2, 1024, 680, "Image palette - Select an image"),
+DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 - 1024 / 2, Fl::h() / 2 - 680 / 2, 1024, 680, "Image drawing tool"),
         SubscriberThis(drawing_ui_events) {
     this->set_modal();
 
     image_ = pixelate_image(reference_img);
     
     this->begin();
-    image_panel_ = new LayerDrawingImagePanel(0, 0, 1, 1, "Image");
+    image_panel_ = new LayerDrawingImagePanel(0, 0, 1, 1, "DrawingWindowImage");
     image_panel_->view_settings()->add_layer(newImage(image_->w(), image_->h(), true));
     image_panel_->enable_color_mask_editor(true);
     image_panel_->view_settings()->set_mask();
@@ -156,10 +156,12 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
     seed_input_->value(buffer);
     btnSettings_->tooltip("Prompt and other settings...");
     btnRandomSeed_->tooltip("Randomizes the seed");
-    btnPinSeed_->tooltip("When pinned, it does not change the current after generating images");
+    btnPinSeed_->tooltip("Pin the current seed");
     btnFromPalette_->tooltip("Pick an image from the image palette");
     btnToPalette_->tooltip("Send the generated image to the image palette");
     btnUseCurrent_->tooltip("Use the current image as the reference");
+    btnFirstPass_->tooltip("Generates an image based on the drawing [SHORTCUT: F1]");
+    btnSecondPass_->tooltip("Improves the imaeg generated on the first pass [SHORTCUT: F2]");
     settings_panel_->hide();
     align_components();
     load_arch_models();
@@ -417,7 +419,7 @@ void DrawingWindow::generate_image(bool second_pass) {
     }
     params.prompt = prompt;
     params.negative_prompt = "";
-    params.seed = second_pass ? -1 : get_seed();
+    params.seed = get_seed();
     params.steps = second_pass ? 4 : 8;
     params.correct_colors = false;
     params.batch_size = 1;
@@ -430,7 +432,7 @@ void DrawingWindow::generate_image(bool second_pass) {
     params.use_lcm = true;
     params.use_tiny_vae = true;
     params.use_float16 = true;
-    params.image_strength = second_pass ? 0.50 : 0.65;
+    params.image_strength = second_pass ? 0.70 : 0.50;
     params.inpaint_mode = "original"; 
 
     auto img2 = image_panel_->view_settings()->at(second_pass ? 0 : 1)->getImage();

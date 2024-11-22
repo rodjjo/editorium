@@ -60,12 +60,14 @@ private:
     void resize_image();
     void correct_colors();
     void create_image(bool selection);
+    void create_empty_image();
     void open_prior_image(bool confirm=false);
     void open_next_image(bool confirm=false);
     void open_other_image(bool next, bool confirm);    
     void open_image_file(bool clear_layers, const std::string& path);
     void new_drawing(bool clear_layers);
     void new_drawing_from_selection();
+    void delete_last_open_image();
 
 private:
     std::string last_open_image_;
