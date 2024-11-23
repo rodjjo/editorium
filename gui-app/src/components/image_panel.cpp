@@ -326,7 +326,7 @@ namespace editorium
 
     image_ptr_t ViewSettings::get_selected_image() {
         image_ptr_t r;
-        int sx, sy, sw, sh;
+        int sx = 0, sy = 0, sw = 0, sh = 0;
         if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
             auto merged = merge_layers_to_image(true);
             r = merged->getCrop(sx, sy, sw, sh);
@@ -338,34 +338,15 @@ namespace editorium
         int sx, sy, sw, sh;
         // get the selected area...
         if (get_selected_area(&sx, &sy, &sw, &sh)) {
+            // printf("Selected area: %d, %d, %d, %d\n", sx, sy, sw, sh);
             // get the final image area
-            int iax, iay, iaw, iah;
-            get_image_area(&iax, &iay, &iaw, &iah);
-
-            // constraint the selection inside the image
-            if (sx < iax) {
-                sw -= (iax - sw);
-                sx = iax;
-            }
-
-            if (sy < iay) {
-                sh -= (iay - sh);
-                sy = iay;
-            }
-
-            if (sx + sw > iaw) {
-                sw = sw - (iaw - (sx + sw));
-            }
-
-            if (sy + sh > iah) {
-                sh = sh - (iah - (sy + sh));
-            }
+            // int iax, iay, iaw, iah;
+            // get_image_area(&iax, &iay, &iaw, &iah);
 
             *x = sx;
             *y = sy;
             *w = sw;
             *h = sh;
-
             return true;
         }
         return false;

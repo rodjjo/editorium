@@ -3,6 +3,7 @@ import os
 
 import torch
 from transformers import AutoModel, AutoTokenizer
+from huggingface_hub import snapshot_download
 from pipelines.common.model_manager import ManagedModel
 
 
@@ -19,6 +20,12 @@ class ChatvisionModels(ManagedModel):
         self.model = None
         self.tokenizer = None
         self.repo_id = None
+        
+    def get_vision_model_dir(self):
+        return self.model_dir('chatboots', 'vision')
+    
+    def get_vision_model_path(self, repo_id):
+        return os.path.join(self.get_vision_model_dir(), repo_id)
         
     def release_model(self):
         self.model = None
@@ -38,7 +45,9 @@ class ChatvisionModels(ManagedModel):
             return
         self.release_model()
         self.repo_id = repo_id
-        self.tokenizer, self.model = load_model(repo_id)
+        model_path = self.get_vision_model_path(repo_id)
+        snapshot_download(repo_id=repo_id, local_dir=model_path)
+        self.tokenizer, self.model = load_model(model_path)
 
 chatvision_model = ChatvisionModels()
 

@@ -92,7 +92,8 @@ def generate_text(repo_id: str,
                 response = chatvision_model.model.chat(
                     image=img,
                     msgs=msgs,
-                    #repetition_penalty=1.0,
+                    #repetition_penalty=1.5,
+                    #max_new_tokens=256,
                     tokenizer=chatvision_model.tokenizer,
                     sampling=True, # if sampling=False, beam_search will be used by default
                     temperature=temperature,
