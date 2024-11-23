@@ -766,6 +766,37 @@ image_ptr_t RawImage::negative_mask() {
     return img;
 }
 
+image_ptr_t RawImage::create_mask_from_alpha_channel() {
+    image_ptr_t r;
+    if (this->format() != img_rgba) {
+        return r;
+    }
+    r.reset(new RawImage(NULL, this->w(), this->h(), img_rgba, false));
+    bool masked = false;
+    unsigned char *p = r->buffer_;
+    unsigned char *s = this->buffer_;
+    s += 3; // use the alpha channel 
+    for (int i = 0; i < r->buffer_len_; i += 4) {
+        if (!*s) {
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 255; ++p;
+            masked = true;
+        } else {
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 0; ++p;
+        }
+        s += 4;
+    }
+    if (!masked) {
+        return image_ptr_t();
+    }
+    return r->dilate(4);
+}
+
 image_ptr_t RawImage::resizeLeft(int value) {
     auto img = std::make_shared<RawImage>(
         (const unsigned char *) NULL, this->w() + value, this->h(), img_rgba, false

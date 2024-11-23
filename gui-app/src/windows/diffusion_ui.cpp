@@ -97,9 +97,11 @@ namespace editorium
             right_panel_->end();
         }
 
+        image_ptr_t reference_mask;
         image_ptr_t reference_img;
         if (view_settings_) {
-            reference_img = view_settings_->get_selected_image();
+            reference_mask = view_settings_->get_selected_image()->create_mask_from_alpha_channel();
+            reference_img = view_settings_->get_selected_image()->removeAlpha();
         }
 
         page_type_t where;
@@ -119,6 +121,12 @@ namespace editorium
                     if (reference_img) {
                         images_[where]->view_settings()->set_image(reference_img);
                         images_[where]->cancel_refresh();
+                        if (reference_mask) {
+                            images_[where]->view_settings()->set_mask();
+                            if (images_[where]->view_settings()->layer_count() > 2) {
+                                images_[where]->view_settings()->at(2)->replace_image(reference_mask);
+                            }
+                        }
                     }
                 } else {
                     images_[where] = new NonEditableImagePanel(0, 0, 1, 1, titles_[where].c_str());

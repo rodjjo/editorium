@@ -68,6 +68,7 @@ class RawImage {
     image_ptr_t rotate();
     image_ptr_t invert_mask();
     image_ptr_t negative_mask();
+    image_ptr_t create_mask_from_alpha_channel();
     json toJson();
     
     void clear(uint8_t r, uint8_t g, uint8_t b, uint8_t a);

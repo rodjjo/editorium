@@ -335,6 +335,10 @@ void ImageFrame::configure_mask_color() {
     if (pickup_color("Foreground color", &r, &g, &b)) {
         btnColor_->setColor(r, g, b);
         img_->color_mask_color(r, g, b, a);
+        if (!btnUseColor_->down()) {
+            btnUseColor_->down(true);
+            configure_mask_color_enabled();
+        }
     }
 }
 
