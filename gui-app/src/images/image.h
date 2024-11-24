@@ -49,6 +49,7 @@ class RawImage {
     image_ptr_t rgba_mask_into_black_white(bool invert_colors=false);
     image_ptr_t removeAlpha();
     image_ptr_t addAlpha();
+    image_ptr_t to_rgb();
     image_ptr_t resizeCanvas(uint32_t x, uint32_t y);
     image_ptr_t resizeImage(uint32_t x, uint32_t y);
     image_ptr_t resizeImage(uint32_t size);

@@ -410,6 +410,16 @@ void RawImage::fuseAt(int x, int y, RawImage *image) {
     }
 }
 
+image_ptr_t RawImage::to_rgb() {
+    if (format_ == img_rgb) {
+        return duplicate();
+    }
+    image_ptr_t r;
+    r.reset(new RawImage(NULL, w_, h_, img_rgb, false));
+    r->pasteAt(0, 0, this);
+    return r;
+}
+
 image_ptr_t RawImage::resize_down_alpha() {
     /*
         Resize the image to its minimal size considering the alpha channel.
