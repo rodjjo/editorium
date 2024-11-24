@@ -47,8 +47,8 @@ class RawImage {
     image_ptr_t removeBackground(bool white);
     image_ptr_t black_white_into_rgba_mask();
     image_ptr_t rgba_mask_into_black_white(bool invert_colors=false);
-    image_ptr_t removeAlpha();
-    image_ptr_t addAlpha();
+    image_ptr_t to_rgb_mask();
+    image_ptr_t to_rgba();
     image_ptr_t to_rgb();
     image_ptr_t resizeCanvas(uint32_t x, uint32_t y);
     image_ptr_t resizeImage(uint32_t x, uint32_t y);
@@ -65,11 +65,12 @@ class RawImage {
     image_ptr_t erode(int size);
     image_ptr_t dilate(int size);
     image_ptr_t flip(bool vertically);
-    image_ptr_t resize_down_alpha();
+    image_ptr_t resize_min_area_using_alpha();
     image_ptr_t rotate();
     image_ptr_t invert_mask();
     image_ptr_t negative_mask();
     image_ptr_t create_mask_from_alpha_channel();
+    image_ptr_t create_modification_mask(RawImage *modified_image);
     json toJson();
     
     void clear(uint8_t r, uint8_t g, uint8_t b, uint8_t a);

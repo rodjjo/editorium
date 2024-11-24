@@ -17,6 +17,13 @@ namespace {
         "Scale down to fit in 1024x1024",
         "Scale down to fit in 1280x1280"
     };
+    int resize_mode_values[resize_mode_count] = {
+        0,
+        512,
+        768,
+        1024,
+        1280
+    };
     std::string last_prompt;
 }
 
@@ -89,7 +96,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
     for (int i = 0; i < resize_mode_count; i++) {
         resizeModes_->add(resize_mode_texts[i]);
     }
-    resizeModes_->value(resize_fit_1024x1024);
+    resizeModes_->value(0);
     resizeModes_->tooltip("Scale down the image before processing it");
     
     architectures_ = ws::diffusion::list_architectures();
@@ -97,6 +104,7 @@ PromptFrame::PromptFrame(Fl_Group *parent) : SubscriberThis({
         arch_input_->add(arch.second.c_str());
     }
 
+    ensure_min_512_->value(1);
     arch_input_->value(0);
     arch_input_->tooltip("Select the architecture to use");
     
@@ -350,6 +358,15 @@ bool PromptFrame::use_tiny_vae() {
 bool PromptFrame::get_correct_colors() {
     return correct_colors_->value() != 0;
 }
+
+bool PromptFrame::get_ensure_min_512() {
+    return ensure_min_512_->value() != 0;
+}
+
+int PromptFrame::get_scale_down_size() {
+    return resize_mode_values[resizeModes_->value()];
+}
+
 
 void PromptFrame::refresh_models() {
     auto model_list = ws::models::list_models(get_arch(), false);

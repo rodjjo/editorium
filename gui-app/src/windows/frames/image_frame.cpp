@@ -350,9 +350,11 @@ void ImageFrame::configure_mask_color_enabled() {
     if (btnUseColor_->down()) {
         img_->enable_color_mask_editor(true);
         img_->view_settings()->at(2)->focusable(false);
+        img_->view_settings()->at(2)->visible(false);
     } else {
         img_->enable_color_mask_editor(false);
         img_->view_settings()->at(2)->focusable(true);
+        img_->view_settings()->at(2)->visible(true);
     }
 }
 

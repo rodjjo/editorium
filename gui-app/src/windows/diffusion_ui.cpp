@@ -614,8 +614,8 @@ namespace editorium
         params.image_strength = image_frame_->get_strength();
         params.inpaint_mode = "original"; // TODO: get from config
 
-        int original_width = params.width;
-        int original_height = params.height;
+        int useful_w = params.width;
+        int useful_h = params.height;
 
         if (image_frame_->get_mode() != img2img_text) {
             auto img1 = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
@@ -623,22 +623,55 @@ namespace editorium
                 auto img2 = images_[page_type_image]->view_settings()->at(1)->getImage();
                 img1->pasteAt(0, 0, img2);
             }
+
+            if (image_frame_->get_mode() == img2img_inpaint_masked || 
+                image_frame_->get_mode() == img2img_inpaint_not_masked) {
+                if (img1->w() > 512 && img1->h() > 512) {
+                    int max_size = prompt_frame_->get_scale_down_size();
+                    if (max_size > 0) {
+                        if (img1->w() > max_size || img1->h() > max_size) {
+                            if (img1->w() > img1->h()) {
+                                float scale = max_size / (float)img1->w();
+                                img1 = img1->resizeImage((int)(img1->w() * scale), (int)(img1->h() * scale));
+                            } else {
+                                float scale = max_size / (float)img1->h();
+                                img1 = img1->resizeImage((int)(img1->w() * scale), (int)(img1->h() * scale));
+                            }
+                        }
+                    }
+                }
+                if (prompt_frame_->get_ensure_min_512()) {
+                    if (params.width < 512 || params.height < 512) {
+                        if (params.width > params.height) {
+                            float scale = 512.0 / params.width;
+                            params.width = 512;
+                            params.height = (int)(params.height * scale);
+                        } else {
+                            float scale = 512.0 / params.height;
+                            params.height = 512;
+                            params.width = (int)(params.width * scale);
+                        }
+                    }
+                }
+            }
+
             params.images = {img1};
-
-
-            original_width = params.images[0]->w();
-            original_height = params.images[0]->h();
+            useful_w = img1->w();
+            useful_h = img1->h();
             params.images[0] = params.images[0]->ensureMultipleOf8();
             params.width = params.images[0]->w();
             params.height = params.images[0]->h();
+            
             size_t mask_index = images_[page_type_image]->view_settings()->layer_count() > 2 ? 2 : 1;
             if (image_frame_->get_mode() == img2img_inpaint_masked) {
                 params.masks = {images_[page_type_image]->view_settings()->at(mask_index)->getImage()->rgba_mask_into_black_white()};
             } else if (image_frame_->get_mode() == img2img_inpaint_not_masked) {
                 params.masks = {images_[page_type_image]->view_settings()->at(mask_index)->getImage()->rgba_mask_into_black_white(true)};
             }
-            
             if (!params.masks.empty()) {
+                if (params.masks[0]->w() != img1->w() || params.masks[0]->h() != img1->h()) {
+                    params.masks[0] = params.masks[0]->resizeImage(img1->w(), img1->h());
+                }
                 params.masks[0] = params.masks[0]->ensureMultipleOf8();
             }
         }
@@ -686,8 +719,30 @@ namespace editorium
         auto result = run_diffusion(params);
 
         if (!result.empty()) {
-            if (image_frame_->get_mode() == img2img_inpaint_masked || 
-                image_frame_->get_mode() == img2img_inpaint_not_masked) {
+            for (auto & img : result) {
+                if (img->w() != useful_w || img->h() != useful_h) {
+                    img = img->getCrop(0, 0, useful_w, useful_h); // remove padding
+                }
+            }
+
+            if (!params.masks.empty() && (image_frame_->get_mode() == img2img_inpaint_masked || 
+                image_frame_->get_mode() == img2img_inpaint_not_masked)) {
+                auto original_image = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+                auto mask = params.masks[0];
+                mask = mask->getCrop(0, 0, useful_w, useful_h); // remove padding
+                mask = mask->resizeImage(original_image->w(), original_image->h());
+                mask = mask->dilate(3);
+                mask = mask->black_white_into_rgba_mask();
+                mask = mask->blur(3);
+                for (size_t i = 0; i < result.size(); i++) {
+                    auto result_img = result[i];
+                    if (result_img->w() != original_image->w() || result_img->h() != original_image->h()) {
+                        result_img = result_img->resizeImage(original_image->w(), original_image->h());
+                        auto new_img = original_image->duplicate();
+                        new_img->pasteAt(0, 0, mask.get(), result_img.get());
+                        result[i] = new_img;
+                    }
+                }
             }
             size_t index = results_.size();
             for (auto & img : result) {

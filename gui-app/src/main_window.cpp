@@ -438,7 +438,7 @@ namespace editorium
         case event_main_menu_layers_minimize_selected:
             if (image_->view_settings()->selected_layer()) {
                 image_->view_settings()->selected_layer()->replace_image(
-                    image_->view_settings()->selected_layer()->getImage()->resize_down_alpha()
+                    image_->view_settings()->selected_layer()->getImage()->resize_min_area_using_alpha()
                 );
             } else {
                 fl_alert("No layer selected");
@@ -557,6 +557,17 @@ namespace editorium
         }
         std::string current_dir = extract_directory(last_open_image_);
         std::vector<std::string> files = list_directory_files(current_dir, {".jpg", ".jpeg", ".png"});
+        bool found = false;
+        for (size_t i = 0; i < files.size(); i++) {
+            if (files[i] == last_open_image_) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            files.push_back(last_open_image_);
+            std::sort(files.begin(), files.end());
+        }
         std::string next = next_direction ? the_item_after(files, last_open_image_) : the_item_before(files, last_open_image_);
         if (next.empty()) {
             fl_alert("No prior image found");
@@ -638,6 +649,7 @@ namespace editorium
             auto img = image_->view_settings()->merge_layers_to_image();
             if (img) {
                 ws::filesystem::save_image(result, img, result.find(".png") != std::string::npos);
+                last_open_image_ = result;
             }
         }
     }

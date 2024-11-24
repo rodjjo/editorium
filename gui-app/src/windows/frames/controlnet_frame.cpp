@@ -231,7 +231,7 @@ image_ptr_t ControlnetFrame::getImage() {
         if (getModeStr() == "depth" || getModeStr() == "segmentation" || getModeStr() == "pose") {
             r = img_->view_settings()->at(0)->getImage()->duplicate();
         } else {
-            r = img_->view_settings()->at(0)->getImage()->removeAlpha();
+            r = img_->view_settings()->at(0)->getImage()->to_rgb_mask();
         }
     }
     

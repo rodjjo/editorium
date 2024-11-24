@@ -50,6 +50,8 @@ public:
     bool use_tiny_vae();
     bool get_correct_colors();
     void save_profile();
+    bool get_ensure_min_512();
+    int get_scale_down_size();
 
     bool validate();
     void refresh_models();

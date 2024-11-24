@@ -391,7 +391,7 @@ namespace editorium
 
                 auto fg_img = newImage(selected_->getImage()->w(), selected_->getImage()->h(), false);
                 fg_img = fg_img->pasteAtNoBackground(0, 0, mask_copy.get(), fg->getImage());
-                fg->replace_image(fg_img->resize_down_alpha());
+                fg->replace_image(fg_img->resize_min_area_using_alpha());
                 add_layer(fg);
             }
         }
@@ -774,7 +774,7 @@ namespace editorium
         int sx, sy, sw, sh;
         int sx0, sy0;
         get_image_area(&iax, &iay, &unused, &unused);
-        value = value->addAlpha();
+        value = value->to_rgba();
         auto clean_value = value->duplicate();
         if (selected_coords_to_image_coords(&sx, &sy, &sw, &sh)) {
             bool x1_in_layer = false;

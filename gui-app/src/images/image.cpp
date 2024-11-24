@@ -186,7 +186,7 @@ image_ptr_t RawImage::invert_mask() {
     return r;
 }
 
-image_ptr_t RawImage::removeAlpha() {
+image_ptr_t RawImage::to_rgb_mask() {
     image_ptr_t r;
 
     r.reset(new RawImage(NULL, w_, h_, img_rgb));
@@ -420,7 +420,7 @@ image_ptr_t RawImage::to_rgb() {
     return r;
 }
 
-image_ptr_t RawImage::resize_down_alpha() {
+image_ptr_t RawImage::resize_min_area_using_alpha() {
     /*
         Resize the image to its minimal size considering the alpha channel.
     */
@@ -738,7 +738,7 @@ image_ptr_t RawImage::fit1024() {
     return this->resizeImage(nx, ny);
 }
 
-image_ptr_t RawImage::addAlpha() {
+image_ptr_t RawImage::to_rgba() {
     // convert the image to RGBA
     if (format_ == img_rgba) {
         return duplicate();
@@ -805,6 +805,34 @@ image_ptr_t RawImage::create_mask_from_alpha_channel() {
         return image_ptr_t();
     }
     return r->dilate(4);
+}
+
+image_ptr_t RawImage::create_modification_mask(RawImage *modified_image) {
+    image_ptr_t r;
+    if (this->w() != modified_image->w() || this->h() != modified_image->h() || this->format() != modified_image->format()) {
+        return r;
+    }
+    r.reset(new RawImage(NULL, this->w(), this->h(), img_rgba, false));
+    unsigned char *p = r->buffer_;
+    unsigned char *s = this->buffer_;
+    unsigned char *m = modified_image->buffer_;
+    size_t len = r->buffer_len_;
+    for (size_t i = 0; i < len; i += 4) {
+        if (*s != *m || *(s + 1) != *(m + 1) || *(s + 2) != *(m + 2)) {
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 0; ++p;
+        } else {
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 255; ++p;
+            *p = 255; ++p;
+        }
+        s += 4;
+        m += 4;
+    }
+    return r;
 }
 
 image_ptr_t RawImage::resizeLeft(int value) {
