@@ -101,6 +101,7 @@ namespace editorium
         image_ptr_t reference_img;
         if (view_settings_) {
             reference_mask = view_settings_->get_selected_image()->create_mask_from_alpha_channel();
+            reference_mask = reference_mask->dilate(25);
             auto selected_img = view_settings_->get_selected_image();
             if (selected_img->format() == img_rgba) {
                 reference_img = selected_img->to_rgb();

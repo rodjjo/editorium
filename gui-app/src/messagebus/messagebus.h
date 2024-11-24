@@ -56,6 +56,8 @@ typedef enum {
     event_main_menu_resizeSelection_768,
     event_main_menu_resizeSelection_1024,
     event_main_menu_resizeSelection_2048,
+    event_main_menu_resizeSelection_fit_vertical,
+    event_main_menu_resizeSelection_fit_horizontal,
     event_main_menu_resizeSelection_all,
     event_main_menu_exit,
     event_layer_count_changed,

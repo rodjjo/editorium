@@ -69,6 +69,8 @@ namespace editorium
             event_main_menu_resizeSelection_768,
             event_main_menu_resizeSelection_1024,
             event_main_menu_resizeSelection_2048,
+            event_main_menu_resizeSelection_fit_vertical,
+            event_main_menu_resizeSelection_fit_horizontal,
             event_main_menu_resizeSelection_all,           
             event_layer_count_changed,
             event_layer_selected,
@@ -133,6 +135,8 @@ namespace editorium
             menu_->addItem(event_main_menu_resizeSelection_768, "", "Selection/Expand/768x768", "^2");
             menu_->addItem(event_main_menu_resizeSelection_1024, "", "Selection/Expand/1024x1024", "^3");
             menu_->addItem(event_main_menu_resizeSelection_2048, "", "Selection/Expand/2048x2048", "^4");
+            menu_->addItem(event_main_menu_resizeSelection_fit_vertical, "", "Selection/Expand/Fit vertical", "^5");
+            menu_->addItem(event_main_menu_resizeSelection_fit_horizontal, "", "Selection/Expand/Fit horizontal", "^6");
             menu_->addItem(event_main_menu_selection_from_layer, "", "Selection/Expand/Current layer", "^b", 0);
             menu_->addItem(event_main_menu_resizeSelection_all, "", "Selection/Expand/Select All", "^a");
             
@@ -379,6 +383,12 @@ namespace editorium
             break;
         case event_main_menu_resizeSelection_2048:
             resizeSelection(2048);
+            break;
+        case event_main_menu_resizeSelection_fit_vertical:
+            resizeSelection(-3);
+            break;
+        case event_main_menu_resizeSelection_fit_horizontal:
+            resizeSelection(-4);
             break;
         case event_main_menu_selection_from_layer:
             resizeSelection(-2);
@@ -885,7 +895,8 @@ namespace editorium
         image_->view_settings()->get_selected_area(&x1, &y1, &x2, &y2);
         x2 += x1;
         y2 += y1;
-        if (x1 == x2 && y1 == y2 && width != -1 && width != -2) {
+
+        if (x1 == x2 && y1 == y2 && !(width < 0 && width >= -4)) {
             show_error("No selection");
             return;
         }
@@ -949,6 +960,21 @@ namespace editorium
             }
             auto l = image_->view_settings()->selected_layer();
             image_->view_settings()->set_selected_area(l->x(), l->y(), l->w(), l->h());
+        } else if (width == -3 || width == -4) {
+            int sx, sy, sw, sh;
+            if (!image_->view_settings()->get_selected_area(&sx, &sy, &sw, &sh)) {
+                return;
+            }
+            int ix, iy, iw, ih;
+            image_->view_settings()->get_image_area(&ix, &iy, &iw, &ih);
+            if (width == -3) {
+                sy = 0;
+                sh = ih;
+            } else {
+                sx = 0;
+                sw = iw;
+            }
+            image_->view_settings()->set_selected_area(sx, sy, sw, sh);
         } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
             image_->view_settings()->set_selected_area(x1, y1, w, h);
         } 
