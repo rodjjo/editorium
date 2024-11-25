@@ -71,7 +71,7 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
     image_panel_->view_settings()->at(1)->w(256);
     image_panel_->view_settings()->at(1)->h(256);
     image_panel_->view_settings()->at(1)->y(256);
-    image_panel_->view_settings()->at(1)->x(0);
+    image_panel_->view_settings()->at(1)->x(512);
 
     right_panel_ = new Fl_Group(0, 0, 1, 1);
     right_panel_->begin();

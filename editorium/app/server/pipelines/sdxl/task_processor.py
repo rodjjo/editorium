@@ -54,7 +54,37 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
     elif not inpaint_mask:
         inpaint_mask = [None] * len(inpaint_image)
         
-    inpaint_image = [i.convert("RGB") if i and i.mode != 'RGB' else i for i in inpaint_image]
+    width = params.get('width', 1024)    
+    height = params.get('height', 1024)
+    
+    if inpaint_image and inpaint_image[0]:
+        width = inpaint_image[0].width
+        height = inpaint_image[0].height
+        
+    original_width = width
+    original_height = height
+    
+    if width % 8 != 0:
+        width += 8 - width % 8
+
+    if height % 8 != 0:
+        height += 8 - height % 8
+        
+    if width != original_width or height != original_height:
+        if inpaint_image:
+            for i, img in enumerate(inpaint_image):
+                if not img:
+                    continue
+                image = Image.new('RGB', (width, height), (255, 255, 255))
+                image.paste(img, (0, 0))
+                inpaint_image[i] = image
+        if inpaint_mask:
+            for i, img in enumerate(inpaint_mask):
+                if not img:
+                    continue
+                image = Image.new('RGB', (width, height), (255, 255, 255))
+                image.paste(img, (0, 0))
+                inpaint_mask[i] = image
     
     lora_repo_id = params.get('lora_repo_id', '')
     lora_scale = params.get('lora_scale', 1.0)
@@ -160,8 +190,8 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
                 prompt=params['prompt'],
                 negative_prompt=negative_prompt,
                 guidance_scale=cfg,
-                height=params.get('height', None),
-                width=params.get('width', None),
+                height=height,
+                width=width,
                 num_inference_steps=params.get('steps', 50),
                 generator=generator,
                 image=image,
@@ -190,8 +220,8 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
                 prompt=params['prompt'],
                 negative_prompt=negative_prompt,
                 guidance_scale=cfg,
-                height=params.get('height', None),
-                width=params.get('width', None),
+                height=height,
+                width=width,
                 num_inference_steps=params.get('steps', 50),
                 generator=generator,
                 image= inpaint_image,
@@ -205,13 +235,17 @@ def generate_sdxl_image(model_name: str, input: dict, params: dict):
             prompt=params['prompt'],
             negative_prompt=negative_prompt,
             guidance_scale=cfg,
-            height=params.get('height', None),
-            width=params.get('width', None),
+            height=height,
+            width=width,
             num_inference_steps=params.get('steps', 50),
             generator=generator,
             **add_args,
         )
 
+    for i, image in enumerate(result):
+        if image.width != original_width or image.height != original_height:
+            # get a croped region from 0, 0 to original_width, original_height
+            result[i] = image.crop((0, 0, original_width, original_height))
 
     return {
         'images': result

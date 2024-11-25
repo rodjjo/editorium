@@ -54,6 +54,38 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
         inpaint_mask = [None]
     elif not inpaint_mask:
         inpaint_mask = [None] * len(inpaint_image)
+        
+    width = params.get('width', 1360)    
+    height = params.get('height', 768)
+    
+    if inpaint_image and inpaint_image[0]:
+        width = inpaint_image[0].width
+        height = inpaint_image[0].height
+        
+    original_width = width
+    original_height = height
+    
+    if width % 64 != 0:
+        width += 64 - width % 64
+
+    if height % 64 != 0:
+        height += 64 - height % 64
+        
+    if width != original_width or height != original_height:
+        if inpaint_image:
+            for i, img in enumerate(inpaint_image):
+                if not img:
+                    continue
+                image = Image.new('RGB', (width, height), (255, 255, 255))
+                image.paste(img, (0, 0))
+                inpaint_image[i] = image
+        if inpaint_mask:
+            for i, img in enumerate(inpaint_mask):
+                if not img:
+                    continue
+                image = Image.new('RGB', (width, height), (255, 255, 255))
+                image.paste(img, (0, 0))
+                inpaint_mask[i] = image
     
     steps = params.get('steps', 4)
     lora_repo_id = params.get('lora_repo_id', '')
@@ -81,8 +113,8 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
 
     if mode == 'txt2img':
         result = sd35_models.pipe(
-            height=params.get('height', 1024),
-            width=params.get('width', 1024),
+            height=height,
+            width=width,
            **additional_args
         ).images
     elif mode == 'img2img':
@@ -143,6 +175,12 @@ def generate_sd35_image(model_name: str, input: dict, params: dict):
                     raise
             all_results += results
         result = all_results
+
+    for i, image in enumerate(result):
+        if image.width != original_width or image.height != original_height:
+            # get a croped region from 0, 0 to original_width, original_height
+            result[i] = image.crop((0, 0, original_width, original_height))
+
     return {
         'images': result
     }

@@ -709,21 +709,6 @@ image_ptr_t RawImage::rotate() {
     return result;
 }
 
-image_ptr_t RawImage::ensureMultipleOf8() {
-    int diff_w = this->w() % 8;
-    int diff_h = this->h() % 8;
-
-    if (diff_w > 0 || diff_h > 0) {
-        if (diff_w > 0) diff_w = 8 - diff_w;
-        if (diff_h > 0) diff_h = 8 - diff_h;
-        auto result = this->resizeImage(this->w() + diff_w, this->h() + diff_h);
-        result->pasteAt(0, 0, this);
-        printf("Image resized from %dx%d to %dx%d\n", this->w(), this->h(), result->w(), result->h());
-        return result;
-    } 
-
-    return duplicate();
-}
 
 image_ptr_t RawImage::fit1024() {
     int nx, ny;

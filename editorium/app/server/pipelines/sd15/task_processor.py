@@ -168,11 +168,28 @@ def run_pipeline(
     if 'inpaint2img' in pipeline_type and  inpaint_mode == "img2img":
         pipeline_type = pipeline_type.replace('inpaint2img', 'img2img')
 
+    if input_image:
+        width = input_image.width
+        height = input_image.height
+        
+    original_width = width
+    original_height = height
+    
     if width % 8 != 0:
         width += 8 - width % 8
 
     if height % 8 != 0:
         height += 8 - height % 8
+        
+    if width != original_width or height != original_height:
+        if input_image:
+            image = Image.new('RGB', (width, height), (255, 255, 255))
+            image.paste(input_image, (0, 0))
+            input_image = image
+        if input_mask:
+            image = Image.new('RGB', (width, height), (255, 255, 255))
+            image.paste(input_mask, (0, 0))
+            input_mask = image
 
     variation_enabled = False
     var_stren = 0
@@ -344,6 +361,11 @@ def run_pipeline(
             **additional_args,
         ).images 
    
+    if width != original_width or height != original_height:
+        for i, img in enumerate(result):
+            # get cropped
+            result[i] = img.crop((0, 0, original_width, original_height))
+
     ProgressBar.set_title("image generated")
     return [r for r in result]
 

@@ -617,9 +617,6 @@ namespace editorium
         params.image_strength = image_frame_->get_strength();
         params.inpaint_mode = "original"; // TODO: get from config
 
-        int useful_w = params.width;
-        int useful_h = params.height;
-
         if (image_frame_->get_mode() != img2img_text) {
             auto img1 = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
             if (images_[page_type_image]->view_settings()->layer_count() > 2) {
@@ -659,9 +656,6 @@ namespace editorium
             }
 
             params.images = {img1};
-            useful_w = img1->w();
-            useful_h = img1->h();
-            params.images[0] = params.images[0]->ensureMultipleOf8();
             params.width = params.images[0]->w();
             params.height = params.images[0]->h();
             
@@ -675,7 +669,6 @@ namespace editorium
                 if (params.masks[0]->w() != img1->w() || params.masks[0]->h() != img1->h()) {
                     params.masks[0] = params.masks[0]->resizeImage(img1->w(), img1->h());
                 }
-                params.masks[0] = params.masks[0]->ensureMultipleOf8();
             }
         }
 
@@ -722,17 +715,11 @@ namespace editorium
         auto result = run_diffusion(params);
 
         if (!result.empty()) {
-            for (auto & img : result) {
-                if (img->w() != useful_w || img->h() != useful_h) {
-                    img = img->getCrop(0, 0, useful_w, useful_h); // remove padding
-                }
-            }
 
             if (!params.masks.empty() && (image_frame_->get_mode() == img2img_inpaint_masked || 
                 image_frame_->get_mode() == img2img_inpaint_not_masked)) {
                 auto original_image = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
                 auto mask = params.masks[0];
-                mask = mask->getCrop(0, 0, useful_w, useful_h); // remove padding
                 mask = mask->resizeImage(original_image->w(), original_image->h());
                 mask = mask->dilate(3);
                 mask = mask->black_white_into_rgba_mask();
