@@ -41,7 +41,7 @@ ColorPaletteFrame::ColorPaletteFrame(Fl_Group *parent, ImagePanel *image_panel, 
             this->choose_color_for_palette(palette_index);
         });
         palette_[i]->setColor(palette_colors[i][0], palette_colors[i][1], palette_colors[i][2]);
-        palette_[i]->tooltip("click to select a color");
+        palette_[i]->tooltip("click to select a color.\n[SHIFT] + click: change the color.\n[ALT] + click: use current color");
     }
 
     btn_reset_colors_ = std::make_shared<Button>(xpm::image(xpm::img_24x24_erase), [this]() {
@@ -53,7 +53,7 @@ ColorPaletteFrame::ColorPaletteFrame(Fl_Group *parent, ImagePanel *image_panel, 
     btn_current_color_ = std::make_shared<Button>([this]() {
         this->pickup_current_color();
     });
-    btn_current_color_ ->tooltip("Shows the current color");
+    btn_current_color_ ->tooltip("Shows the current color.\n[SHIFT] + click: change the color");
 
     aligncomponents();
 
@@ -98,6 +98,9 @@ void ColorPaletteFrame::choose_color_for_palette(int palette_index) {
         } else {
             return;
         }
+    } else if (Fl::event_alt()) {
+        image_panel_->get_color_mask_color(&r, &g, &b, &a);
+        palette_[palette_index]->setColor(r, g, b);
     }
     image_panel_->color_mask_color(r, g, b, a);
     btn_current_color_->setColor(r, g, b);

@@ -160,7 +160,7 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
     btnSettings_->tooltip("Prompt and other settings...");
     btnRandomSeed_->tooltip("Randomizes the seed");
     btnPinSeed_->tooltip("Pin the current seed");
-    btnFromPalette_->tooltip("Pick an image from the image palette");
+    btnFromPalette_->tooltip("Pick an image from the image palette.\n[SHIFT] + send image to generated preview (so you can pick colors from it)");
     btnToPalette_->tooltip("Send the generated image to the image palette");
     btnUseCurrent_->tooltip("Use the current image as the reference");
     btnFirstPass_->tooltip("Generates an image based on the drawing [SHORTCUT: F1]");

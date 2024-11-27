@@ -690,6 +690,9 @@ namespace editorium
             controlnet.first.second = frame->getStrength();
             controlnet.second = frame->getImage();
             if (controlnet.second) {
+                if (!params.images.empty()) {
+                    controlnet.second = controlnet.second->resizeImage(params.images[0]->w(), params.images[0]->h());
+                }
                 params.controlnets.push_back(controlnet);
             }
         }
@@ -708,6 +711,9 @@ namespace editorium
             ip_adapter.first.second = frame->getStrength();
             ip_adapter.second = frame->getImage();
             if (ip_adapter.second) {
+                if (!params.images.empty()) {
+                    ip_adapter.second = ip_adapter.second->resizeImage(params.images[0]->w(), params.images[0]->h());
+                }
                 params.ip_adapters.push_back(ip_adapter);
             }
         }
@@ -719,6 +725,10 @@ namespace editorium
             if (!params.masks.empty() && (image_frame_->get_mode() == img2img_inpaint_masked || 
                 image_frame_->get_mode() == img2img_inpaint_not_masked)) {
                 auto original_image = images_[page_type_image]->view_settings()->at(0)->getImage()->duplicate();
+                if (images_[page_type_image]->view_settings()->layer_count() > 2) {
+                    auto img2 = images_[page_type_image]->view_settings()->at(1)->getImage();
+                    original_image->pasteAt(0, 0, img2);
+                }
                 auto mask = params.masks[0];
                 mask = mask->resizeImage(original_image->w(), original_image->h());
                 mask = mask->dilate(3);

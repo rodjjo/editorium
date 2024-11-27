@@ -807,6 +807,7 @@ namespace editorium
 
                 // px = ly->x() - iax;
                 // py = ly->y() - iay;
+                printf("Fusing the layer %d at %d x %d\n", (int)i, sx0, sy0);
                 limg->fuseAt(sx0, sy0, value.get());
                 ly->set_modified();
                 // mask = mask->negative_mask();

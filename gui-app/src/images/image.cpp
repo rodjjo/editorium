@@ -379,10 +379,10 @@ void RawImage::fuseAt(int x, int y, RawImage *image) {
         y = 0;
     }
     if (cx + ww > image->w()) {
-        ww = image->w() - (cx + ww);
+        ww = image->w() - cx;
     }
     if (cy + hh > image->w()) {
-        hh = image->h() - (cy + hh);
+        hh = image->h() - cy;
     }
     if (x + ww > this->w()) {
         ww = this->w() - x;
