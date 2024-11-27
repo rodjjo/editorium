@@ -51,12 +51,13 @@ ColorPaletteFrame::ColorPaletteFrame(Fl_Group *parent, ImagePanel *image_panel, 
     });
     btn_reset_colors_->tooltip("Reset colors to default");
     btn_current_color_ = std::make_shared<Button>([this]() {
-       // does nothing
+        this->pickup_current_color();
     });
     btn_current_color_ ->tooltip("Shows the current color");
-    btn_current_color_->enabled(false);
 
     aligncomponents();
+
+    update_current_color();
 }
 
 ColorPaletteFrame::~ColorPaletteFrame() {
@@ -107,5 +108,15 @@ void ColorPaletteFrame::update_current_color() {
     image_panel_->get_color_mask_color(&r, &g, &b, &a);
     btn_current_color_->setColor(r, g, b);
 }
+
+void ColorPaletteFrame::pickup_current_color() {
+    uint8_t r, g, b, a;
+    btn_current_color_->getColor(&r, &g, &b);
+    if (pickup_color("Foreground color", &r, &g, &b)) {
+        btn_current_color_->setColor(r, g, b);
+        image_panel_->color_mask_color(r, g, b, 255);
+    }
+}
+
 
 }  // namespace editorium

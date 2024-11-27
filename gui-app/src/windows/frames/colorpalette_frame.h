@@ -16,9 +16,10 @@ public:
     ~ColorPaletteFrame();
     void aligncomponents();
     void update_current_color();
+
 private:
+    void pickup_current_color();
     void reset_colors();
-    
     void choose_color_for_palette(int palette_index);
 
 private:

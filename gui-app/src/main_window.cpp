@@ -615,7 +615,7 @@ namespace editorium
     }
 
     void MainWindow::new_drawing(bool clear_layers) {
-        int w = 512, h = 512;
+        int w = 768, h = 768;
         auto img = newImage(w, h, true);
         auto drawing = draw_image(img);
         if (!drawing) {
@@ -976,6 +976,8 @@ namespace editorium
             }
             image_->view_settings()->set_selected_area(sx, sy, sw, sh);
         } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
+            x1 = (x1 + x2) / 2 - w / 2;
+            y1 = (y1 + y2) / 2 - h / 2;
             image_->view_settings()->set_selected_area(x1, y1, w, h);
         } 
     }

@@ -11,6 +11,7 @@
 namespace editorium {
 
 namespace {
+    const float drawing_image_size = 256;
     const uint8_t brushes_sizes[] = {
         4, 8, 16, 32, 64, 128
     };
@@ -29,19 +30,19 @@ namespace {
     image_ptr_t pixelate_image(image_ptr_t reference_img) {
         float ratio = 1.0;
         if (reference_img->w() > reference_img->h()) {
-            ratio = 512.0 / reference_img->w();
+            ratio = drawing_image_size / (float)reference_img->w();
         } else {
-            ratio = 512.0 / reference_img->h();
+            ratio = drawing_image_size / (float)reference_img->h();
         }
         int min_size_w, min_size_h; // 32 pixels minimum, checking the ratio
         int new_w, new_h;
         if (reference_img->w() > reference_img->h()) {
-            new_w = 512;
+            new_w = drawing_image_size;
             new_h = reference_img->h() * ratio;
             min_size_w = 32;
             min_size_h = 32 * ratio;
         } else {
-            new_h = 512;
+            new_h = drawing_image_size;
             new_w = reference_img->w() * ratio;
             min_size_h = 32;
             min_size_w = 32 * ratio;
@@ -59,7 +60,9 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
     
     this->begin();
     image_panel_ = new LayerDrawingImagePanel(0, 0, 1, 1, "DrawingWindowImage");
-    image_panel_->view_settings()->add_layer(newImage(image_->w(), image_->h(), true));
+    int size_w = image_->w() * 2;
+    int size_h = image_->h() * 2;
+    image_panel_->view_settings()->add_layer(newImage(size_w, size_h, true));
     image_panel_->enable_color_mask_editor(true);
     image_panel_->view_settings()->set_mask();
     image_panel_->view_settings()->at(1)->replace_image(image_->duplicate());
@@ -70,8 +73,8 @@ DrawingWindow::DrawingWindow(image_ptr_t reference_img) : Fl_Window(Fl::w() / 2 
     
     image_panel_->view_settings()->at(1)->w(256);
     image_panel_->view_settings()->at(1)->h(256);
-    image_panel_->view_settings()->at(1)->y(256);
-    image_panel_->view_settings()->at(1)->x(512);
+    image_panel_->view_settings()->at(1)->y(size_h - image_->h());
+    image_panel_->view_settings()->at(1)->x(size_w + 10);
 
     right_panel_ = new Fl_Group(0, 0, 1, 1);
     right_panel_->begin();
@@ -415,7 +418,7 @@ void DrawingWindow::generate_image(bool second_pass) {
         return;
     }
     if (!btnPinSeed_->down() && !second_pass) {
-        random_seed();
+        random_seed(true);
     }
     params.prompt = prompt;
     params.negative_prompt = "";
@@ -427,16 +430,19 @@ void DrawingWindow::generate_image(bool second_pass) {
     
     params.cfg = 0.0;
     params.scheduler =  "";
-    params.width = 512;
-    params.height = 512;
+    params.width = drawing_image_size;
+    params.height = drawing_image_size;
     params.use_lcm = true;
     params.use_tiny_vae = true;
     params.use_float16 = true;
-    params.image_strength = second_pass ? 0.70 : 0.50;
+    params.image_strength = second_pass ? 0.70 : 0.60;
     params.inpaint_mode = "original"; 
 
     auto img2 = image_panel_->view_settings()->at(second_pass ? 0 : 1)->getImage();
-    params.images = {img2->duplicate()};
+    int size_w = img2->w() * 2;
+    int size_h = img2->h() * 2;
+
+    params.images = {second_pass ? img2->duplicate() : img2->resizeImage(size_w, size_h)};
      
     auto result = run_diffusion(params);
     if (!result.empty()) {
@@ -445,8 +451,13 @@ void DrawingWindow::generate_image(bool second_pass) {
     }
 }
 
-void DrawingWindow::random_seed() {
-    int seed = (rand() % 10000) + 1;
+void DrawingWindow::random_seed(bool increment_only) {
+    int seed = 0;
+    if (increment_only) {
+        seed = get_seed() + 1;
+    } else {
+        seed = (rand() % 10000) + 1;
+    }
     char buffer[64] = "";
     sprintf(buffer, "%d", seed);
     seed_input_->value(buffer);
@@ -503,10 +514,18 @@ int DrawingWindow::handle(int event)
 }
 
 void DrawingWindow::from_palette() {
+    bool shift_pressed = Fl::event_shift() != 0;
     auto img = pickup_image_from_palette();
     if (img) {
-        image_ = pixelate_image(img);
-        reset_image();
+        if (shift_pressed) {
+            auto layer_img_w =  image_panel_->view_settings()->at(0)->getImage()->w();
+            auto layer_img_h =  image_panel_->view_settings()->at(0)->getImage()->h();
+            img = img->resizeImage(layer_img_w, layer_img_h); 
+            image_panel_->view_settings()->at(0)->replace_image(img);
+        } else {
+            image_ = pixelate_image(img);
+            reset_image();
+        }
     }
 }
 

@@ -38,7 +38,7 @@ class DrawingWindow: public Fl_Window, public SubscriberThis {
    void update_model_list();
    std::string get_arch();
    std::string get_model();
-   void random_seed();
+   void random_seed(bool increment_only = false);
    int get_seed();
    void brush_size_selected();
    void insert_current_lora();
