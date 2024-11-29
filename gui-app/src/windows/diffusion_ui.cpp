@@ -483,6 +483,7 @@ namespace editorium
         auto merged = copy_image_region(original_image, new_generated_image);
         if (merged) {
             images_[page_type_image]->view_settings()->at(0)->replace_image(merged);
+            image_generated_ = true;
         }
     }
 
@@ -715,6 +716,20 @@ namespace editorium
                     ip_adapter.second = ip_adapter.second->resizeImage(params.images[0]->w(), params.images[0]->h());
                 }
                 params.ip_adapters.push_back(ip_adapter);
+            }
+        }
+        if (prompt_frame_->get_arch() == "sd15") {
+            size_t inpaint_pos = prompt_frame_->get_model().find("inpaint");
+            if (!params.images.empty() && !params.masks.empty()) {
+                if (inpaint_pos == std::string::npos) {
+                    show_error("It's necessary a inpaint model for SD15 inpaint!");
+                    return;
+                }
+            } else {
+                if (inpaint_pos != std::string::npos) {
+                    show_error("The selected model is for inpainting!");
+                    return;
+                }
             }
         }
 
