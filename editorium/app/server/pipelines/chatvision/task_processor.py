@@ -34,24 +34,28 @@ def generate_text(repo_id: str,
     prompt = [p.strip() for p in prompt if p]
     text = ''
     context_name = ''
+    in_context_capture = True
     for p in prompt:
         p = p.strip()
         if p == '':
             continue
-        if p.lower().startswith('context:'):
+        if in_context_capture and p.lower().startswith('context:'):
             if context_name:
                 context_dict[context_name] = text
+                text = ''
             context_name = p.split(':', 1)[1].strip().lower()
             if not context_name:
                 context_name = 'default'
         elif p.lower() == 'next-turn:':
+            in_context_capture = False
             if not text:
+                context_name = ''
                 continue
             if context_name:
                 context_dict[context_name] = text
-                context_name = '' 
             else:
                 prompt_texts.append(text)
+            context_name = ''
             text = ''
         else:
             text += p + '\n'
@@ -206,7 +210,6 @@ def generate_text(repo_id: str,
                 response = [r.strip() for r in response if r.strip()]
                 response = '\n'.join([r for r in response if r])
                 turn_result[index] = response
-                
             responses.append('\n\n'.join(turn_result))
 
     return {
