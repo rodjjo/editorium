@@ -99,7 +99,7 @@ def generate_flux_image(model_name: str, input: dict, params: dict):
     lora_scale = params.get('lora_scale', 1.0)
     transformer2d_model = params.get('transformer2d_model', None)
     flux_models.load_models(model_name, mode, controlnet_type, lora_repo_id, lora_scale, transformer2d_model)
-    flux_models.pipe.scheduler.shift = 3.0 if steps >= 7 else 1.0
+    # flux_models.pipe.scheduler.shift = 3.0 if steps >= 7 else 1.0
     
     if control_image is not None:
         control_args = dict(
