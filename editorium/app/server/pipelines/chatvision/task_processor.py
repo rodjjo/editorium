@@ -131,6 +131,11 @@ def generate_text(repo_id: str,
     
     ProgressBar.set_title('[chatvision] - describing the image')
     with torch.no_grad():
+        msgs = []
+        for msg_txt in message_texts:
+            msgs.append([m for m in msg_txt if m['content'].strip()])
+        message_texts = msgs
+        
         for i, src_img in enumerate(image):
             ProgressBar.set_progress(i * 100.0/ len(image))
             turn_result = []
@@ -169,7 +174,6 @@ def generate_text(repo_id: str,
                         context_name =  msgs[0]['content']
                         context_dict[context_name] = last_response
                     continue
-                    
                 response = chatvision_model.model.chat(
                     image=img,
                     msgs=msgs,

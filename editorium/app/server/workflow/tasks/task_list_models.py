@@ -4,11 +4,12 @@ from pipelines.sd15.task_processor import process_workflow_list_model as sd5_lis
 from pipelines.sd35.task_processor import process_workflow_list_model as sd35_list_model
 from pipelines.sdxl.task_processor import process_workflow_list_model as sdxl_list_model
 from pipelines.flux.task_processor import process_workflow_list_model as flux_list_model
+from pipelines.lumina2.task_processor import process_workflow_list_model as lumina_list_model
 from pipelines.omnigen.task_processor import process_workflow_list_model as omnigen_list_model
 
 
 class ListModelsPayloadSchema(Schema):
-    model_type = fields.Str(required=True, validate=validate.OneOf(['sd15', 'sdxl', 'sd35', 'flux', 'omnigen']))
+    model_type = fields.Str(required=True, validate=validate.OneOf(['sd15', 'sdxl', 'sd35', 'flux', 'lumina', 'omnigen']))
     list_lora = fields.Bool(required=False, load_default=False)
 
 
@@ -29,6 +30,8 @@ class ListModelsTask(WorkflowTask):
             texts = sd35_list_model(list_lora)
         elif model_type == 'flux':
             texts = flux_list_model(list_lora)
+        elif model_type == 'lumina':
+            texts = lumina_list_model(list_lora)
         elif model_type == 'sdxl':
             texts = sdxl_list_model(list_lora)
         elif model_type == 'omnigen':

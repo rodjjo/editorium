@@ -17,6 +17,7 @@ ENV LC_ALL en_US.UTF-8
 # FROM python:3.10
 
 RUN apt-get update && apt-get install -y git \
+    xclip \
     ffmpeg libsm6 libxext6 python3-dev \
     python3-pip libgl1-mesa-glx libglib2.0-0 \
     libxrender1 libxext6 libsm6 libglib2.0-0 \

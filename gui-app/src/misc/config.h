@@ -17,10 +17,12 @@ class Config {
         void server_url(const char *value);
         std::string sdxl_base_model();
         std::string flux_base_model();
+        std::string lumina_base_model();
         std::string sd35_base_model();
         std::string arch_speed_model();
         void sdxl_base_model(const char *value);
         void flux_base_model(const char *value);
+        void lumina_base_model(const char *value);
         void sd35_base_model(const char *value);
         void arch_speed_model(const char *value);
         bool use_float16();
@@ -55,11 +57,14 @@ class Config {
         std::string chat_vision_repo_id();
         float chat_vision_temperature();
 
+        std::string chat_story_repo_id();
+
     private:
         std::string profiles_dir_;
         std::string server_url_ = "ws://localhost:5001";
         std::string sdxl_base_model_;
         std::string flux_base_model_;
+        std::string lumina_base_model_;
         std::string sd35_base_model_;
         std::string arch_speed_model_;
 

@@ -36,6 +36,7 @@ private:
     Fl_Input *profiles_dir_;
     Fl_Input *sdxl_base_model_;
     Fl_Input *flux_base_model_;
+    Fl_Input *lumina_base_model_;
     Fl_Input *arch_speed_models_;
     Fl_Input *server_url_;
     Fl_Input *sd35_base_model_;

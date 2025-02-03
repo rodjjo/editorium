@@ -909,6 +909,5 @@ std::vector<image_ptr_t> newImageList(const json& value) {
     return result;
 }
 
-
 } // namespace editorium
 

@@ -74,6 +74,7 @@ namespace editorium
             server_url_ = load_key("urls", "server_url");
             sdxl_base_model_ = load_key("base_models", "sdxl_base_model");
             flux_base_model_ = load_key("base_models", "flux_base_model");
+            lumina_base_model_ = load_key("base_models", "lumina_base_model");
             sd35_base_model_ = load_key("base_models", "sd35_base_model");
             arch_speed_model_ = load_key("base_models", "arch_speed_models");
 
@@ -140,6 +141,7 @@ namespace editorium
             json base_models;
             base_models["sdxl_base_model"] = sdxl_base_model_;
             base_models["flux_base_model"] = flux_base_model_;
+            base_models["lumina_base_model"] = lumina_base_model_;
             base_models["sd35_base_model"] = sd35_base_model_;
             base_models["arch_speed_models"] = arch_speed_model_;
 
@@ -197,6 +199,10 @@ namespace editorium
         return flux_base_model_;
     }
 
+    std::string Config::lumina_base_model() {
+        return lumina_base_model_;
+    }
+
     std::string Config::sd35_base_model() {
         return sd35_base_model_;
     }
@@ -211,6 +217,10 @@ namespace editorium
 
     void Config::flux_base_model(const char *value) {
         flux_base_model_ = value;
+    }
+
+    void Config::lumina_base_model(const char *value) {
+        lumina_base_model_ = value;
     }
 
     void Config::sd35_base_model(const char *value) {
@@ -327,6 +337,10 @@ namespace editorium
 
     std::string Config::chat_vision_repo_id() {
         return chat_vision_repo_id_;
+    }
+
+    std::string Config::chat_story_repo_id() {
+        return "chuanli11/Llama-3.2-3B-Instruct-uncensored";
     }
 
     float Config::chat_vision_temperature() {

@@ -5,7 +5,7 @@ from pipelines.preprocessor.task_processor import process_workflow_task
 
 
 class PreprocessorSchema(Schema):
-    control_type = fields.Str(required=True, validate=validate.OneOf(['canny', 'depth', 'pose', 'scribble', 'lineart', 'mangaline', 'background']))
+    control_type = fields.Str(required=True, validate=validate.OneOf(['canny', 'depth', 'pose', 'scribble', 'lineart', 'mangaline', 'background', 'paste']))
     globals = fields.Dict(required=False, load_default={})
 
 

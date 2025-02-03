@@ -30,6 +30,8 @@ namespace editorium
             event_main_menu_file_new_art,
             event_main_menu_file_new_drawing,
             event_main_menu_file_new_empty,
+            event_main_menu_file_new_from_clipboard,
+            event_main_menu_file_new_chat,
             event_main_menu_file_open,
             event_main_menu_file_save,
             event_main_menu_file_open_layer,
@@ -96,6 +98,8 @@ namespace editorium
             menu_->addItem(event_main_menu_file_new_art, "", "File/New Art", "^n", 0, xpm::img_24x24_new);
             menu_->addItem(event_main_menu_file_new_drawing, "", "File/New Drawing", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_new_empty, "", "File/New blank", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_file_new_from_clipboard, "", "File/New from clipboard", "", 0, xpm::no_image);
+            menu_->addItem(event_main_menu_file_new_chat, "", "File/New chat", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_open, "", "File/Open", "^o", 0, xpm::img_24x24_open);
             menu_->addItem(event_main_menu_file_save, "", "File/Save", "^s", 0, xpm::img_24x24_flash_drive);
             menu_->addItem(event_main_menu_file_close, "", "File/Close", "^x", 0, xpm::img_24x24_close);
@@ -338,6 +342,12 @@ namespace editorium
             break;
         case event_main_menu_file_new_empty:
             create_empty_image();
+            break;
+        case event_main_menu_file_new_chat:
+            show_story_chat();
+            break;
+        case event_main_menu_file_new_from_clipboard:
+            new_from_clipboard();
             break;
         case event_main_menu_selection_generate:
             create_image(true);
@@ -744,6 +754,32 @@ namespace editorium
             fl_alert("No selection to send to the vision chat");
         }
     }
+
+    void MainWindow::new_from_clipboard() {
+        auto img = ws::diffusion::run_paste_image();
+        if (img) {
+            image_->view_settings()->clear_layers();
+            image_->view_settings()->add_layer(img);
+        } else {
+            fl_alert("No image in the clipboard");
+        }
+    }
+
+    void MainWindow::show_story_chat() {
+        std::pair<std::string, std::string> prompts = get_prompts_for_vision("Analyzing the selected area in the image", "main-window-story");
+        if (!prompts.first.empty() && !prompts.second.empty()) {
+            editorium::ws::chatbots::story_chat_request_t request;
+            request.system_prompt = prompts.first;
+            request.prompt = prompts.second;
+            auto results = ws::chatbots::chat_bot_story(request);
+            if (results.empty()) {
+                fl_alert("No results from the vision chat");
+            } else {
+                chatbot_display_result("Vision Chat Results", results);
+            }
+        }
+    }
+
 
     void MainWindow::send_selection_to_palette() {
         if (image_->view_settings()->has_selected_area()) {

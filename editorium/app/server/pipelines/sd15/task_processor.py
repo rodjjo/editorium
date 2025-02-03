@@ -495,20 +495,21 @@ def generate_sd15_image(model_name: str, input: dict, params: dict):
     results = []        
     for index, (image, mask) in enumerate(zip(inpaint_image, inpaint_mask)):
         if mask is not None and mask_dilate_size > 0:
-            index = 0
-            while index < mask_dilate_size:
+            ks = 0
+            while ks < mask_dilate_size:
                 mask = mask.filter(ImageFilter.MaxFilter(kernel_size_dilate))
-                index += kernel_size_dilate
+                ks += kernel_size_dilate
         if mask is not None and mask_blur_size > 0:
-            index = 0
-            while index < mask_blur_size:
+            ks = 0
+            while ks < mask_blur_size:
                 mask = mask.filter(ImageFilter.GaussianBlur(kernel_size_blur))
-                index += kernel_size_blur
+                ks += kernel_size_blur
         cnet = []
         for c in controlnets:
             c = {**c}
             c['image'] = c['image'][:]
             cnet.append(c)
+
         for c in cnet:
             c['image'] = c['image'][index]
             

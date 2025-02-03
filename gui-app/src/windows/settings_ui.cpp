@@ -30,6 +30,7 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
     page_base_models_ = new Fl_Group(0, 0, 1, 1, "Base models");
     sdxl_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for SDXL");
     flux_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for Flux");
+    lumina_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for Lumina 2.0");
     sd35_base_model_ = new Fl_Input(1, 1, 1, 1, "Base model for SD35");
     arch_speed_models_ = new Fl_Input(1, 1, 1, 1, "Arch/Model for speed drawing");
     page_base_models_->end();
@@ -73,6 +74,7 @@ SettingsWindow::SettingsWindow() : Fl_Window(Fl::w() / 2 - 640 / 2, Fl::h() / 2 
     server_url_->align(FL_ALIGN_TOP_LEFT);
     sd35_base_model_->align(FL_ALIGN_TOP_LEFT);
     flux_base_model_->align(FL_ALIGN_TOP_LEFT);
+    lumina_base_model_->align(FL_ALIGN_TOP_LEFT);
     sdxl_base_model_->align(FL_ALIGN_TOP_LEFT);
     arch_speed_models_->align(FL_ALIGN_TOP_LEFT);
 
@@ -103,6 +105,7 @@ void SettingsWindow::save_settings() {
     cfg->server_url(server_url_->value());
     cfg->sdxl_base_model(sdxl_base_model_->value());
     cfg->flux_base_model(flux_base_model_->value());
+    cfg->lumina_base_model(lumina_base_model_->value());
     cfg->sd35_base_model(sd35_base_model_->value());
     cfg->arch_speed_model(arch_speed_models_->value());
     cfg->use_float16(use_float16_->value() == 1);
@@ -137,6 +140,7 @@ void SettingsWindow::load_settings() {
     server_url_->value(cfg->server_url().c_str());
     sdxl_base_model_->value(cfg->sdxl_base_model().c_str());
     flux_base_model_->value(cfg->flux_base_model().c_str());
+    lumina_base_model_->value(cfg->lumina_base_model().c_str());
     sd35_base_model_->value(cfg->sd35_base_model().c_str());
     arch_speed_models_->value(cfg->arch_speed_model().c_str());
     use_float16_->value((int) cfg->use_float16());
@@ -206,7 +210,8 @@ void SettingsWindow::alignComponents() {
 
     sdxl_base_model_->resize(left, top, page_base_models_->w() - 20, height);
     flux_base_model_->resize(left, sdxl_base_model_->y() + sdxl_base_model_->h() + 25, page_base_models_->w() - 20, height);
-    sd35_base_model_->resize(left, flux_base_model_->y() + flux_base_model_->h() + 25, page_base_models_->w() - 20, height);
+    lumina_base_model_->resize(left, flux_base_model_->y() + flux_base_model_->h() + 25, page_base_models_->w() - 20, height);
+    sd35_base_model_->resize(left, lumina_base_model_->y() + lumina_base_model_->h() + 25, page_base_models_->w() - 20, height);
     arch_speed_models_->resize(left, sd35_base_model_->y() + sd35_base_model_->h() + 25, page_base_models_->w() - 20, height);
     
     chat_bot_repo_id_->resize(left, top, page_chat_bot_->w() - 20, height);

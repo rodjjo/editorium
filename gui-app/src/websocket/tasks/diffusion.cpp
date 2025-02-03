@@ -41,6 +41,14 @@ architecture_features_t get_architecture_features(const std::string &architectur
         result.support_inpaint = true;
         result.support_textual_inversion = false;
         result.support_base_model = true;
+    } else if (architecture == "lumina") {
+        result.controlnet_count = 1;
+        result.ip_adapter_count = 2;
+        result.controlnet_types = {};
+        result.ip_adapter_types = {};
+        result.support_inpaint = true;
+        result.support_textual_inversion = false;
+        result.support_base_model = true;
     } else if (architecture == "sd35") {
         result.controlnet_count = 0;
         result.ip_adapter_count = 0;
@@ -70,6 +78,7 @@ std::vector<std::pair<std::string, std::string> > list_architectures() {
         {"sdxl", "Stable Diffusion XL"},
         {"sd35", "Stable Diffusion 3.5"},
         {"flux", "Flux 1.0"},
+        {"lumina", "lumina 2.0"},
         {"omnigen", "Omnigen"},
     };
     return result;
@@ -325,7 +334,91 @@ std::pair<json, json> create_flux_diffusion_request(const diffusion_request_t &r
     result.second = config;
 
     return result;
+}   
+
+std::pair<json, json> create_lumina_diffusion_request(const diffusion_request_t &request) {
+    std::pair<json, json> result;
+
+    if (get_config()->lumina_base_model().empty()) {
+        fl_alert("%s", "Please set the base model for Flux in the settings");
+        return result;
+    }
+
+    float lora_scale = 1.0;
+    std::string lora_name;
+    if (!request.loras.empty() && request.loras[0].size() < 1024) {
+        
+        size_t sep_pos = request.loras[0].find(':');
+        if (sep_pos != std::string::npos) {
+            lora_name = request.loras[0].substr(0, sep_pos);
+            lora_scale = std::stof(request.loras[0].substr(sep_pos + 1));
+        } else {
+            lora_name = request.loras[0];
+        }
+        lora_name += ".safetensors";
+    }
+
+    /*
+    float controlnet_scale = 1.0;
+    image_ptr_t controlnet_image;
+    std::string controlnet_type;
+    if (!request.controlnets.empty()) {
+        controlnet_scale = request.controlnets[0].first.second;
+        controlnet_image = request.controlnets[0].second;
+        controlnet_type = request.controlnets[0].first.first;
+    } */
+
+    json config;
+
+    config["prompt"] = request.prompt;
+    config["model_name"] = get_config()->lumina_base_model();
+    config["cfg"] = request.cfg;
+    config["height"] = request.height;
+    config["width"] = request.width;
+    config["steps"] = request.steps;
+    config["correct_colors"] = request.correct_colors;
+    config["max_sequence_length"] = 512;
+    config["seed"] = request.seed;
+    config["inpaint_mode"] = request.inpaint_mode;
+    config["mask_dilate_size"] = request.mask_dilate_size;
+    config["mask_blur_size"] = request.mask_blur_size;
+    config["transformer2d_model"] = request.model_name;
+    config["lora_repo_id"] = lora_name;
+    config["lora_scale"] = lora_scale;
+
+    /*
+    if (controlnet_image) {
+        config["controlnet_type"] = controlnet_type;
+        config["controlnet_conditioning_scale"] = controlnet_scale;
+    } */
+    
+    api_payload_t images;
+    images.images = request.images;
+    api_payload_t masks;
+    masks.images = request.masks;
+
+    json inputs;
+    if (request.images.size() > 0) {
+        inputs["image"] = to_input(images);
+    }
+    if (request.masks.size() > 0) {
+        inputs["mask"] = to_input(masks);
+    }
+    
+    /*
+    if (controlnet_image) {
+        api_payload_t control_image;
+        control_image.images = {controlnet_image};
+        inputs["control_image"] = to_input(control_image);
+    }
+    */
+
+    result.first = inputs;
+    result.second = config;
+
+    return result;
 }
+
 
 std::pair<json, json> create_sd35_diffusion_request(const diffusion_request_t &request) {
     std::pair<json, json> result;
@@ -442,6 +535,9 @@ std::vector<editorium::image_ptr_t> run_diffusion(const diffusion_request_t &req
     } else if (request.model_type == "flux") {
         task_name = "flux";
         request_data = create_flux_diffusion_request(request);
+    } else if (request.model_type == "lumina") {
+        task_name = "lumina";
+        request_data = create_lumina_diffusion_request(request);
     } else if (request.model_type == "sd35") {
         task_name = "sd35";
         request_data = create_sd35_diffusion_request(request);
@@ -478,6 +574,31 @@ std::vector<editorium::image_ptr_t> run_preprocessor(const std::string& type, st
 
     if (response) {
         result = response->images;
+    }
+
+    return result;
+}
+
+editorium::image_ptr_t run_paste_image() {
+    std::vector<editorium::image_ptr_t> result_list;
+    editorium::image_ptr_t result;
+
+    api_payload_t payload;
+
+    json config;
+    config["control_type"] = "paste";
+
+    json inputs;
+    inputs["default"]= to_input(payload);
+
+    enable_progress_window(progress_preprocessor);
+    auto response = execute("image-preprocessor", inputs, config);
+
+    if (response) {
+        result_list = response->images;
+        if (!result_list.empty()) {
+            result = result_list[0];
+        }
     }
 
     return result;

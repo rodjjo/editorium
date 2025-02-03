@@ -1,12 +1,1 @@
-timm==0.6.12
-# mpi4py==4.0.1
-# deepspeed==0.15.2
-marshmallow==3.22.0
-OmegaConf==2.3.0
-xformers
-ctransformers==0.2.27
-auto-gptq==0.7.1
-basicsr@git+https://github.com/XPixelGroup/BasicSR.git@033cd6896d898fdd3dcda32e3102a792efa1b8f4
-scikit-image==0.24.0
-blendmodes==2024.1.1
-websocket-server==0.6.4
+timm==1.0.14

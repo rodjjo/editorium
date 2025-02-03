@@ -221,7 +221,7 @@ class DockerManager:
             ]
             
         env_ags  = [
-            '--env', f'TZ={local_tzname}',
+            '--env', f'TZ={local_tzname}'
         ]
 
         for k, v in env.items(): 
@@ -241,9 +241,10 @@ class DockerManager:
 
         # '--cpuset-cpus=0',
         command = [
-            'docker', 'run',  '--name', 'editorium-server', '--cpuset-cpus=0', 
+            'docker', 'run', '--name', 'editorium-server', '--cpuset-cpus=0', 
             '--gpus', 'all','--ipc=host', '--ulimit', 'memlock=-1', '--ulimit', 'stack=67108864', 
             '--init', '-it', '--rm', '--runtime=nvidia',
+            '-e', 'DISPLAY', '-v', '/tmp/.X11-unix:/tmp/.X11-unix', '-v', '/etc/localtime:/etc/localtime:ro',
         ] + volume_args + env_ags + net_params + [ 
             self.docker_tag, 'bash', '-c',
         ] + args

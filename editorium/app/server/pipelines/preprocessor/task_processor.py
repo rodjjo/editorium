@@ -1,7 +1,7 @@
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageGrab
 import PIL.ImageOps
 import gc
 from controlnet_aux import HEDdetector, OpenposeDetector
@@ -184,6 +184,16 @@ def pre_process_image(control_type: str, im):
 
 
 def process_workflow_task(input: dict, config: dict):
+    if config['control_type'] == 'paste':
+        im = ImageGrab.grabclipboard() 
+        if im is None:
+            return {
+                'images': []
+            }
+        return {
+            'images': [im]
+        }
+        
     images = input.get('default', {}).get('images', None)
     if not images:
         images = input.get('image', {}).get('images', None)

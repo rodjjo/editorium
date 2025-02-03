@@ -55,6 +55,8 @@ private:
     void layer_generate_in_selection();
     void upscale_current_image();
     void send_selection_to_vision_chat();
+    void show_story_chat();
+    void new_from_clipboard();
     void send_selection_to_palette();
     void send_selected_layer_to_palette();
     void resize_image();

@@ -1,5 +1,5 @@
 #-i https://download.pytorch.org/whl/cu118
-torch==2.4.1
+torch==2.6.0
 torchvision
 controlnet_aux
 OmegaConf==2.3.0
@@ -8,10 +8,11 @@ ctransformers==0.2.27
 auto-gptq==0.7.1
 #diffusers>=0.30.3
 #accelerate>=0.34.2
-git+https://github.com/huggingface/accelerate.git@main#egg=accelerate
-git+https://github.com/huggingface/diffusers.git@main#egg=diffusers
-transformers>=4.45.2
-numpy==1.24.4
+accelerate
+# git+https://github.com/huggingface/diffusers.git@main#egg=diffusers
+git+https://github.com/rodjjo/diffusers.git@main#egg=diffusers
+transformers>=4.48.2
+numpy==1.26.4
 sentencepiece>=0.2.0
 SwissArmyTransformer>=0.4.12
 gradio>=4.44.0
@@ -29,13 +30,22 @@ sk-video==1.1.10
 safetensors==0.4.4
 peft==0.13.0
 decord==0.6.0
-bitsandbytes==0.44.1
+bitsandbytes==0.45.1
 prodigyopt==1.0
 requests==2.32.3
-huggingface-hub==0.25.2
+huggingface-hub>=0.27.0
 # flash-attn==2.6.3
 einops==0.8.0
 basicsr@git+https://github.com/rodjjo/BasicSR@master#egg=basicsr
 gfpgan
 realesrgan==0.3.0
 rembg==2.0.59
+timm==0.6.12
+# mpi4py==4.0.1
+# deepspeed==0.15.2
+marshmallow==3.22.0
+#basicsr@git+https://github.com/XPixelGroup/BasicSR.git@033cd6896d898fdd3dcda32e3102a792efa1b8f4
+scikit-image==0.24.0
+blendmodes==2024.1.1
+websocket-server==0.6.4
+gguf>=0.10.0

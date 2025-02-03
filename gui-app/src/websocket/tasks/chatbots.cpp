@@ -59,6 +59,26 @@ std::string chat_bot_vision(const vision_chat_request_t& request) {
     return result;
 }
 
+std::string chat_bot_story(const story_chat_request_t& request) {
+    std::string result;
+
+    json config;
+    config["repo_id"] = get_config()->chat_story_repo_id();
+    config["prompt"] = request.prompt;
+    config["system_prompt"] = request.system_prompt;
+    config["temperature"] = get_config()->chat_vision_temperature();
+
+    json inputs;
+
+    enable_progress_window(progress_chatbot_vision);
+    auto response = execute("chatstory", inputs, config);
+
+    if (response && response->texts.size() > 0) {
+        result = response->texts[0];
+    }
+    
+    return result;
+}
 
 } // namespace upscalers
 } // namespace ws
