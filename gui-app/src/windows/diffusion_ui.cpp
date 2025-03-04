@@ -83,6 +83,9 @@ namespace editorium
         }
         this->begin();
         btnGenerate_.reset(new Button(xpm::image(xpm::img_24x24_magic_wand), [this] {
+            if (Fl::event_state() & FL_SHIFT) {
+                results_.clear();
+            }
             generate();
         }));
         right_panel_ = new Fl_Group(0, 0, 1, 1);

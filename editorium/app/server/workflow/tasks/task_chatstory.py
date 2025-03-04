@@ -5,7 +5,10 @@ from marshmallow import Schema, fields
 
 
 class ChatstoryPayloadSchema(Schema):
-    repo_id = fields.Str(required=False, load_default='chuanli11/Llama-3.2-3B-Instruct-uncensored')
+    #repo_id = fields.Str(required=False, load_default='chuanli11/Llama-3.2-3B-Instruct-uncensored')
+    #repo_id = fields.Str(required=False, load_default='nidum/Nidum-Gemma-2B-Uncensored')
+    repo_id = fields.Str(required=False, load_default='thirdeyeai/qwen2.5-.5b-uncensored')
+    # repo_id = fields.Str(required=False, load_default='nicoboss/DeepSeek-R1-Distill-Qwen-1.5B-Fully-Uncensored')
     prompt = fields.Str(required=True)
     system_prompt = fields.Str(required=False, load_default='')
     temperature = fields.Float(required=False, load_default=0.7)

@@ -54,8 +54,8 @@ bool UpscalerWindow::get_restore_bg() {
 }
  
 void UpscalerWindow::confirmOk() {
-    if (get_scale() <= 1.0) {
-        show_error("Invalid scale. The value should be greater than 1.0");
+    if (get_scale() < 1.0) {
+        show_error("Invalid scale. The value should be greater or equal to 1.0");
         return;
     }
     if (get_scale() >= 4.0) {

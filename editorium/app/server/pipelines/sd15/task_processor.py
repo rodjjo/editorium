@@ -317,8 +317,8 @@ def run_pipeline(
         additional_args['callback'] = progress_preview
         additional_args['callback_steps'] = 1
 
-        if len(controlnets):
-            batch_size = 1
+        #if len(controlnets):
+        #    batch_size = 1
 
         if type(pipeline.scheduler).__name__ == 'LCMScheduler':
             if pipeline_type == 'txt2img':

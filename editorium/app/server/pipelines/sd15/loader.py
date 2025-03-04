@@ -16,7 +16,8 @@ from diffusers import (
     LMSDiscreteScheduler,
     UniPCMultistepScheduler,
     LCMScheduler,
-    UNet2DConditionModel
+    UNet2DConditionModel,
+    DPMSolverMultistepScheduler,
 )
 from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
 from transformers import CLIPTextModel,  CLIPTokenizer, AutoFeatureExtractor
@@ -752,6 +753,8 @@ def load_stable_diffusion_model(
     if use_lcm:
         report("Using LCMScheduler to speed up..")
         scheduler_name = 'LCMScheduler'
+    else:
+        scheduler_name == 'DPMSolverMultistepScheduler' # TODO: make it configurable
 
     if scheduler_name == 'LCMScheduler' or use_lcm:
         scheduler = LCMScheduler.from_config(checkpoint.scheduler.config) if from_cloud else LCMScheduler(
@@ -785,13 +788,38 @@ def load_stable_diffusion_model(
             num_train_timesteps=num_train_timesteps,
             skip_prk_steps=True,
         )
-    elif  scheduler_name == 'UniPCMultistepScheduler':
+    elif scheduler_name == 'UniPCMultistepScheduler':
         scheduler = UniPCMultistepScheduler.from_config(checkpoint.scheduler.config) if from_cloud else UniPCMultistepScheduler(
             beta_start=beta_start,
             beta_end=beta_end,
             beta_schedule="scaled_linear",
             # clip_sample=False,
             # set_alpha_to_one=False,
+        )
+    elif scheduler_name == 'DPMSolverMultistepScheduler':
+        scheduler = DPMSolverMultistepScheduler.from_config(checkpoint.scheduler.config) if from_cloud else DPMSolverMultistepScheduler(
+            beta_start=beta_start,
+            beta_end=beta_end,
+            beta_schedule="scaled_linear",
+            clip_sample=False,
+            set_alpha_to_one=False,
+            prediction_type="epsilon",
+            dynamic_thresholding_ratio=0.995,
+            euler_at_final=False,
+            final_sigmas_type="zero", 
+            #lambda_min_clipped=-Infinity,
+            lower_order_final=True,
+            num_train_timesteps=1000,
+            sample_max_value=1.0,
+            solver_order=2,
+            solver_type="midpoint",
+            steps_offset=1,
+            thresholding=False,
+            timestep_spacing="linspace",
+            trained_betas=None,
+            use_karras_sigmas=False,
+            use_lu_lambdas=False,
+            variance_type=None,
         )
     else:
          scheduler = LMSDiscreteScheduler.from_config(checkpoint.scheduler.config) if from_cloud else LMSDiscreteScheduler(beta_start=beta_start, beta_end=beta_end, beta_schedule="scaled_linear")
