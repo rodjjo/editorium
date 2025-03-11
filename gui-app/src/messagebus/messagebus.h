@@ -50,6 +50,7 @@ typedef enum {
     event_main_menu_enhance_correct_colors,
     event_main_menu_selection_generate,
     event_main_menu_selection_vision_chat,
+    event_main_menu_selection_ltx_video,
     event_main_menu_selection_to_palette,
     event_main_menu_selection_from_layer,
     event_main_menu_resizeSelection_0,

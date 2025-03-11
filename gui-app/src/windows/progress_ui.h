@@ -17,6 +17,7 @@ typedef enum {
     progress_list_models,
     progress_downloader,
     progress_generation,
+    progress_generation_video,
     progress_upscaler,
     progress_chatbot,
     progress_chatbot_vision,

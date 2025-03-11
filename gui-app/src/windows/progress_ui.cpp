@@ -139,6 +139,9 @@ void init_progress_title(progress_type ptype) {
     case progress_generation:
         set_progress_title("Generating the image, please wait...");
         break;
+    case progress_generation_video:
+        set_progress_title("Generating the video, please wait...");
+        break;
     case progress_preprocessor:
         set_progress_title("Pre-processing the image, please wait...");
         break;

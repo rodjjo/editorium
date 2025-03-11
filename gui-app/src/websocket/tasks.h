@@ -5,3 +5,4 @@
 #include "websocket/tasks/diffusion.h"
 #include "websocket/tasks/upscalers.h"
 #include "websocket/tasks/chatbots.h"
+#include "websocket/tasks/videogen.h"

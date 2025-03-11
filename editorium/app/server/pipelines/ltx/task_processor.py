@@ -26,7 +26,7 @@ PROGRESS_CALLBACK = None  # function(title: str, progress: float)
 
 
 def set_title(title):
-    ProgressBar.set_title(f'Wan 2.1 Video: {title}')
+    ProgressBar.set_title(f'Ltx Video 0.9.5: {title}')
     ProgressBar.set_progress(0.0)
     
 
@@ -125,19 +125,17 @@ def generate_video(
     negative_prompt: str = None,
     lora_path: str = None,
     lora_rank: int = 128,
-    image_or_video_path: str = "",
+    first_frame: Image.Image = None,
+    last_frame: Image.Image = None,
     num_inference_steps: int = 50,
     guidance_scale: float = 6.0,
     num_videos_per_prompt: int = 1,
     dtype: torch.dtype = torch.bfloat16,
-    generate_type: str = Literal["t2v", "i2v", "v2v"],  # i2v: image to video, v2v: video to video
     seed: int = 42,
-    quant: bool = False,
     width: int = 704,
     height: int = 480,
     num_frames: int = 121,
     frame_rate: int = 25,
-    should_upscale: bool = False,
     strength: float = 0.8,
     stg_skip_layers: str = "19",
     stg_mode: str = "attention_values",
@@ -168,13 +166,26 @@ def generate_video(
             generator.append(torch.Generator(device="cuda").manual_seed(seed + index))
     else:
         generator = torch.Generator(device="cuda").manual_seed(seed)
+        
+    if first_frame is not None or last_frame is not None:
+        generate_type = 'i2v'
+    else:
+        generate_type = 't2v'
     
     if generate_type == "i2v":
-        start_frame = [0]
-        conditioning_images = [image_or_video_path]
-        conditioning_strengths = [1.0]
+        conditioning_start_frames = []
+        conditioning_images = []
+        conditioning_strengths = []
+        if first_frame is not None:
+            conditioning_start_frames.append(0)
+            conditioning_images.append(first_frame)
+            conditioning_strengths.append(strength)
+        if last_frame is not None:
+            conditioning_start_frames.append(num_frames - 1)
+            conditioning_images.append(last_frame)
+            conditioning_strengths.append(strength)
     else:
-        start_frame = []
+        conditioning_start_frames = []
         conditioning_images = []
         conditioning_strengths = []
         
@@ -189,7 +200,7 @@ def generate_video(
         prepare_conditioning(
             conditioning_images=conditioning_images,
             conditioning_strengths=conditioning_strengths,
-            conditioning_start_frames=start_frame,
+            conditioning_start_frames=conditioning_start_frames,
             height=height,
             width=width,
             num_frames=num_frames,
@@ -253,6 +264,7 @@ def generate_video(
         "offload_to_cpu": offload_to_cpu,
         "device": device,
         "enhance_prompt": False,
+        "text_encoder_max_tokens": 512,
     }
 
     ltx_model.pipe.progress_bar = lambda total: ProgressBar(total=total)
@@ -303,40 +315,46 @@ def process_workflow_task(input: dict, config: dict):
     input_images = input.get('default', {}).get('images', None)
     if not input_images:
         input_images = input.get('image', {}).get('images', None)
-    input_videos = input.get('video', {}).get('images', None)
-            
-    if input_images and input_videos:
-        raise ValueError("Both images and videos were passed as input")
     
-    if input_images is not None:
-        generate_type = 'i2v'
-    elif input_videos is not None:
-        generate_type = 'v2v'
+    first_frame = None
+    last_frame = None
+    if input_images:
+        first_frame = input_images[0]
+        if len(input_images) > 1:
+            last_frame = input_images[-1]
     else:
-        generate_type = 't2v'
-
-    input_param = input_images if input_images else input_videos
-    
-    videos = []
-    if not input_param:
-        input_param = [None]
-    
-    for index, data in enumerate(input_param):
-        videos += generate_video(
-            prompt=config['prompt'],
-            negative_prompt=config.get('negative_prompt', None),
-            lora_path=config.get('lora_path', None),
-            lora_rank=config.get('lora_rank', 128),
-            image_or_video_path=data,
-            num_inference_steps=config.get('num_inference_steps', 50),
-            guidance_scale=config.get('guidance_scale', 6.0),
-            num_videos_per_prompt=config.get('num_videos_per_prompt', 1),
-            generate_type=generate_type,
-            seed=config.get('seed', -1),
-            quant=config.get('quant', False),
-            should_upscale=config.get('should_upscale', False),
-            strength=config.get('strength', 0.8),
-        )
+        if input.get('first_frame', {}).get('images', None):
+            first_frame = input.get('first_frame', {}).get('images', None)[0]
+        if input.get('last_frame', {}).get('images', None):
+            last_frame = input.get('last_frame', {}).get('images', None)[0]
+            
+    videos = generate_video(
+        prompt=config['prompt'],
+        negative_prompt=config.get('negative_prompt', None),
+        lora_path=config.get('lora_path', None),
+        lora_rank=config.get('lora_rank', 128),
+        first_frame=utils.ensure_image(first_frame),
+        last_frame=utils.ensure_image(last_frame),
+        num_inference_steps=config.get('num_inference_steps', 50),
+        guidance_scale=config.get('guidance_scale', 6.0),
+        num_videos_per_prompt=config.get('num_videos_per_prompt', 1),
+        seed=config.get('seed', -1),
+        width=config.get('width', 704),
+        height=config.get('height', 480),
+        num_frames=config.get('num_frames', 121),
+        frame_rate=config.get('frame_rate', 25),
+        strength=config.get('strength', 0.8),
+        stg_skip_layers=config.get('stg_skip_layers', "19"),
+        stg_mode=config.get('stg_mode', "attention_values"),
+        stg_scale=config.get('stg_scale', 1.0),
+        stg_rescale=config.get('stg_rescale', 0.7),
+        image_cond_noise_scale=config.get('image_cond_noise_scale', 0.15),
+        decode_timestep=config.get('decode_timestep', 0.025),
+        decode_noise_scale=config.get('decode_noise_scale', 0.0125),
+        precision=config.get('precision', "bfloat16"),
+        offload_to_cpu=config.get('offload_to_cpu', True),
+        device=config.get('device', None),
+    )
         
     assert len(videos) > 0, "No videos generated"
     assert type(videos[0]) == list, "Videos should be a list of images" + str(type(videos[0]))

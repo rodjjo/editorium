@@ -14,6 +14,7 @@
 #include "windows/upscaler_ui.h"
 #include "windows/size_ui.h"
 #include "windows/chatbot_ui.h"
+#include "windows/ltx_video_ui.h"
 #include "windows/image_palette_ui.h"
 #include "windows/drawing_ui.h"
 #include "main_window.h"
@@ -62,6 +63,7 @@ namespace editorium
             event_main_menu_enhance_correct_colors,
             event_main_menu_selection_generate, 
             event_main_menu_selection_vision_chat,
+            event_main_menu_selection_ltx_video,
             event_main_menu_selection_from_layer,
             event_main_menu_selection_to_palette,
             event_main_menu_selection_send_to_drawing,
@@ -131,6 +133,7 @@ namespace editorium
             menu_->addItem(event_main_menu_enhance_correct_colors, "", "Enhancements/Correct Colors", "", 0, xpm::img_24x24_text_preview);
             menu_->addItem(event_main_menu_selection_generate, "", "Selection/Generate Image", "^i", 0, xpm::img_24x24_bee);
             menu_->addItem(event_main_menu_selection_vision_chat, "", "Selection/Vision Chat", "");
+            menu_->addItem(event_main_menu_selection_ltx_video, "", "Selection/Generate Video (ltx)", "");
             menu_->addItem(event_main_menu_selection_to_palette, "", "Selection/Send to Palette", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_selection_send_to_drawing, "", "Selection/Send to drawing", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
@@ -354,6 +357,9 @@ namespace editorium
             break;
         case event_main_menu_selection_vision_chat:
             send_selection_to_vision_chat();
+            break;
+        case event_main_menu_selection_ltx_video:
+            send_selection_to_video_ltx();
             break;
         case event_main_menu_selection_to_palette:
             send_selection_to_palette();
@@ -752,6 +758,19 @@ namespace editorium
             }
         } else {
             fl_alert("No selection to send to the vision chat");
+        }
+    }
+
+    void MainWindow::send_selection_to_video_ltx() {
+        if (image_->view_settings()->has_selected_area()) {
+            auto img = image_->view_settings()->get_selected_image();
+            if (img) {
+                if (img->w() < 128 || img->h() < 128) {
+                    fl_alert("The selected area is too small to generate a video.\nIt must be at least 128x128 pixels");
+                    return;
+                }
+                generate_video_ltx_model(img);
+            }
         }
     }
 
