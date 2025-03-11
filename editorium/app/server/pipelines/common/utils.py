@@ -265,3 +265,10 @@ def ensure_image(data, ensure_rgb=True):
         if ensure_rgb and data.mode != "RGB":
             data = data.convert("RGB")
     return data
+
+
+def get_total_gpu_memory():
+    if torch.cuda.is_available():
+        total_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+        return total_memory
+    return 0

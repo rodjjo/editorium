@@ -34,10 +34,13 @@ def get_non_existing_path(output_path: str) -> str:
 
 
 def save_video(frames, output_path, upscaler_model=None, fps_model=None,  fps=8):
-    if not os.path.exists("/app/output_dir/output/videos"):
-        os.makedirs("/app/output_dir/output/videos", exist_ok=True)
-    output_path = os.path.join("/app/output_dir/output/videos", output_path)
+    #if not os.path.exists("/app/output_dir/output/videos"):
+    #    os.makedirs("/app/output_dir/output/videos", exist_ok=True)
+    #output_path = os.path.join("/app/output_dir/output/videos", output_path)
     output_path = get_non_existing_path(output_path.replace(".mp4", ".fps.mp4"))
+    if len(frames) == 0:
+        print("No frames to save")
+        return output_path, frames
     
     if upscaler_model:
         frames = [resize_pil_image(frames[i]) for i in range(len(frames))]

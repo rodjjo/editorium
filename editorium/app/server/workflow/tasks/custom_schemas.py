@@ -26,6 +26,23 @@ class ImageField(fields.Field):
         return value
     
 
+class InternalOnlyField(fields.Field):
+    def _deserialize(self, value, attr, data):
+        if not value:
+            return None
+        if self.context.get("from_api", False):
+            return None
+        return value
+        
+    
+    def _serialize(self, value, attr, obj):
+        if not value:
+            return None
+        if self.context.get("from_api", False):
+            return None
+        return value
+    
+
 class BoxField(fields.Field):
     def _deserialize(self, value, attr, data):
         if not value:
@@ -47,7 +64,9 @@ class BoxField(fields.Field):
 
 
 class InputOutputSchema(Schema):
+    text_embeddings = fields.List(InternalOnlyField(), required=False, load_default=[])
     images = fields.List(ImageField(), required=False, load_default=[])
+    videos = fields.List(fields.List(ImageField(), load_default=[]), required=False, load_default=[])
     boxes = fields.List(BoxField(), required=False, load_default=[])
     texts = fields.List(fields.Str(), required=False, load_default=[])
     data = fields.Dict(required=False, load_default={})

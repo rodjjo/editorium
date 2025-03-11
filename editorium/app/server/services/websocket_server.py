@@ -64,7 +64,7 @@ def websocket_processor(ws_input_queue: Queue, ws_output_queue: Queue):
             last_report_sent = datetime.now()
             current_task, processing_taks = track_current_task(ws_input_queue)
             reports = {}
-            if current_task is not None:
+            if current_task is not None and current_task.custom_data.get('client') is not None:
                 client = current_task.custom_data['client']
                 progress_title, progress_percent, prog_task_id = ProgressBar.get_progress()
                 if prog_task_id != current_task.id:

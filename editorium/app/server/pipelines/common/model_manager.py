@@ -2,7 +2,7 @@ from typing import Dict
 import gc 
 import os
 import torch
-
+from accelerate import cpu_offload
 
 class ManagedModel:
     MODELS_PATH = "/home/editorium/models/"
@@ -16,6 +16,14 @@ class ManagedModel:
     def release_other_models(self):
         model_manager.release_all_models(self)
         
+    def enable_sequential_cpu_offload(self, model):
+        torch_device = torch.device("cuda")
+        device_type = torch_device.type
+        device = torch.device(f"{device_type}:0")
+        offload_buffers = len(model._parameters) > 0
+        cpu_offload(model, device, offload_buffers=offload_buffers)
+
+
     def model_dir(self, *args):
         result = os.path.join(self.MODELS_PATH, *args)
         os.makedirs(result, exist_ok=True)
