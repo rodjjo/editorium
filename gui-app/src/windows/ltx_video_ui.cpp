@@ -4,6 +4,7 @@
 #include "misc/profiles.h"
 #include "windows/ltx_video_ui.h"
 #include "windows/chatbot_ui.h"
+#include "windows/image_palette_ui.h"
 #include "websocket/tasks.h"
 
 
@@ -14,8 +15,11 @@ namespace {
     std::string last_negative_prompt_used;
 }
 
-LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 - 860 / 2, Fl::h() / 2 - 640 / 2, 860, 520, "Generate Video (LTX)") {
+LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 - 860 / 2, Fl::h() / 2 - 720 / 2, 860, 720, "Generate Video (LTX)") {
     first_frame_ = first_frame;
+    first_img_ = new NonEditableImagePanel(0, 0, 1, 1, "First Frame");
+    last_img_ = new NonEditableImagePanel(0, 0, 1, 1, "Last Frame");
+
     positive_prompt_ = new Fl_Text_Editor(0, 0, 1, 1, "Positive prompt");
     sys_prompt_buffer_ = new Fl_Text_Buffer();
     positive_prompt_->buffer(sys_prompt_buffer_);
@@ -42,6 +46,26 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     height_ = new Fl_Int_Input(0, 0, 0, 0, "Height");
     num_frames_ = new Fl_Int_Input(0, 0, 0, 0, "Num Frames");
     frame_rate_ = new Fl_Int_Input(0, 0, 0, 0, "Frame Rate");
+
+
+    btn_first_frame_open_.reset(new Button(xpm::image(xpm::img_24x24_open), [this] {
+        first_frame_open();
+    }));
+    btn_first_frame_palette_.reset(new Button(xpm::image(xpm::img_24x24_pinion), [this] {
+        first_frame_palette();
+    }));
+    btn_first_frame_clipbrd_.reset(new Button(xpm::image(xpm::img_24x24_copy), [this] {
+        first_frame_clipbrd();
+    }));
+    btn_second_frame_open_.reset(new Button(xpm::image(xpm::img_24x24_open), [this] {
+        second_frame_open();
+    }));
+    btn_second_frame_palette_.reset(new Button(xpm::image(xpm::img_24x24_pinion), [this] {
+        second_frame_palette();
+    }));
+    btn_second_frame_clipbrd_.reset(new Button(xpm::image(xpm::img_24x24_copy), [this] {
+        second_frame_clipbrd();
+    }));
 
     btn_interrogate_.reset(new Button(xpm::image(xpm::img_24x24_question), [this] {
         interrogate_image();
@@ -107,19 +131,25 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     num_frames_->align(FL_ALIGN_TOP_LEFT);
     frame_rate_->align(FL_ALIGN_TOP_LEFT);
 
-    if (first_frame_) {
-        float width_by_704 = 704.0 / first_frame_->w();
-        float height_by_480 = 480.0 / first_frame_->h();
-        float scale = std::min(width_by_704, height_by_480);
-        int new_width = first_frame_->w() * scale;
-        int new_height = first_frame_->h() * scale;
-        std::string width_str = std::to_string(new_width);
-        std::string height_str = std::to_string(new_height);
-        width_->value(width_str.c_str());
-        height_->value(height_str.c_str());
-    }
+    suggest_size();
 
     btn_interrogate_->tooltip("Use a multimodal model to look at the current image and describe it.");
+    first_img_->tooltip("First frame");
+    last_img_->tooltip("Last frame");
+    btn_first_frame_open_->tooltip("Open first frame");
+    btn_first_frame_palette_->tooltip("Open first frame in palette");
+    btn_first_frame_clipbrd_->tooltip("Past first frame from the clipboard");
+    btn_second_frame_open_->tooltip("Open last frame");
+    btn_second_frame_palette_->tooltip("Open last frame in palette");
+    btn_second_frame_clipbrd_->tooltip("Past last frame from the clipboard");
+
+    if (first_frame_) {
+        first_img_->view_settings()->add_layer(first_frame_);
+    }
+
+    if (last_frame_) {
+        last_img_->view_settings()->add_layer(last_frame_);
+    }
    
     chatbot_load_profile();
     if (!last_prompt_used.empty()) {
@@ -136,9 +166,11 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     }
     set_modal();
     align_component();
+    Fl::add_timeout(1.0, LtxVideoWindow::clear_scroll, this);
 }
 
 LtxVideoWindow::~LtxVideoWindow() {
+    Fl::remove_timeout(LtxVideoWindow::clear_scroll, this);
     if(sys_prompt_buffer_) {
         delete sys_prompt_buffer_;
     }
@@ -147,12 +179,57 @@ LtxVideoWindow::~LtxVideoWindow() {
     }
 }
 
+void LtxVideoWindow::clear_scroll(void *this_ptr) {
+    static_cast<LtxVideoWindow *>(this_ptr)->clear_scroll();
+}
+
+void LtxVideoWindow::clear_scroll() {
+    if (first_img_->view_settings()->layer_count() > 0) {
+        first_img_->view_settings()->setZoom(100);
+        first_img_->clear_scroll();
+    }
+    if (last_img_->view_settings()->layer_count() > 0) {
+        last_img_->view_settings()->setZoom(100);
+        last_img_->clear_scroll();
+    }
+}
+
+void LtxVideoWindow::suggest_size() {
+    if (first_frame_) {
+        float width_by_704 = 704.0 / first_frame_->w();
+        float height_by_480 = 480.0 / first_frame_->h();
+        float scale = std::min(width_by_704, height_by_480);
+        int new_width = first_frame_->w() * scale;
+        int new_height = first_frame_->h() * scale;
+        std::string width_str = std::to_string(new_width);
+        std::string height_str = std::to_string(new_height);
+        width_->value(width_str.c_str());
+        height_->value(height_str.c_str());
+    }
+}
+
 bool LtxVideoWindow::confirmed() {
     return confirmed_;    
 }
 
 void LtxVideoWindow::align_component() {
-    positive_prompt_->resize(10, 40, this->w() - 58, 100);
+    first_img_->resize(10, 10, this->w() / 2 - 100, 200);
+    btn_first_frame_open_->position(first_img_->x() + first_img_->w() + 5, first_img_->y());
+    btn_first_frame_open_->size(28, 28);
+    btn_first_frame_palette_->position(first_img_->x() + first_img_->w() + 5, first_img_->y() + 30);
+    btn_first_frame_palette_->size(28, 28);
+    btn_first_frame_clipbrd_->position(first_img_->x() + first_img_->w() + 5, first_img_->y() + 60);
+    btn_first_frame_clipbrd_->size(28, 28);
+    last_img_->resize(first_img_->x() + first_img_->w() + 10 + 48, first_img_->y(), first_img_->w(), 200);
+    btn_second_frame_open_->position(last_img_->x() + last_img_->w() + 5, last_img_->y());
+    btn_second_frame_open_->size(28, 28);
+    btn_second_frame_palette_->position(last_img_->x() + last_img_->w() + 5, last_img_->y() + 30);
+    btn_second_frame_palette_->size(28, 28);
+    btn_second_frame_clipbrd_->position(last_img_->x() + last_img_->w() + 5, last_img_->y() + 60);
+    btn_second_frame_clipbrd_->size(28, 28);
+
+    positive_prompt_->resize(10, this->w() - 20, this->w() - 58, 100);
+    positive_prompt_->position(10, first_img_->y() + first_img_->h() + 40);
     btn_interrogate_->position(positive_prompt_->x() + positive_prompt_->w() + 5, positive_prompt_->y());
     btn_interrogate_->size(28, 28);
 
@@ -281,6 +358,85 @@ void LtxVideoWindow::interrogate_image() {
         if (!result.empty()) {
             positive_prompt_->buffer()->text(result.c_str());
         }
+    }
+}
+
+void LtxVideoWindow::first_frame_open() {
+    auto path = choose_image_to_open_fl("LtxVideoWindow::FirstFrameOpen");
+    if (path.empty()) {
+        return;
+    }
+    first_img_->view_settings()->clear_layers();
+    first_img_->view_settings()->add_layer(path.c_str());
+    first_img_->view_settings()->setZoom(100);
+    first_img_->clear_scroll();
+    if (first_img_->view_settings()->layer_count() > 0) {
+        first_frame_ = first_img_->view_settings()->at(0)->getImage()->duplicate();
+    }
+    suggest_size();
+}
+
+void LtxVideoWindow::first_frame_palette() {
+    auto img = pickup_image_from_palette();
+    if (img) {
+        first_img_->view_settings()->clear_layers();
+        first_img_->view_settings()->add_layer(img);
+        first_img_->view_settings()->setZoom(100);
+        first_img_->clear_scroll();
+        first_frame_ = img->duplicate();
+        suggest_size();
+    }
+}
+
+void LtxVideoWindow::first_frame_clipbrd() {
+    auto img = ws::diffusion::run_paste_image();
+    if (img) {
+        first_img_->view_settings()->clear_layers();
+        first_img_->view_settings()->add_layer(img);
+        first_img_->view_settings()->setZoom(100);
+        first_img_->clear_scroll();
+        first_frame_ = img->duplicate();
+        suggest_size();
+    } else {
+        show_error("No image in the clipboard");
+    }
+}
+
+void LtxVideoWindow::second_frame_open() {
+    auto path = choose_image_to_open_fl("LtxVideoWindow::FirstFrameOpen");
+    if (path.empty()) {
+        return;
+    }
+    last_img_->view_settings()->clear_layers();
+    last_img_->view_settings()->add_layer(path.c_str());
+    last_img_->view_settings()->setZoom(100);
+    last_img_->clear_scroll();
+    if (last_img_->view_settings()->layer_count() > 0) {
+        last_frame_ = last_img_->view_settings()->at(0)->getImage()->duplicate();
+    }
+}
+
+void LtxVideoWindow::second_frame_palette() {
+    auto img = pickup_image_from_palette();
+    if (img) {
+        last_img_->view_settings()->clear_layers();
+        last_img_->view_settings()->add_layer(img);
+        last_img_->view_settings()->setZoom(100);
+        last_img_->clear_scroll();
+        last_frame_ = img->duplicate();
+    }
+}
+
+void LtxVideoWindow::second_frame_clipbrd() {
+    auto img = ws::diffusion::run_paste_image();
+    if (img) {
+        last_img_->view_settings()->clear_layers();
+        last_img_->view_settings()->add_layer(img);
+        last_img_->view_settings()->setZoom(100);
+        last_img_->clear_scroll();
+        last_frame_ = img->duplicate();
+    } else {
+        show_error("No image in the clipboard");
     }
 }
 

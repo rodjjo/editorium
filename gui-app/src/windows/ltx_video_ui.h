@@ -14,6 +14,7 @@
 
 #include "images/image.h"
 #include "components/button.h"
+#include "components/image_panel.h"
 
 namespace editorium
 {
@@ -46,8 +47,18 @@ public:
     image_ptr_t get_last_frame();
 
 private:
+    static void clear_scroll(void *this_ptr);
+    void clear_scroll();
+    void suggest_size();
+private:
     void align_component();
     void interrogate_image();
+    void first_frame_open();
+    void first_frame_palette();
+    void first_frame_clipbrd();
+    void second_frame_open();
+    void second_frame_palette();
+    void second_frame_clipbrd();
 
 private:
     bool confirmed_ = false;
@@ -55,7 +66,8 @@ private:
     Fl_Text_Editor *negative_prompt_ = nullptr;
     Fl_Text_Buffer *sys_prompt_buffer_ = nullptr;
     Fl_Text_Buffer *usr_prompt_buffer_ = nullptr;
-    
+    ImagePanel *first_img_ = nullptr;
+    ImagePanel *last_img_ = nullptr;
     Fl_Input *file_name_ = nullptr;
     Fl_Int_Input *seed_ = nullptr;
     Fl_Int_Input *width_ = nullptr;
@@ -75,6 +87,12 @@ private:
     Fl_Int_Input *num_generated_videos_ = nullptr;
     image_ptr_t first_frame_;
     image_ptr_t last_frame_; 
+    std::unique_ptr<Button> btn_first_frame_open_;
+    std::unique_ptr<Button> btn_first_frame_palette_;
+    std::unique_ptr<Button> btn_first_frame_clipbrd_;
+    std::unique_ptr<Button> btn_second_frame_open_;
+    std::unique_ptr<Button> btn_second_frame_palette_;
+    std::unique_ptr<Button> btn_second_frame_clipbrd_;
     std::unique_ptr<Button> btn_interrogate_;
     std::unique_ptr<Button> btnOk_;
     std::unique_ptr<Button> btnCancel_;
