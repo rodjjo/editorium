@@ -3,11 +3,18 @@
 #include "websocket/tasks/filesystem.h"
 #include "websocket/code.h"
 #include "windows/progress_ui.h"
+#include "video/video.h"
 
 namespace editorium {
 namespace ws {
 namespace filesystem {
     image_ptr_t load_image(const std::string &path) {
+        auto video = vs::open_file(path.c_str());
+        if (video->error() || !video->buffer()) {
+            return nullptr;
+        }
+        return std::make_shared<RawImage>(video->buffer(), video->w(), video->h(), img_rgb, false);
+        /*
         std::ifstream file(path, std::ios::binary);
         std::vector<char> buffer(std::istreambuf_iterator<char>(file), {});
         auto encoded = base64_encode((const unsigned char *)buffer.data(), buffer.size());
@@ -25,6 +32,7 @@ namespace filesystem {
         }
 
         return result->images.front();
+        */
     }
 
     void save_image(const std::string &path, image_ptr_t image, bool png_format) {

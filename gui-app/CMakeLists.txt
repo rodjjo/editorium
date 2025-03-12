@@ -31,6 +31,13 @@ add_compile_definitions(
     BOOST_ASIO_STANDALONE
 )
 
+find_library(AVCODEC_LIBRARY avcodec)
+find_library(AVFORMAT_LIBRARY avformat)
+find_library(AVUTIL_LIBRARY avutil)
+find_library(AVDEVICE_LIBRARY avdevice)
+find_library(SWRESAMPLE_LIBRARY swresample)
+find_library(SWSCALE_LIBRARY swscale)
+
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})
 
@@ -63,6 +70,7 @@ file(GLOB Sources
     "${CMAKE_CURRENT_SOURCE_DIR}/src/base64/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/websocket/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/websocket/tasks/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/video/*.cpp"
 )
 
 add_executable(editorium-ui ${Sources})
@@ -78,6 +86,12 @@ target_link_libraries(
     fltk_gl 
     tiny_websockets_lib
     ${PNG_LIBRARY}
+    ${AVCODEC_LIBRARY}
+    ${AVFORMAT_LIBRARY}
+    ${AVUTIL_LIBRARY}
+    ${AVDEVICE_LIBRARY}
+    ${SWRESAMPLE_LIBRARY}
+    ${SWSCALE_LIBRARY}
     X11
 )
 

@@ -45,7 +45,8 @@ def execute_server(path, docker_image, env, args, cache_dir, models_dir, entry_p
     # env['XDG_CACHE_HOME'] = '/home/editorium/models'
     env['U2NET_HOME'] = '/home/editorium/models'
     env['MPLCONFIGDIR'] = '/app/output_dir/.config/matplotlib'
-    
+    env['OUTPUT_PATH_OUTSIDE'] = path
+    env['OUTPUT_PATH_INSIDE'] = '/app/output_dir'
     print('Running server with the following parameters:')
     print('Models dir:', models_dir)
     print('Cache dir:', cache_dir)

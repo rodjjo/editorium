@@ -26,6 +26,22 @@ You need to install the following components at your ubuntu operating system:
 * Nvidia runtime for docker
 * ffmpeg  (only if you want to use editorium ffmpeg commands)
 
+```bash
+sudo apt-get update -qq && sudo apt-get -y install \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libavdevice-dev \
+    libswresample-dev \
+    libswscale-dev \
+    libgl-dev \
+    lcov \
+    libssl-dev \
+    python3-pip
+
+```
+
 ## Installation
 
 ```
