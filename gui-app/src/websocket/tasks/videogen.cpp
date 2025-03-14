@@ -16,6 +16,11 @@ namespace video_gen {
 std::pair<json, json> create_ltx_video_gen_request(const ltx_video_gen_request_t &request) {
     std::pair<json, json> result;
 
+    int seed = (rand() % 1000000) + 1;
+    if (request.seed >= 0) {
+        seed = request.seed;
+    }
+
     json config;
     config["prompt"] = request.prompt;
     config["negative_prompt"] = request.negative_prompt;
@@ -24,12 +29,14 @@ std::pair<json, json> create_ltx_video_gen_request(const ltx_video_gen_request_t
     config["num_inference_steps"] = request.num_inference_steps;
     config["guidance_scale"] = request.guidance_scale;
     config["num_videos_per_prompt"] = request.num_videos_per_prompt;
-    config["seed"] = request.seed;
+    config["seed"] = seed;
     config["width"] = request.width;
     config["height"] = request.height;
     config["num_frames"] = request.num_frames;
     config["frame_rate"] = request.frame_rate;
     config["strength"] = request.strength;
+    config["intermediate_start"] = request.intermediate_start;
+    config["intermediate_strength"] = request.intermediate_strength;
     config["stg_skip_layers"] = request.stg_skip_layers;
     config["stg_mode"] = request.stg_mode;
     config["stg_scale"] = request.stg_scale;
@@ -48,6 +55,10 @@ std::pair<json, json> create_ltx_video_gen_request(const ltx_video_gen_request_t
     if (request.last_frame) {
         last_frame_images.images.push_back(request.last_frame);
     }
+    api_payload_t intermediate_frame_images;
+    if (!request.intermediate_frames.empty()) {
+        intermediate_frame_images.images = std::vector<editorium::image_ptr_t>(request.intermediate_frames.begin(), request.intermediate_frames.end());
+    }
     
     json inputs;
     if (first_frame_images.images.size() > 0) {
@@ -56,7 +67,10 @@ std::pair<json, json> create_ltx_video_gen_request(const ltx_video_gen_request_t
     if (last_frame_images.images.size() > 0) {
         inputs["last_frame"] = to_input(last_frame_images);
     }
-    
+    if (intermediate_frame_images.images.size() > 0) {
+        inputs["middle_frames"] = to_input(intermediate_frame_images);
+    }
+
     result.first = inputs;
     result.second = config;
     

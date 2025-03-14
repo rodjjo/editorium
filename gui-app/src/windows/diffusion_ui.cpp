@@ -102,7 +102,7 @@ namespace editorium
 
         image_ptr_t reference_mask;
         image_ptr_t reference_img;
-        if (view_settings_) {
+        if (view_settings_ && view_settings_->has_selected_area()) {
             reference_mask = view_settings_->get_selected_image()->create_mask_from_alpha_channel();
             if (reference_mask) {
                 reference_mask = reference_mask->dilate(25);
@@ -113,6 +113,9 @@ namespace editorium
             } else {
                 reference_img = selected_img;
             }
+        } else if (view_settings_ && view_settings_->layer_count() > 0) {
+            reference_img = view_settings_->at(0)->getImage()->duplicate();
+
         }
 
         page_type_t where;

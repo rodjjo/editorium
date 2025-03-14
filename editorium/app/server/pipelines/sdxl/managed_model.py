@@ -315,7 +315,7 @@ class SdxlModels(ManagedModel):
         if not has_changes:
             return
         self.release_model()
-        torch_dtype = torch.bfloat16
+        torch_dtype = torch.float16
         self.model_name = model_name
         self.lora_repo_id = lora_repo_id
         self.lora_scale = lora_scale

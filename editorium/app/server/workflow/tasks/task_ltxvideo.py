@@ -14,7 +14,9 @@ class LtxVideoPayloadSchema(Schema):
     guidance_scale = fields.Float(required=False, load_default=5.0)
     num_videos_per_prompt = fields.Int(required=False, load_default=1)
     seed = fields.Int(required=False, load_default=-1)
-    strength = fields.Float(required=False, load_default=0.8)
+    strength = fields.Float(required=False, load_default=0.95)
+    intermediate_strength = fields.Float(required=False, load_default=0.5)
+    intermediate_start = fields.Int(required=False, load_default=8)
     width = fields.Int(required=False, load_default=704)
     height = fields.Int(required=False, load_default=480)
     num_frames = fields.Int(required=False, load_default=121)
@@ -41,7 +43,7 @@ class LtxVideoTask(WorkflowTask):
         print("Processing LTX video task")
         result = process_workflow_task(input, config)
         if config.get('save_path'):
-            save_video_list(config['save_path'], result['videos'])
+            save_video_list(config['save_path'], result['videos'], config.get('seed'))
             result['videos'] = []
             result['images'] = []
         return result

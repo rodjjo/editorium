@@ -4,6 +4,7 @@ import os
 import sys
 import random
 import subprocess
+import gc
 from typing import Literal, List, Optional, Union
 import torch
 from diffusers.utils import export_to_video, load_video
@@ -89,7 +90,6 @@ def prepare_conditioning(
     for image, strength, start_frame in zip(
         conditioning_images, conditioning_strengths, conditioning_start_frames
     ):
-    
         frame_tensor = load_image_to_tensor_with_resize_and_crop(
             image, height, width
         )
@@ -99,6 +99,38 @@ def prepare_conditioning(
         )
 
     return conditioning_items
+
+
+def prepare_conditioning_video(
+    conditioning_images: list[Image.Image],
+    strength: float,
+    start_frame: int,
+    height: int,
+    width: int,
+    num_frames: int,
+    padding: tuple[int, int, int, int],
+    pipeline: object,
+) -> Optional[List[ConditioningItem]]:
+    if len(conditioning_images) < 1:
+        return []
+    
+    num_input_frames = pipeline.trim_conditioning_sequence(
+        start_frame, len(conditioning_images), num_frames
+    )
+    
+    frames = []
+    
+    for idx in range(num_input_frames):
+        image = conditioning_images[idx]
+        frame_tensor = load_image_to_tensor_with_resize_and_crop(
+            image, height, width
+        )
+        frame_tensor = torch.nn.functional.pad(frame_tensor, padding)
+        frames.append(frame_tensor)
+    video_tensor = torch.cat(frames, dim=2)
+    return [
+        ConditioningItem(video_tensor, start_frame, strength)
+    ]
 
 def calculate_padding(
     source_height: int, source_width: int, target_height: int, target_width: int
@@ -127,6 +159,7 @@ def generate_video(
     lora_rank: int = 128,
     first_frame: Image.Image = None,
     last_frame: Image.Image = None,
+    middle_frames: List[Image.Image] = None,
     num_inference_steps: int = 50,
     guidance_scale: float = 6.0,
     num_videos_per_prompt: int = 1,
@@ -137,6 +170,8 @@ def generate_video(
     num_frames: int = 121,
     frame_rate: int = 25,
     strength: float = 0.8,
+    intermediate_start: int = 8,
+    intermediate_strength: float = 0.5,
     stg_skip_layers: str = "19",
     stg_mode: str = "attention_values",
     stg_scale: float = 1.0,
@@ -167,7 +202,7 @@ def generate_video(
     else:
         generator = torch.Generator(device="cuda").manual_seed(seed)
         
-    if first_frame is not None or last_frame is not None:
+    if first_frame is not None or last_frame is not None or middle_frames is not None:
         generate_type = 'i2v'
     else:
         generate_type = 't2v'
@@ -176,18 +211,34 @@ def generate_video(
         conditioning_start_frames = []
         conditioning_images = []
         conditioning_strengths = []
+        video_conditioning_images = []
+        start_frame_for_video = 0
+        
+        frame_pos = 0
         if first_frame is not None:
+            frame_pos = 1
+            start_frame_for_video = intermediate_start
             conditioning_start_frames.append(0)
             conditioning_images.append(first_frame)
             conditioning_strengths.append(strength)
+            
+        if middle_frames is not None:
+            for frame in middle_frames:
+                if frame_pos >= num_frames:
+                    break
+                video_conditioning_images.append(frame)
+                frame_pos += 1
+                
         if last_frame is not None:
             conditioning_start_frames.append(num_frames - 1)
             conditioning_images.append(last_frame)
             conditioning_strengths.append(strength)
     else:
+        start_frame_for_video = 0
         conditioning_start_frames = []
         conditioning_images = []
         conditioning_strengths = []
+        video_conditioning_images = []
         
     # Adjust dimensions to be divisible by 32 and num_frames to be (N * 8 + 1)
     height_padded = ((height - 1) // 32 + 1) * 32
@@ -195,21 +246,36 @@ def generate_video(
     num_frames_padded = ((num_frames - 2) // 8 + 1) * 8 + 1
 
     padding = calculate_padding(height, width, height_padded, width_padded)
-
-    conditioning_items = (
-        prepare_conditioning(
-            conditioning_images=conditioning_images,
-            conditioning_strengths=conditioning_strengths,
-            conditioning_start_frames=conditioning_start_frames,
-            height=height,
-            width=width,
-            num_frames=num_frames,
-            padding=padding,
-            pipeline=ltx_model.pipe,
-        )
-        if conditioning_images
-        else None
-    )        
+    if not conditioning_images and not video_conditioning_images:
+        conditioning_items = None
+    else:
+        conditioning_items = []
+        if conditioning_images:
+            conditioning_items = prepare_conditioning(
+                conditioning_images=conditioning_images,
+                conditioning_strengths=conditioning_strengths,
+                conditioning_start_frames=conditioning_start_frames,
+                height=height,
+                width=width,
+                num_frames=num_frames,
+                padding=padding,
+                pipeline=ltx_model.pipe,
+            )
+        if video_conditioning_images:
+            print("Preparing conditioning video")
+            print("Strength: ", intermediate_strength)
+            print("Has first frame: ", first_frame is not None)
+            print("Has last frame: ", last_frame is not None)
+            conditioning_items += prepare_conditioning_video(
+                conditioning_images=video_conditioning_images,
+                strength=intermediate_strength,
+                start_frame=start_frame_for_video,
+                height=height,
+                width=width,
+                num_frames=num_frames,
+                padding=padding,
+                pipeline=ltx_model.pipe,
+            )
     
     # Set spatiotemporal guidance
     skip_block_list = [int(x.strip()) for x in stg_skip_layers.split(",")]
@@ -312,10 +378,13 @@ def generate_video(
 
 
 def process_workflow_task(input: dict, config: dict):
+    gc.collect()
+    torch.cuda.empty_cache()
+
     input_images = input.get('default', {}).get('images', None)
     if not input_images:
         input_images = input.get('image', {}).get('images', None)
-    
+    middle_frames = utils.ensure_image(input.get('middle_frames', {}).get('images', None))
     first_frame = None
     last_frame = None
     if input_images:
@@ -335,6 +404,7 @@ def process_workflow_task(input: dict, config: dict):
         lora_rank=config.get('lora_rank', 128),
         first_frame=utils.ensure_image(first_frame),
         last_frame=utils.ensure_image(last_frame),
+        middle_frames=middle_frames,
         num_inference_steps=config.get('num_inference_steps', 50),
         guidance_scale=config.get('guidance_scale', 6.0),
         num_videos_per_prompt=config.get('num_videos_per_prompt', 1),
@@ -343,7 +413,9 @@ def process_workflow_task(input: dict, config: dict):
         height=config.get('height', 480),
         num_frames=config.get('num_frames', 121),
         frame_rate=config.get('frame_rate', 25),
-        strength=config.get('strength', 0.8),
+        strength=config.get('strength', 0.95),
+        intermediate_start=config.get('intermediate_start', 8),
+        intermediate_strength=config.get('intermediate_strength', 0.5),
         stg_skip_layers=config.get('stg_skip_layers', "19"),
         stg_mode=config.get('stg_mode', "attention_values"),
         stg_scale=config.get('stg_scale', 1.0),

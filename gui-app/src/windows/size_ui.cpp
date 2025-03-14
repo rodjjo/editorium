@@ -6,7 +6,7 @@
 namespace editorium
 {
 
-SizeWindow::SizeWindow(const char *title, bool single_value, bool is_float) : Fl_Window(0, 0, 300, 100, title) {
+SizeWindow::SizeWindow(const char *title, bool single_value, bool is_float, bool match_proportion) : Fl_Window(0, 0, 300, 100, title) {
     is_float_ = is_float;
     single_value_ = single_value;
     this->position(Fl::w()/ 2 - this->w() / 2,  Fl::h() / 2 - this->h() / 2);
@@ -45,7 +45,9 @@ SizeWindow::SizeWindow(const char *title, bool single_value, bool is_float) : Fl
         btn_proportion_->hide();
     }
     btn_proportion_->enableDownUp();
-    btn_proportion_->down(true);
+    if (match_proportion) {
+        btn_proportion_->down(true);
+    }
     width_->callback(&valueChangedCb, this);
     height_->callback(&valueChangedCb, this);
 }
@@ -211,8 +213,8 @@ bool SizeWindow::run() {
     return ok_confirmed_;
 }
 
-bool getSizeFromDialog(const char *title, int *x, int *y) {
-    SizeWindow *wnd = new SizeWindow(title, y == NULL);
+bool getSizeFromDialog(const char *title, int *x, int *y, bool match_proportion) {
+    SizeWindow *wnd = new SizeWindow(title, y == NULL, false, match_proportion);
     wnd->setInitialSize(*x, y != NULL ? *y : 512);
     bool result = wnd->run();
     if (result) {

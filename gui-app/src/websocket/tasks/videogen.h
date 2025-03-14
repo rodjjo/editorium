@@ -1,5 +1,6 @@
 #pragma once
 
+#include <list>
 #include <vector>
 #include <string>
 #include <set>
@@ -19,7 +20,9 @@ typedef struct {
     float guidance_scale = 5.0;
     int num_videos_per_prompt = 1;
     int seed = -1;
-    float strength = 0.8;
+    int intermediate_start = 9;
+    float strength = 0.95;
+    float intermediate_strength = 0.5;
     int width = 704;
     int height = 480;
     int num_frames = 121;
@@ -35,6 +38,7 @@ typedef struct {
     std::string save_path;
     editorium::image_ptr_t first_frame;
     editorium::image_ptr_t last_frame;
+    std::list<editorium::image_ptr_t> intermediate_frames;
 } ltx_video_gen_request_t;
 
 bool run_ltx_video_gen(const ltx_video_gen_request_t &request);

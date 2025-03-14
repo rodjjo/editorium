@@ -1,11 +1,12 @@
 #include "components/xpm/xpm.h"
 #include "misc/dialogs.h"
-
 #include "misc/profiles.h"
 #include "windows/ltx_video_ui.h"
 #include "windows/chatbot_ui.h"
 #include "windows/image_palette_ui.h"
+#include "images/image_palette.h"
 #include "websocket/tasks.h"
+#include "diffusion_ui.h"
 
 
 namespace editorium {
@@ -15,10 +16,17 @@ namespace {
     std::string last_negative_prompt_used;
 }
 
-LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 - 860 / 2, Fl::h() / 2 - 720 / 2, 860, 720, "Generate Video (LTX)") {
-    first_frame_ = first_frame;
-    first_img_ = new NonEditableImagePanel(0, 0, 1, 1, "First Frame");
-    last_img_ = new NonEditableImagePanel(0, 0, 1, 1, "Last Frame");
+LtxVideoWindow::LtxVideoWindow(std::list<image_ptr_t> frames): Fl_Window(Fl::w() / 2 - 860 / 2, Fl::h() / 2 - 800 / 2, 860, 800, "Generate Video (LTX)") {
+    first_frame_ = *(frames.begin());
+    if (frames.size() > 1) {
+        last_frame_ = *(frames.rbegin());
+    }
+    if (frames.size() > 2) {
+        intermediate_frames_ = std::list<image_ptr_t>(std::next(frames.begin(), 1), std::prev(frames.end()));
+    }
+
+    first_img_ = new AllowSelectionImagePanel(0, 0, 1, 1, "First Frame");
+    last_img_ = new AllowSelectionImagePanel(0, 0, 1, 1, "Last Frame");
 
     positive_prompt_ = new Fl_Text_Editor(0, 0, 1, 1, "Positive prompt");
     sys_prompt_buffer_ = new Fl_Text_Buffer();
@@ -33,7 +41,11 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     seed_ = new Fl_Int_Input(0, 0, 0, 0, "Seed");
     num_inference_steps_ = new Fl_Int_Input(0, 0, 0, 0, "Steps");
     guidance_scale_ = new Fl_Float_Input(0, 0, 0, 0, "CFG");
-    strength_ = new Fl_Float_Input(0, 0, 0, 0, "Strength");
+    strength_ = new Fl_Float_Input(0, 0, 0, 0, "Strength first/last frame");
+    intermediate_strength_ = new Fl_Float_Input(0, 0, 0, 0, "Strength int. frames");
+    intermediate_start_ = new Fl_Int_Input(0, 0, 0, 0, "Intermediate start");
+    skip_frames_video_ = new Fl_Int_Input(0, 0, 0, 0, "V2V Skip frames");
+    limit_frames_video_ = new Fl_Int_Input(0, 0, 0, 0, "V2V Limit frames");
     stg_skip_layers_ = new Fl_Input(0, 0, 0, 0, "stg skip layers");
     stg_mode_ = new Fl_Choice(0, 0, 0, 0, "stg mode");
     stg_scale_ = new Fl_Float_Input(0, 0, 0, 0, "Stg scale");
@@ -46,6 +58,8 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     height_ = new Fl_Int_Input(0, 0, 0, 0, "Height");
     num_frames_ = new Fl_Int_Input(0, 0, 0, 0, "Num Frames");
     frame_rate_ = new Fl_Int_Input(0, 0, 0, 0, "Frame Rate");
+    btn_ignore_first_frame_ = new Fl_Check_Button(0, 0, 0, 0, "Ignore First Frame");
+    btn_ignore_last_frame_ = new Fl_Check_Button(0, 0, 0, 0, "Ignore Last Frame");
 
 
     btn_first_frame_open_.reset(new Button(xpm::image(xpm::img_24x24_open), [this] {
@@ -57,6 +71,15 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     btn_first_frame_clipbrd_.reset(new Button(xpm::image(xpm::img_24x24_copy), [this] {
         first_frame_clipbrd();
     }));
+    btn_first_frame_all_.reset(new Button(xpm::image(xpm::img_24x24_female), [this] {
+        first_frame_select_all();
+    }));
+    btn_first_frame_to_pal_.reset(new Button(xpm::image(xpm::img_24x24_forward), [this] {
+        first_frame_to_palette();
+    }));
+    btn_first_frame_generate_.reset(new Button(xpm::image(xpm::img_24x24_bee), [this] {
+        first_frame_generate();
+    }));
     btn_second_frame_open_.reset(new Button(xpm::image(xpm::img_24x24_open), [this] {
         second_frame_open();
     }));
@@ -66,6 +89,16 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     btn_second_frame_clipbrd_.reset(new Button(xpm::image(xpm::img_24x24_copy), [this] {
         second_frame_clipbrd();
     }));
+    btn_second_frame_all_.reset(new Button(xpm::image(xpm::img_24x24_female), [this] {
+        second_frame_select_all();
+    }));
+    btn_second_frame_to_pal_.reset(new Button(xpm::image(xpm::img_24x24_forward), [this] {
+        second_frame_to_palette();
+    }));
+    btn_second_frame_generate_.reset(new Button(xpm::image(xpm::img_24x24_bee), [this] {
+        second_frame_generate();
+    }));
+    
 
     btn_interrogate_.reset(new Button(xpm::image(xpm::img_24x24_question), [this] {
         interrogate_image();
@@ -75,14 +108,16 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
         std::string positive_prompt = positive_prompt_->buffer()->text();
         std::string negative_prompt = negative_prompt_ != nullptr ? negative_prompt_->buffer()->text() : "place_holder";
         if (!positive_prompt.empty() && !negative_prompt.empty()) {
-            confirmed_ = true;
             last_prompt_used = positive_prompt;
             last_negative_prompt_used = negative_prompt;
+            first_img_->hide();
+            last_img_->hide();
+            generate_clicked();
+            first_img_->show();
+            last_img_->show();
         } else {
             show_error("Please fill in the prompt!");
-            return;
         }
-        this->hide();
     }));
     btnCancel_.reset(new Button(xpm::image(xpm::img_24x24_abort), [this] {
         this->hide();        
@@ -98,7 +133,8 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     seed_->value("-1");
     num_inference_steps_->value("50");
     guidance_scale_->value("5.0");
-    strength_->value("0.8");
+    strength_->value("0.95");
+    intermediate_strength_->value("0.10");
     stg_skip_layers_->value("19");
     stg_scale_->value("1.0");
     stg_rescale_->value("0.7");
@@ -111,6 +147,9 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     height_->value("480");
     num_frames_->value("121");
     frame_rate_->value("25");
+    intermediate_start_->value("8");
+    skip_frames_video_->value("0");
+    limit_frames_video_->value("-1");
     positive_prompt_->align(FL_ALIGN_TOP_LEFT);
     negative_prompt_->align(FL_ALIGN_TOP_LEFT);
     file_name_->align(FL_ALIGN_TOP_LEFT);
@@ -118,6 +157,10 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     num_inference_steps_->align(FL_ALIGN_TOP_LEFT);
     guidance_scale_->align(FL_ALIGN_TOP_LEFT);
     strength_->align(FL_ALIGN_TOP_LEFT);
+    intermediate_strength_->align(FL_ALIGN_TOP_LEFT);
+    intermediate_start_->align(FL_ALIGN_TOP_LEFT);
+    skip_frames_video_->align(FL_ALIGN_TOP_LEFT);
+    limit_frames_video_->align(FL_ALIGN_TOP_LEFT);
     stg_skip_layers_->align(FL_ALIGN_TOP_LEFT);
     stg_mode_->align(FL_ALIGN_TOP_LEFT);
     stg_scale_->align(FL_ALIGN_TOP_LEFT);
@@ -130,6 +173,8 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     height_->align(FL_ALIGN_TOP_LEFT);
     num_frames_->align(FL_ALIGN_TOP_LEFT);
     frame_rate_->align(FL_ALIGN_TOP_LEFT);
+    btn_ignore_first_frame_->align(FL_ALIGN_TOP_LEFT);
+    btn_ignore_last_frame_->align(FL_ALIGN_TOP_LEFT);
 
     suggest_size();
 
@@ -139,9 +184,18 @@ LtxVideoWindow::LtxVideoWindow(image_ptr_t first_frame): Fl_Window(Fl::w() / 2 -
     btn_first_frame_open_->tooltip("Open first frame");
     btn_first_frame_palette_->tooltip("Open first frame in palette");
     btn_first_frame_clipbrd_->tooltip("Past first frame from the clipboard");
+    btn_first_frame_all_->tooltip("Select the entire image for the first frame");
+    btn_first_frame_to_pal_->tooltip("Add the first frame to the palette");
+    btn_first_frame_generate_->tooltip("Generate an image for the first frame");
     btn_second_frame_open_->tooltip("Open last frame");
     btn_second_frame_palette_->tooltip("Open last frame in palette");
     btn_second_frame_clipbrd_->tooltip("Past last frame from the clipboard");
+    btn_second_frame_all_->tooltip("Select the entire image for the last frame");
+    btn_second_frame_to_pal_->tooltip("Add the last frame to the palette");
+    btn_second_frame_generate_->tooltip("Generate an image for the last frame");
+    intermediate_start_->tooltip("For video extending the starting frame (multiple of 8)");
+    skip_frames_video_->tooltip("For video to video, skip x first frames");
+    limit_frames_video_->tooltip("For video to video, limit the number of frames (-1 for all)");
 
     if (first_frame_) {
         first_img_->view_settings()->add_layer(first_frame_);
@@ -208,10 +262,6 @@ void LtxVideoWindow::suggest_size() {
     }
 }
 
-bool LtxVideoWindow::confirmed() {
-    return confirmed_;    
-}
-
 void LtxVideoWindow::align_component() {
     first_img_->resize(10, 10, this->w() / 2 - 100, 200);
     btn_first_frame_open_->position(first_img_->x() + first_img_->w() + 5, first_img_->y());
@@ -220,6 +270,13 @@ void LtxVideoWindow::align_component() {
     btn_first_frame_palette_->size(28, 28);
     btn_first_frame_clipbrd_->position(first_img_->x() + first_img_->w() + 5, first_img_->y() + 60);
     btn_first_frame_clipbrd_->size(28, 28);
+    btn_first_frame_all_->position(first_img_->x() + first_img_->w() + 5, first_img_->y() + 90);
+    btn_first_frame_all_->size(28, 28);
+    btn_first_frame_to_pal_->position(first_img_->x() + first_img_->w() + 5, first_img_->y() + 120);
+    btn_first_frame_to_pal_->size(28, 28);
+    btn_first_frame_generate_->position(first_img_->x() + first_img_->w() + 5, first_img_->y() + 150);
+    btn_first_frame_generate_->size(28, 28);
+
     last_img_->resize(first_img_->x() + first_img_->w() + 10 + 48, first_img_->y(), first_img_->w(), 200);
     btn_second_frame_open_->position(last_img_->x() + last_img_->w() + 5, last_img_->y());
     btn_second_frame_open_->size(28, 28);
@@ -227,6 +284,12 @@ void LtxVideoWindow::align_component() {
     btn_second_frame_palette_->size(28, 28);
     btn_second_frame_clipbrd_->position(last_img_->x() + last_img_->w() + 5, last_img_->y() + 60);
     btn_second_frame_clipbrd_->size(28, 28);
+    btn_second_frame_all_->position(last_img_->x() + last_img_->w() + 5, last_img_->y() + 90);
+    btn_second_frame_all_->size(28, 28);
+    btn_second_frame_to_pal_->position(last_img_->x() + last_img_->w() + 5, last_img_->y() + 120);
+    btn_second_frame_to_pal_->size(28, 28);
+    btn_second_frame_generate_->position(last_img_->x() + last_img_->w() + 5, last_img_->y() + 150);
+    btn_second_frame_generate_->size(28, 28);
 
     positive_prompt_->resize(10, this->w() - 20, this->w() - 58, 100);
     positive_prompt_->position(10, first_img_->y() + first_img_->h() + 40);
@@ -238,8 +301,12 @@ void LtxVideoWindow::align_component() {
     seed_->resize(file_name_->x() + file_name_->w() + 10, file_name_->y(), 80, 30);
     num_inference_steps_->resize(seed_->x() + seed_->w() + 10, seed_->y(), 80, 30);
     guidance_scale_->resize(num_inference_steps_->x() + num_inference_steps_->w() + 10, num_inference_steps_->y(), 80, 30);
-    strength_->resize(guidance_scale_->x() + guidance_scale_->w() + 10, guidance_scale_->y(), 80, 30);
-    stg_skip_layers_->resize(10, file_name_->y() + file_name_->h() + 20, 80, 30);
+    strength_->resize(guidance_scale_->x() + guidance_scale_->w() + 10, guidance_scale_->y(), 100, 30);
+    intermediate_strength_->resize(10, file_name_->y() + file_name_->h() + 20, 160, 30);
+    intermediate_start_->resize(intermediate_strength_->x() + intermediate_strength_->w() + 10, intermediate_strength_->y(), 160, 30);
+    skip_frames_video_->resize(intermediate_start_->x() + intermediate_start_->w() + 10, intermediate_start_->y(), 160, 30);
+    limit_frames_video_->resize(skip_frames_video_->x() + skip_frames_video_->w() + 10, skip_frames_video_->y(), 160, 30);
+    stg_skip_layers_->resize(10, intermediate_strength_->y() + intermediate_strength_->h() + 20, 150, 30);
     stg_mode_->resize(stg_skip_layers_->x() + stg_skip_layers_->w() + 10, stg_skip_layers_->y(), 150, 30);
     stg_scale_->resize(stg_mode_->x() + stg_mode_->w() + 10, stg_mode_->y(), 80, 30);
     stg_rescale_->resize(stg_scale_->x() + stg_scale_->w() + 10, stg_scale_->y(), 80, 30);
@@ -251,6 +318,8 @@ void LtxVideoWindow::align_component() {
     height_->resize(width_->x() + width_->w() + 10, width_->y(), 80, 30);
     num_frames_->resize(height_->x() + height_->w() + 10, height_->y(), 80, 30);
     frame_rate_->resize(num_frames_->x() + num_frames_->w() + 10, num_frames_->y(), 80, 30);
+    btn_ignore_first_frame_->resize(10, width_->y() + width_->h() + 20, 150, 30);
+    btn_ignore_last_frame_->resize(btn_ignore_first_frame_->x() + btn_ignore_first_frame_->w() + 10, btn_ignore_first_frame_->y(), 150, 30);
 
     btnOk_->position(this->w() - 215, this->h() - 40);
     btnOk_->size(100, 30);
@@ -285,6 +354,10 @@ float LtxVideoWindow::get_guidance_scale() {
 
 float LtxVideoWindow::get_strength() {
     return std::stof(strength_->value());
+}
+
+float LtxVideoWindow::get_intermediate_strength() {
+    return std::stof(intermediate_strength_->value());
 }
 
 std::string LtxVideoWindow::get_stg_skip_layers() {
@@ -342,6 +415,49 @@ int LtxVideoWindow::get_num_generated_videos() {
     return std::stoi(num_generated_videos_->value());
 }
 
+int LtxVideoWindow::get_intermediate_start() {
+    return std::stoi(intermediate_start_->value());
+}
+
+int LtxVideoWindow::get_limit_frames_video() {
+    return std::stoi(limit_frames_video_->value());
+}
+
+int LtxVideoWindow::get_skip_frames_video() {
+    return std::stoi(skip_frames_video_->value());
+}
+
+void LtxVideoWindow::first_frame_to_palette() {
+    if (first_frame_) {
+        add_image_palette(first_frame_);
+    }
+}
+
+void LtxVideoWindow::first_frame_select_all() {
+    if (first_frame_) {
+        int x = 0, y = 0;
+        int w = 0, h = 0;
+        first_img_->view_settings()->get_image_area(&x, &y, &w, &h);
+        first_img_->view_settings()->set_selected_area(0, 0, w, h);
+    }
+}
+
+void LtxVideoWindow::second_frame_select_all() {
+    if (last_frame_) {
+        int x = 0, y = 0;
+        int w = 0, h = 0;
+        last_img_->view_settings()->get_image_area(&x, &y, &w, &h);
+        last_img_->view_settings()->set_selected_area(0, 0, w, h);
+    }
+}
+
+void LtxVideoWindow::second_frame_to_palette() {
+    if(last_frame_) {
+        add_image_palette(last_frame_);
+    }
+}
+
+
 void LtxVideoWindow::interrogate_image() {
     auto img = first_frame_ ? first_frame_ : last_frame_;
     if (!img) {
@@ -361,29 +477,35 @@ void LtxVideoWindow::interrogate_image() {
     }
 }
 
+void LtxVideoWindow::set_frame(image_ptr_t img, ImagePanel *panel) {
+    if (!img) {
+        panel->view_settings()->clear_layers();
+        return;
+    }
+    panel->view_settings()->add_layer(img);
+    panel->view_settings()->merge_layers_to_image(false);
+    panel->view_settings()->setZoom(100);
+    panel->clear_scroll();
+}
+
 void LtxVideoWindow::first_frame_open() {
     auto path = choose_image_to_open_fl("LtxVideoWindow::FirstFrameOpen");
     if (path.empty()) {
         return;
     }
-    first_img_->view_settings()->clear_layers();
-    first_img_->view_settings()->add_layer(path.c_str());
-    first_img_->view_settings()->setZoom(100);
-    first_img_->clear_scroll();
-    if (first_img_->view_settings()->layer_count() > 0) {
-        first_frame_ = first_img_->view_settings()->at(0)->getImage()->duplicate();
+    auto img = ws::filesystem::load_image(path);
+    if (img) {
+        first_frame_ = img;
+        set_frame(img, first_img_);
+        suggest_size();
     }
-    suggest_size();
 }
 
 void LtxVideoWindow::first_frame_palette() {
     auto img = pickup_image_from_palette();
     if (img) {
-        first_img_->view_settings()->clear_layers();
-        first_img_->view_settings()->add_layer(img);
-        first_img_->view_settings()->setZoom(100);
-        first_img_->clear_scroll();
-        first_frame_ = img->duplicate();
+        first_frame_ = img;
+        set_frame(img, first_img_);
         suggest_size();
     }
 }
@@ -391,11 +513,8 @@ void LtxVideoWindow::first_frame_palette() {
 void LtxVideoWindow::first_frame_clipbrd() {
     auto img = ws::diffusion::run_paste_image();
     if (img) {
-        first_img_->view_settings()->clear_layers();
-        first_img_->view_settings()->add_layer(img);
-        first_img_->view_settings()->setZoom(100);
-        first_img_->clear_scroll();
-        first_frame_ = img->duplicate();
+        first_frame_ = img;
+        set_frame(img, first_img_);
         suggest_size();
     } else {
         show_error("No image in the clipboard");
@@ -407,41 +526,135 @@ void LtxVideoWindow::second_frame_open() {
     if (path.empty()) {
         return;
     }
-    last_img_->view_settings()->clear_layers();
-    last_img_->view_settings()->add_layer(path.c_str());
-    last_img_->view_settings()->setZoom(100);
-    last_img_->clear_scroll();
-    if (last_img_->view_settings()->layer_count() > 0) {
-        last_frame_ = last_img_->view_settings()->at(0)->getImage()->duplicate();
+    auto img = ws::filesystem::load_image(path);
+    if (img) {
+        last_frame_ = img;
+        set_frame(img, last_img_);
     }
 }
 
 void LtxVideoWindow::second_frame_palette() {
     auto img = pickup_image_from_palette();
     if (img) {
-        last_img_->view_settings()->clear_layers();
-        last_img_->view_settings()->add_layer(img);
-        last_img_->view_settings()->setZoom(100);
-        last_img_->clear_scroll();
-        last_frame_ = img->duplicate();
+        last_frame_ = img;
+        set_frame(img, last_img_);
     }
 }
 
 void LtxVideoWindow::second_frame_clipbrd() {
     auto img = ws::diffusion::run_paste_image();
     if (img) {
-        last_img_->view_settings()->clear_layers();
-        last_img_->view_settings()->add_layer(img);
-        last_img_->view_settings()->setZoom(100);
-        last_img_->clear_scroll();
-        last_frame_ = img->duplicate();
+        last_frame_ = img;
+        set_frame(img, last_img_);
     } else {
         show_error("No image in the clipboard");
     }
 }
 
-void generate_video_ltx_model(image_ptr_t first_frame) {
-    auto window = new LtxVideoWindow(first_frame);
+void LtxVideoWindow::first_frame_generate() {
+    first_img_->view_settings()->shrink_selected_area();
+    auto img = first_img_->view_settings()->layer_count() > 0 ? generate_image(true, first_img_->view_settings()) : generate_image(true);
+    if (img) {
+        first_frame_ = img;
+        set_frame(img, first_img_);
+        suggest_size();
+    }
+}
+
+void LtxVideoWindow::second_frame_generate() {
+    first_img_->view_settings()->shrink_selected_area();
+    auto img = last_img_->view_settings()->layer_count() > 0 ? generate_image(true, last_img_->view_settings()) : generate_image(true);
+    if (img) {
+        last_frame_ = img;
+        set_frame(img, last_img_);
+    }
+}
+
+bool LtxVideoWindow::should_ignore_first_frame() {
+    return btn_ignore_first_frame_->value() != 0;
+}
+
+bool LtxVideoWindow::should_ignore_last_frame() {
+    return btn_ignore_last_frame_->value() != 0;
+}
+
+std::list<image_ptr_t> LtxVideoWindow::get_intermediate_frames() {
+    std::list<image_ptr_t> result;
+    size_t used_frames = 0;
+    if (first_frame_ && !should_ignore_first_frame()) {
+        used_frames += 1;
+    }
+    if (last_frame_ && !should_ignore_last_frame()) {
+        used_frames += 1;
+    }
+    size_t middle_frame = 0;
+    size_t skipped_frames = get_skip_frames_video();
+    std::list<image_ptr_t>::iterator first = intermediate_frames_.begin();
+    while (used_frames < get_num_frames() && first != intermediate_frames_.end()) {
+        if (first_frame_) {
+            if (skipped_frames > 0) {
+                skipped_frames--;
+                continue;
+            }
+        }
+        result.push_back(*first);
+        first++;
+        used_frames += 1;
+        if (used_frames >= get_limit_frames_video() && get_limit_frames_video() != -1) {
+            break;
+        }
+    }
+    return result;
+}
+
+void LtxVideoWindow::generate_clicked() {
+    if (get_intermediate_start() % 8 != 0) {
+        show_error("Intermediate start must be a multiple of 8");
+        return;
+    }
+    ws::video_gen::ltx_video_gen_request_t request;
+    request.prompt = get_positive_prompt();
+    request.negative_prompt = get_negative_prompt();
+    request.lora_path = "lora";
+    request.lora_rank = 128;
+    request.num_inference_steps = get_num_inference_steps();
+    request.guidance_scale = get_guidance_scale();
+    request.num_videos_per_prompt = 1;
+    request.seed = get_seed();
+    request.strength = get_strength();
+    request.stg_skip_layers = get_stg_skip_layers();
+    request.stg_mode = get_stg_mode();
+    request.stg_scale = get_stg_scale();
+    request.stg_rescale = get_stg_rescale();
+    request.image_cond_noise_scale = get_image_cond_noise_scale();
+    request.decode_timestep = get_decode_timestep();
+    request.decode_noise_scale = get_decode_noise_scale();
+    request.intermediate_start = get_intermediate_start();
+    request.intermediate_strength = get_intermediate_strength();
+    request.save_path = get_file_name();
+    if (!should_ignore_first_frame()) {
+        request.first_frame = get_first_frame();
+    }
+    if (!should_ignore_last_frame()) {
+        request.last_frame = get_last_frame();
+    }
+    request.width = get_width();
+    request.height = get_height();
+    request.num_frames = get_num_frames();
+    request.frame_rate = get_frame_rate();
+    request.intermediate_frames = get_intermediate_frames();
+    int current_video = 0;
+    while (current_video < get_num_generated_videos()) {
+        if (!ws::video_gen::run_ltx_video_gen(request)) {
+            break;
+        }
+        request.seed = -1;
+        current_video += 1;
+    }
+}
+
+void generate_video_ltx_model_from_list(std::list<image_ptr_t> frames) {
+    auto window = new LtxVideoWindow(frames);
     window->show();
     while (true) {
         if (!window->visible_r()) {
@@ -449,42 +662,27 @@ void generate_video_ltx_model(image_ptr_t first_frame) {
         }
         Fl::wait();
     }
-    if (window->confirmed()) {
-        ws::video_gen::ltx_video_gen_request_t request;
-        request.prompt = window->get_positive_prompt();
-        request.negative_prompt = window->get_negative_prompt();
-        request.lora_path = "lora";
-        request.lora_rank = 128;
-        request.num_inference_steps = window->get_num_inference_steps();
-        request.guidance_scale = window->get_guidance_scale();
-        request.num_videos_per_prompt = 1;
-        request.seed = window->get_seed();
-        request.strength = window->get_strength();
-        request.stg_skip_layers = window->get_stg_skip_layers();
-        request.stg_mode = window->get_stg_mode();
-        request.stg_scale = window->get_stg_scale();
-        request.stg_rescale = window->get_stg_rescale();
-        request.image_cond_noise_scale = window->get_image_cond_noise_scale();
-        request.decode_timestep = window->get_decode_timestep();
-        request.decode_noise_scale = window->get_decode_noise_scale();
-        request.save_path = window->get_file_name();
-        request.first_frame = window->get_first_frame();
-        request.last_frame = window->get_last_frame();
-        request.width = window->get_width();
-        request.height = window->get_height();
-        request.num_frames = window->get_num_frames();
-        request.frame_rate = window->get_frame_rate();
-        int current_video = 0;
-        while (current_video < window->get_num_generated_videos()) {
-            if (!ws::video_gen::run_ltx_video_gen(request)) {
-                break;
-            }
-            request.seed = -1;
-            current_video += 1;
-        }
-    }
     Fl::delete_widget(window);
     Fl::do_widget_deletion();
+}
+
+
+void generate_video_ltx_model(image_ptr_t first_frame) {
+    std::list<image_ptr_t> frames;
+    if (first_frame) {
+        frames.push_back(first_frame);
+    }
+    generate_video_ltx_model_from_list(frames);
+}
+
+
+void generate_video_ltx_model(const std::string& video_path) {
+    auto frame_list = ws::filesystem::grab_frames(video_path, 161 + 8);
+    if (frame_list.empty()) {
+        show_error("No frames found in the video");
+        return;
+    }
+    generate_video_ltx_model_from_list(frame_list);
 }
 
 } // namespace editorium

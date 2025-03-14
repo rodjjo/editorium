@@ -63,7 +63,7 @@ class FFMpegStream {
     AVCodecContextPtr codec_ctx_;
     SwsContextPtr sws_ctx_;
     AVFramePtr frame_;
-    AVPicturePtr picture_;
+    AVFramePtr picture_;
     std::vector<uint8_t> video_extra_data_;
     FormatContextPtr format_ctx_;
 };

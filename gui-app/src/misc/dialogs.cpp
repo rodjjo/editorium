@@ -20,6 +20,7 @@ namespace editorium
 namespace {
     const char *kIMAGE_FILES_FILTER = "Image files\t*.{png,bmp,jpeg,webp,gif,jpg}\n";
     const char *kIMAGE_FILES_FILTER_FL = "Image files (*.{png,bmp,jpeg,webp,gif,jpg})";
+    const char *kVIDEO_FILES_FILTER_FL = "Video files (*.{mp4,avi,m4v,mkv,mov,wmv})";
 }
 
 bool path_exists(const char *p) {
@@ -77,6 +78,25 @@ std::string choose_image_to_open_fl(const std::string& scope) {
     }
     
     Fl_File_Chooser dialog(current_dir.c_str(), kIMAGE_FILES_FILTER_FL, Fl_File_Chooser::SINGLE, "Open image");
+    std::string result = executeChooser(&dialog);
+    if (!result.empty()) {
+        size_t latest = result.find_last_of("/\\");
+        current_dir = result.substr(0, latest);
+        dialogs_profile_set_string({scope.c_str(), "last_open_directory"}, current_dir.c_str());
+        dialogs_save_profile();
+    }
+    return result;
+}
+
+std::string choose_video_to_open_fl(const std::string& scope) {
+    dialogs_load_profile();
+    std::string current_dir = dialogs_profile_get_string({scope.c_str(), "last_open_directory"}, "");
+
+    if (!path_exists(current_dir.c_str())) {
+        current_dir = "";
+    }
+    
+    Fl_File_Chooser dialog(current_dir.c_str(), kVIDEO_FILES_FILTER_FL, Fl_File_Chooser::SINGLE, "Open video file");
     std::string result = executeChooser(&dialog);
     if (!result.empty()) {
         size_t latest = result.find_last_of("/\\");

@@ -25,10 +25,14 @@ def resize_pil_image(image: Image, hd=False):
 
 
 def get_non_existing_path(output_path: str) -> str:
+    if not os.path.exists(output_path):
+        return output_path
     file_index = 0
     saved_path = output_path.replace(".mp4", "")
-    while os.path.exists(output_path):
+    while True:
         output_path = f"{saved_path}_{file_index}.mp4"
+        if not os.path.exists(output_path):
+            break
         file_index += 1
     return output_path
 
@@ -63,7 +67,16 @@ def save_video(frames, output_path, upscaler_model=None, fps_model=None,  fps=8)
     export_to_video(frames, output_path, fps=fps)
     return output_path, frames
 
-def save_video_list(path, video_list):
+def save_video_list(path, video_list, seed=None):
+    
+    if seed is not None:
+        # the seed is going to be part of the file name like this: /directory/filename-seed.mp4, so we need to modify the path to include the seed, remembering the path could have any extension
+        path_dir = os.path.dirname(path)
+        path_name = os.path.basename(path)
+        path_name, path_ext = os.path.splitext(path_name)
+        path = os.path.join(path_dir, f"{path_name}-{seed}{path_ext}")
+        
+            
     path_with_name_ext = path
     if path_with_name_ext.startswith('/app/output_dir/') is False:
         path_with_name_ext = os.path.join('/app/output_dir', path_with_name_ext)

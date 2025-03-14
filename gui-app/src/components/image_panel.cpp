@@ -275,6 +275,34 @@ namespace editorium
 
     }
 
+    void ViewSettings::select_entire_image() {
+        int x = 0, y = 0;
+        int w = 0, h = 0;
+        get_image_area(&x, &y, &w, &h);
+        set_selected_area(0, 0, w, h);
+    }
+
+    void ViewSettings::shrink_selected_area() {
+        int x = 0, y = 0;
+        int w = 0, h = 0;
+        int sx = 0, sy = 0, sw = 0, sh = 0;
+        get_image_area(&x, &y, &w, &h);
+        get_selected_area(&sx, &sy, &sw, &sh);
+        if (sx < 0) {
+            sx = 0;
+        }
+        if (sy < 0) {
+            sy = 0;
+        }
+        if (sw > w) {
+            sw = w;
+        }
+        if (sh > h) {
+            sh = h;
+        }
+        set_selected_area(sx, sy, sw, sh);
+    }
+
     size_t ViewSettings::layer_count() {
         return layers_.size();
     }

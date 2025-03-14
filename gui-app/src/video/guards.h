@@ -3,18 +3,13 @@
 #include <memory>
 #include "video/headers.h"
 
-typedef struct AVPicture {
-    uint8_t *data[AV_NUM_DATA_POINTERS];    
-    int linesize[AV_NUM_DATA_POINTERS];     
-} AVPicture;
-
 namespace vs {
 
 typedef std::shared_ptr<AVFormatContext> FormatContextPtr;
 typedef std::shared_ptr<AVFrame> AVFramePtr;
 typedef std::shared_ptr<AVCodecContext> AVCodecContextPtr;
 typedef std::shared_ptr<SwsContext> SwsContextPtr;
-typedef std::shared_ptr<AVPicture> AVPicturePtr;
+typedef std::shared_ptr<AVFrame> AVPicturePtr;
 
 AVCodecContextPtr allocate_codec_context(const AVCodec *codec);
 FormatContextPtr allocate_format_context(AVFormatContext *ctx=NULL);

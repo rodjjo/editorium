@@ -123,7 +123,7 @@ namespace editorium
                     std::unique_lock<std::mutex> lk(listener_mutex);
                     auto last_report_was = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - last_report_time).count();
 
-                    if (last_report_was > 8) {
+                    if (last_report_was > 120) {
                         printf("Missed report for %lu seconds\n", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - last_report_time).count());
                         should_continue = false;
                     } else {
@@ -135,7 +135,7 @@ namespace editorium
                                 miss_count = 0;
                             }
                             last_check_time = std::chrono::high_resolution_clock::now();
-                            if (miss_count > 5) {
+                            if (miss_count > 120) {
                                 printf("The task %s is lost\n", current_task_id.c_str());
                                 should_continue = false;
                             }

@@ -28,6 +28,7 @@ from pipelines.ltx.modules.models.transformers.symmetric_patchifier import Symme
 from pipelines.ltx.modules.models.transformers.transformer3d import Transformer3DModel
 from pipelines.ltx.modules.pipelines.pipeline_ltx_video import LTXVideoPipeline
 from pipelines.ltx.modules.schedulers.rf import RectifiedFlowScheduler
+from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
 from pipelines.common.model_manager import ManagedModel
 from task_helpers.progress_bar import ProgressBar
 
@@ -122,7 +123,7 @@ class LtxModel(ManagedModel):
         tokenizer = T5Tokenizer.from_pretrained(
             'Lightricks/LTX-Video', subfolder="tokenizer"
         )
-       
+        
         self.pipe = LTXVideoPipeline(
             transformer=transformer,
             patchifier=patchifier,
@@ -135,7 +136,7 @@ class LtxModel(ManagedModel):
             prompt_enhancer_llm_model=None,
             prompt_enhancer_llm_tokenizer=None,
         )
-        #self.enable_sequential_cpu_offload(transformer)
+        # self.enable_sequential_cpu_offload(transformer)
         self.enable_sequential_cpu_offload(text_encoder)
         
 

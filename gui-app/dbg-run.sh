@@ -1,2 +1,2 @@
 #!/bin/bash
-gdb gui-app/build/bin/editorium-ui
+gdb -ex run gui-app/build/bin/editorium-ui

@@ -46,6 +46,7 @@ private:
     void dfe_handle_event(void *sender, event_id_t id, void *data) override;
     void choose_file_and_open(bool clear_layers);
     void choose_file_and_save();
+    void choose_video_file_and_ltx_video();
     void remove_selected_layer();
     void merge_all_layers();
     void clear_layers();

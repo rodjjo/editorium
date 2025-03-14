@@ -1367,7 +1367,7 @@ class LTXVideoPipeline(DiffusionPipeline):
         f_l = latents.shape[2]
         f_l_p = num_prefix_latent_frames
         assert f_l >= f_l_p
-        assert media_frame_number % 8 == 0
+        assert media_frame_number % 8 == 0, "it has to be a multiple of 8 but has "  
         if f_l > f_l_p:
             # Insert the conditioning latents **excluding the prefix** into the sequence
             f_l_start = media_frame_number // 8 + f_l_p

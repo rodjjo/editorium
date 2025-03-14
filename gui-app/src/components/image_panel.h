@@ -137,6 +137,8 @@ namespace editorium
         void brush_size(int value);
         int brush_size();
         void fuse_image(image_ptr_t value);
+        void select_entire_image();
+        void shrink_selected_area();
 
     private:
         Layer* add_layer(std::shared_ptr<Layer> l, bool in_front=false);
@@ -259,6 +261,32 @@ namespace editorium
             bool enable_selection() override {
                 // do not let the user to select a region
                 return false;
+            }
+
+            bool enable_drag() override {
+                // do not let the user to drag the image
+                return false;
+            }
+
+            bool enable_resize() override {
+                // do not let the user to change the size of the image
+                return false;
+            }
+    };
+
+
+    class AllowSelectionImagePanel : public ImagePanel {
+        public:
+            AllowSelectionImagePanel(
+                uint32_t x, uint32_t y, 
+                uint32_t w, uint32_t h, 
+                const char *unique_title) : ImagePanel(
+                    x, y, w, h, unique_title
+                ) {};
+
+            bool enable_selection() override {
+                // do not let the user to select a region
+                return true;
             }
 
             bool enable_drag() override {

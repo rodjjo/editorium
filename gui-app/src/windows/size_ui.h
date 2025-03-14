@@ -23,7 +23,7 @@ namespace editorium
 
 class SizeWindow : public Fl_Window  {
  public:
-    SizeWindow(const char *title, bool single_value, bool is_float = false);
+    SizeWindow(const char *title, bool single_value, bool is_float = false, bool match_proportion = true);
     virtual ~SizeWindow();
     void setInitialSize(int x, int y);
     void setInitialSizeFloat(float x, float y);
@@ -52,7 +52,7 @@ class SizeWindow : public Fl_Window  {
 };
 
 bool getSizeFromDialog(const char *title, int *x);
-bool getSizeFromDialog(const char *title, int *x, int *y);
+bool getSizeFromDialog(const char *title, int *x, int *y, bool match_proportion=true);
 bool getSizeFromDialogFloat(const char *title, float *v);
 
     

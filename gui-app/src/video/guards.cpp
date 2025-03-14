@@ -1,18 +1,14 @@
 #include "video/guards.h"
 
-int avpicture_alloc(AVPicture *picture, enum AVPixelFormat pix_fmt, int width, int height) {
+int avpicture_alloc(AVFrame *picture, enum AVPixelFormat pix_fmt, int width, int height) {
     int ret = av_image_alloc(picture->data, picture->linesize, width, height, pix_fmt, 1);
     if (ret < 0) {
-        memset(picture, 0, sizeof(AVPicture));
+        memset(picture, 0, sizeof(AVFrame));
         return ret;
     }
     return 0;
 }
 
-void avpicture_free(AVPicture *picture)
-{
-    av_freep(&picture->data[0]);
-}
 
 namespace vs {
 
@@ -100,10 +96,6 @@ SwsContextPtr allocate_sws_rgb_context(const AVFrame* source_frame) {
         &sws_freeContext);
 }
 
-void free_picture(AVPicture* picture) {
-  avpicture_free(picture);
-  delete picture;
-}
 
 SwsContextPtr allocate_sws_ycbcr_context(int width, int height) {
     return SwsContextPtr(
@@ -137,7 +129,7 @@ SwsContextPtr allocate_sws_yuvj_context(int width, int height) {
         &sws_freeContext);
 }
 AVPicturePtr allocate_rgb_picture(const AVFrame *source_frame) {
-  AVPicturePtr picture(new AVPicture, free_picture);
+  AVPicturePtr picture = allocate_frame(true);
   avpicture_alloc(
       picture.get(),
       AV_PIX_FMT_RGB24,
@@ -163,7 +155,7 @@ SwsContextPtr allocate_sws_gray_context(const AVFrame* source_frame) {
 }
 
 AVPicturePtr allocate_gray_picture(const AVFrame *source_frame) {
-  AVPicturePtr picture(new AVPicture, free_picture);
+  AVPicturePtr picture = allocate_frame(true);
   avpicture_alloc(
       picture.get(),
       AV_PIX_FMT_RGB24,

@@ -34,6 +34,7 @@ namespace editorium
             event_main_menu_file_new_from_clipboard,
             event_main_menu_file_new_chat,
             event_main_menu_file_open,
+            event_main_menu_file_open_video,
             event_main_menu_file_save,
             event_main_menu_file_open_layer,
             event_main_menu_file_dir_prior,
@@ -75,7 +76,8 @@ namespace editorium
             event_main_menu_resizeSelection_2048,
             event_main_menu_resizeSelection_fit_vertical,
             event_main_menu_resizeSelection_fit_horizontal,
-            event_main_menu_resizeSelection_all,           
+            event_main_menu_resizeSelection_all, 
+            event_main_menu_resizeSelection_custom,          
             event_layer_count_changed,
             event_layer_selected,
             event_layer_after_draw,
@@ -103,6 +105,7 @@ namespace editorium
             menu_->addItem(event_main_menu_file_new_from_clipboard, "", "File/New from clipboard", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_new_chat, "", "File/New chat", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_file_open, "", "File/Open", "^o", 0, xpm::img_24x24_open);
+            menu_->addItem(event_main_menu_file_open_video, "", "File/Open video (V2V)", "^j", 0, xpm::img_24x24_open);
             menu_->addItem(event_main_menu_file_save, "", "File/Save", "^s", 0, xpm::img_24x24_flash_drive);
             menu_->addItem(event_main_menu_file_close, "", "File/Close", "^x", 0, xpm::img_24x24_close);
             menu_->addItem(event_main_menu_file_open_layer, "", "File/Open as Layer", "^l", 0, xpm::img_24x24_open_layer);
@@ -137,6 +140,7 @@ namespace editorium
             menu_->addItem(event_main_menu_selection_to_palette, "", "Selection/Send to Palette", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_selection_send_to_drawing, "", "Selection/Send to drawing", "", 0, xpm::no_image);
             menu_->addItem(event_main_menu_resizeSelection_0, "", "Selection/Expand/Custom", "^e");
+            menu_->addItem(event_main_menu_resizeSelection_custom, "", "Selection/Expand/Custom centering", "^y");
             menu_->addItem(event_main_menu_resizeSelection_256, "", "Selection/Expand/256x256", "^0");
             menu_->addItem(event_main_menu_resizeSelection_512, "", "Selection/Expand/512x512", "^1");
             menu_->addItem(event_main_menu_resizeSelection_768, "", "Selection/Expand/768x768", "^2");
@@ -146,7 +150,7 @@ namespace editorium
             menu_->addItem(event_main_menu_resizeSelection_fit_horizontal, "", "Selection/Expand/Fit horizontal", "^6");
             menu_->addItem(event_main_menu_selection_from_layer, "", "Selection/Expand/Current layer", "^b", 0);
             menu_->addItem(event_main_menu_resizeSelection_all, "", "Selection/Expand/Select All", "^a");
-            
+           
         } // menu
 
         { // image panels
@@ -412,8 +416,14 @@ namespace editorium
         case event_main_menu_resizeSelection_all:
             resizeSelection(-1);
             break;
+        case event_main_menu_resizeSelection_custom:
+            resizeSelection(-5);
+            break;
         case event_main_menu_file_open:
             choose_file_and_open(true);
+            break;
+        case event_main_menu_file_open_video:
+            choose_video_file_and_ltx_video();
             break;
         case event_main_menu_file_dir_prior:
             open_prior_image(Fl::event_state(FL_CTRL) != 0);
@@ -574,6 +584,13 @@ namespace editorium
 
     void MainWindow::choose_file_and_open(bool clear_layers) {
         open_image_file(clear_layers, choose_image_to_open_fl("main_window_picture"));
+    }
+
+    void MainWindow::choose_video_file_and_ltx_video() {
+        auto path = choose_video_to_open_fl("main_window_video");
+        if (!path.empty()) {
+            generate_video_ltx_model(path);
+        }
     }
 
     void MainWindow::open_other_image(bool next_direction, bool confirm) {
@@ -1030,6 +1047,39 @@ namespace editorium
                 sw = iw;
             }
             image_->view_settings()->set_selected_area(sx, sy, sw, sh);
+        } else if (width == -5) {
+            int w = 0, h = 0;
+            if (!image_->view_settings()->get_selected_area(&x1, &y1, &w, &h)) 
+                return;
+            int size_w = w;
+            int size_h = h;
+            if (getSizeFromDialog("Resize the selection area", &size_w, &size_h, false)) {
+                x1 = (x1 + x2) / 2 - size_w / 2;
+                y1 = (y1 + y2) / 2 - size_h / 2;
+                int im_area_w = 0, im_area_h = 0, im_area_x = 0, im_area_y = 0;
+                image_->view_settings()->get_image_area(&im_area_x, &im_area_y, &im_area_w, &im_area_h);
+                if (x1 < 0) {
+                    x1 = 0;
+                }
+                if (y1 < 0) {
+                    y1 = 0;
+                }
+                if (x1 + size_w > im_area_w) {
+                    x1 = im_area_w - size_w;
+                    if (x1 < 0) {
+                        size_w = size_w + x1;
+                        x1 = 0;
+                    }
+                }
+                if (y1 + size_h > im_area_h) {
+                    y1 = im_area_h - size_h;
+                    if (y1 < 0) {
+                        size_h = size_h + y1;
+                        y1 = 0;
+                    }
+                }
+                image_->view_settings()->set_selected_area(x1, y1, size_w, size_h);
+            }
         } else if (getSizeFromDialog("Resize the selection area", &w, &h)) {
             x1 = (x1 + x2) / 2 - w / 2;
             y1 = (y1 + y2) / 2 - h / 2;
